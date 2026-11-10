@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-11 01:10:18",
- "updatedTs": 1794330618,
+ "updatedAt": "2026-11-11 06:33:30",
+ "updatedTs": 1794350010,
  "hasPrev": true,
  "total": 100,
  "rows": [
@@ -87,13 +87,13 @@
    "userid": 4496302,
    "name": "張城主",
    "menpai": "财神帮",
-   "lv": 3865,
-   "kongfu": 2021.67,
-   "exp": 5794457592.7589,
-   "money": 86264926.908529,
-   "yueli": 1067703.25,
+   "lv": 3866,
+   "kongfu": 2022,
+   "exp": 5796352261.4826,
+   "money": 89582007.752141,
+   "yueli": 1068048.25,
    "xiayi": -1105246,
-   "looks": 12688,
+   "looks": 12698,
    "fuyuan": 288,
    "age": 424,
    "sex": "女",
@@ -193,8 +193,8 @@
    "age": 424,
    "sex": "男",
    "wuxing": 20,
-   "prevRank": 11,
-   "delta": 1
+   "prevRank": 10,
+   "delta": 0
   },
   {
    "rank": 11,
@@ -212,8 +212,8 @@
    "age": 424,
    "sex": "女",
    "wuxing": 255,
-   "prevRank": 12,
-   "delta": 1
+   "prevRank": 11,
+   "delta": 0
   },
   {
    "rank": 12,
@@ -231,8 +231,8 @@
    "age": 424,
    "sex": "男",
    "wuxing": 255,
-   "prevRank": 13,
-   "delta": 1
+   "prevRank": 12,
+   "delta": 0
   },
   {
    "rank": 13,
@@ -250,8 +250,8 @@
    "age": 424,
    "sex": "男",
    "wuxing": 15,
-   "prevRank": 14,
-   "delta": 1
+   "prevRank": 13,
+   "delta": 0
   },
   {
    "rank": 14,
@@ -269,8 +269,8 @@
    "age": 424,
    "sex": "女",
    "wuxing": 15,
-   "prevRank": 15,
-   "delta": 1
+   "prevRank": 14,
+   "delta": 0
   },
   {
    "rank": 15,
@@ -288,8 +288,8 @@
    "age": 412,
    "sex": "女",
    "wuxing": 255,
-   "prevRank": 16,
-   "delta": 1
+   "prevRank": 15,
+   "delta": 0
   },
   {
    "rank": 16,
@@ -307,8 +307,8 @@
    "age": 424,
    "sex": "男",
    "wuxing": 255,
-   "prevRank": 17,
-   "delta": 1
+   "prevRank": 16,
+   "delta": 0
   },
   {
    "rank": 17,
@@ -326,8 +326,8 @@
    "age": 424,
    "sex": "男",
    "wuxing": 10,
-   "prevRank": 18,
-   "delta": 1
+   "prevRank": 17,
+   "delta": 0
   },
   {
    "rank": 18,
@@ -345,8 +345,8 @@
    "age": 424,
    "sex": "男",
    "wuxing": 255,
-   "prevRank": 19,
-   "delta": 1
+   "prevRank": 18,
+   "delta": 0
   },
   {
    "rank": 19,
@@ -364,8 +364,8 @@
    "age": 390,
    "sex": "男",
    "wuxing": 255,
-   "prevRank": 20,
-   "delta": 1
+   "prevRank": 19,
+   "delta": 0
   },
   {
    "rank": 20,
@@ -383,8 +383,8 @@
    "age": 424,
    "sex": "男",
    "wuxing": 15,
-   "prevRank": 10,
-   "delta": -10
+   "prevRank": 20,
+   "delta": 0
   },
   {
    "rank": 21,
@@ -1170,15 +1170,15 @@
    "userid": 8452242,
    "name": "剑小玖",
    "menpai": "峨眉派",
-   "lv": 3271,
-   "kongfu": 1823.67,
-   "exp": 3515706425.1717,
-   "money": 159519680,
-   "yueli": 699363,
+   "lv": 3275,
+   "kongfu": 1825,
+   "exp": 3528013193.6446,
+   "money": 161485867.95643,
+   "yueli": 701013,
    "xiayi": -10349.4,
-   "looks": 4999,
+   "looks": 5001,
    "fuyuan": 172,
-   "age": 363,
+   "age": 364,
    "sex": "女",
    "wuxing": 255,
    "prevRank": 62,
@@ -1818,17 +1818,17 @@
    "menpai": "昆仑派",
    "lv": 3041,
    "kongfu": 1747,
-   "exp": 2824892661.5173,
-   "money": 3069162,
+   "exp": 2825005356.5173,
+   "money": 3066802,
    "yueli": 639462,
-   "xiayi": 1066403.5,
+   "xiayi": 1066603.5,
    "looks": 5660,
    "fuyuan": 207,
    "age": 240,
    "sex": "男",
    "wuxing": 255,
-   "prevRank": 97,
-   "delta": 1
+   "prevRank": 96,
+   "delta": 0
   },
   {
    "rank": 97,
@@ -1846,8 +1846,8 @@
    "age": 253,
    "sex": "男",
    "wuxing": 255,
-   "prevRank": 96,
-   "delta": -1
+   "prevRank": 97,
+   "delta": 0
   },
   {
    "rank": 98,
