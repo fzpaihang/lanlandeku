@@ -345,28 +345,78 @@
   function skillList(list, limit) {
     var wrap = document.createElement('div');
     var shown = list.slice(0, limit);
+    var query = '';
 
-    function paint() {
-      wrap.textContent = '';
+    // 搜索框
+    var box = h('div', 'pf-search');
+    var input = document.createElement('input');
+    input.type = 'search';
+    input.className = 'pf-search-input';
+    input.placeholder = '搜索武学名称';
+    input.setAttribute('aria-label', '搜索该玩家的武学');
+    input.setAttribute('enterkeyhint', 'search');
+    input.autocomplete = 'off';
+    box.appendChild(input);
+
+    var count = h('span', 'pf-count');
+    count.setAttribute('role', 'status');
+    count.setAttribute('aria-live', 'polite');
+    box.appendChild(count);
+    wrap.appendChild(box);
+
+    // 列表容器（只重绘这里，保证输入框不丢焦点）
+    var host = document.createElement('div');
+    wrap.appendChild(host);
+
+    function renderList(rows, truncated) {
+      host.textContent = '';
       var ul = h('ul', 'pf-list');
-      shown.forEach(function (s) {
+      rows.forEach(function (s) {
         var li = document.createElement('li');
         li.appendChild(h('span', null, s.n));
         li.appendChild(h('span', 'lv', s.lv + ' 级'));
         ul.appendChild(li);
       });
-      wrap.appendChild(ul);
+      host.appendChild(ul);
 
-      if (shown.length < list.length) {
+      if (truncated) {
         var b = h('button', 'pf-more', '展开全部 ' + list.length + ' 门');
         b.type = 'button';
         b.addEventListener('click', function () {
           shown = list.slice();
           paint();
         });
-        wrap.appendChild(b);
+        host.appendChild(b);
       }
     }
+
+    function paint() {
+      var q = query.trim().toLowerCase();
+
+      if (q) {
+        var hit = list.filter(function (s) {
+          return (s.n || '').toLowerCase().indexOf(q) >= 0 ||
+                 (s.id || '').toLowerCase().indexOf(q) >= 0;
+        });
+        count.textContent = hit.length ? '匹配 ' + hit.length + ' 门' : '';
+        if (!hit.length) {
+          host.textContent = '';
+          host.appendChild(h('p', 'pf-none', '没有匹配「' + query.trim() + '」的武学'));
+          return;
+        }
+        renderList(hit, false);
+        return;
+      }
+
+      count.textContent = '共 ' + list.length + ' 门';
+      renderList(shown, shown.length < list.length);
+    }
+
+    input.addEventListener('input', function () {
+      query = input.value;
+      paint();
+    });
+
     paint();
     return wrap;
   }

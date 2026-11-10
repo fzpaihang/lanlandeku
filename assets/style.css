@@ -329,3 +329,19 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .pf-tag.new{background:#eef6f0;border:1px solid #d8e9dd}
 .pf-tag.new b{color:#2f7a5c}
 .pf-tag.new span{color:#7c9a8b}
+
+/* 详情弹窗内的武学搜索 */
+.pf-search{
+  display:flex;align-items:center;gap:10px;
+  margin:0 0 8px;
+}
+.pf-search-input{
+  flex:1 1 auto;min-width:0;
+  border:1px solid var(--line);background:#fff;border-radius:8px;
+  padding:7px 11px;font-size:13.5px;color:var(--ink);
+  outline:none;transition:border-color .14s,box-shadow .14s;
+}
+.pf-search-input::placeholder{color:var(--muted)}
+.pf-search-input:focus{border-color:#c9b7b2;box-shadow:0 0 0 3px rgba(140,47,40,.07)}
+.pf-count{flex:0 0 auto;color:var(--muted);font-size:12px;white-space:nowrap}
+.pf-none{margin:10px 0 4px;color:var(--muted);font-size:13px;text-align:center}

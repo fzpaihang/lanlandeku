@@ -32,8 +32,9 @@ SLOT_CN = {
 }
 EQUIP_CN = {
     "weapon": "武器", "cloth": "衣服", "pants": "下装", "shoes": "鞋履",
-    "head": "头饰", "yaozhui": "腰坠", "neck": "颈饰", "ring": "戒指",
-    "wrist": "护腕", "belt": "腰带", "cape": "披风", "mask": "面具",
+    "head": "头饰", "yaozhui": "腰坠", "neck": "颈饰", "necklace": "颈饰",
+    "ring": "戒指", "wrist": "护腕", "hand": "护手", "belt": "腰带",
+    "cape": "披风", "mask": "面具",
 }
 
 
