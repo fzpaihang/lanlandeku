@@ -182,7 +182,7 @@ def main():
     players, fail = {}, []
     olds = {}
     out_dir0 = os.path.join(BASE, "data", "profiles")
-    today = time.strftime("%Y-%m-%d", time.localtime(t))
+    today = F.bj_date(t)
     for i, uid in enumerate(targets, 1):
         try:
             # 先读上一版，供「新增武学」比对；写盘在最后统一做
@@ -238,7 +238,7 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     written = 0
     for uid, prof in players.items():
-        prof["updatedAt"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        prof["updatedAt"] = F.bj_time(t, "%Y-%m-%d %H:%M:%S")
         prof["updatedTs"] = int(t)
         p = os.path.join(out_dir, "%s.json" % uid)
         with io.open(p, "w", encoding="utf-8") as f:

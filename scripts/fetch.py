@@ -32,6 +32,18 @@ K02 = b"cbIhHHuYQIJ1JkwlLupIvNIvdQDfNxSF"   # JHHU02，握手响应用
 IV02 = b"PcIQIZifRalhZ88n"
 TAG = b"0"
 SLEEP = 0.6          # 页间隔：太快会触发 20616 请求错误（限速）
+
+# 展示用的时间一律按北京时间（UTC+8）格式化。
+# GitHub Actions 的 runner 是 UTC，直接用 time.localtime 会写成 UTC，导致页面显示差 8 小时。
+BJ_OFFSET = 8 * 3600
+
+
+def bj_time(ts, fmt="%Y-%m-%d %H:%M"):
+    return time.strftime(fmt, time.gmtime(float(ts) + BJ_OFFSET))
+
+
+def bj_date(ts):
+    return bj_time(ts, "%Y-%m-%d")
 RETRY = 3
 
 BOARD_CN = {1: "高手榜"}
@@ -187,7 +199,7 @@ def update_history(rows, now_ts):
     - 只保留最近 8 天，且最多 60 条
     """
     p = os.path.join(BASE_DIR, "data", "exp-history.json")
-    lt = time.localtime(now_ts)
+
 
     hist = {"snapshots": []}
     if os.path.exists(p):
@@ -200,8 +212,8 @@ def update_history(rows, now_ts):
     snaps = list(hist.get("snapshots", []))
     entry = {
         "ts": int(now_ts),
-        "date": time.strftime("%Y-%m-%d", lt),
-        "time": time.strftime("%H:%M", lt),
+        "date": bj_date(now_ts),
+        "time": bj_time(now_ts, "%H:%M"),
         "exp": {str(r["userid"]): r["exp"] for r in rows if r.get("exp") is not None},
     }
 
@@ -215,7 +227,7 @@ def update_history(rows, now_ts):
 
     tmp = p + ".tmp"
     with io.open(tmp, "w", encoding="utf-8") as f:
-        json.dump({"updatedAt": time.strftime("%Y-%m-%d %H:%M:%S", lt),
+        json.dump({"updatedAt": bj_time(now_ts, "%Y-%m-%d %H:%M:%S"),
                    "snapshots": snaps}, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, p)
     return len(snaps)
@@ -328,7 +340,7 @@ def main():
     payload = {
         "board": BOARD_CN.get(board, "榜%d" % board),
         "boardType": board,
-        "updatedAt": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+        "updatedAt": bj_time(t, "%Y-%m-%d %H:%M:%S"),
         "updatedTs": int(t),
         "hasPrev": has_prev,
         "total": len(out_rows),
