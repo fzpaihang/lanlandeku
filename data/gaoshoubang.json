@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-10 23:33:51",
- "updatedTs": 1794324781,
+ "updatedAt": "2026-11-10 17:11:05",
+ "updatedTs": 1794330618,
  "hasPrev": true,
  "total": 100,
  "rows": [
@@ -179,25 +179,6 @@
   },
   {
    "rank": 10,
-   "userid": 6479440,
-   "name": "翱翔天际",
-   "menpai": "崆峒派",
-   "lv": 3828,
-   "kongfu": 1957.67,
-   "exp": 5629638691.0806,
-   "money": 389783975,
-   "yueli": 1068007,
-   "xiayi": -20432.2,
-   "looks": 6310,
-   "fuyuan": 229,
-   "age": 424,
-   "sex": "男",
-   "wuxing": 15,
-   "prevRank": 10,
-   "delta": 0
-  },
-  {
-   "rank": 11,
    "userid": 6700198,
    "name": "意悠悠",
    "menpai": "华山",
@@ -213,10 +194,10 @@
    "sex": "男",
    "wuxing": 20,
    "prevRank": 11,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 12,
+   "rank": 11,
    "userid": 7257325,
    "name": "唐云卷",
    "menpai": "唐门",
@@ -232,10 +213,10 @@
    "sex": "女",
    "wuxing": 255,
    "prevRank": 12,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 13,
+   "rank": 12,
    "userid": 7810830,
    "name": "桖刀老祖",
    "menpai": "虚渺宫",
@@ -251,10 +232,10 @@
    "sex": "男",
    "wuxing": 255,
    "prevRank": 13,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 14,
+   "rank": 13,
    "userid": 4753455,
    "name": "天山喵喵",
    "menpai": "虚渺宫",
@@ -270,10 +251,10 @@
    "sex": "男",
    "wuxing": 15,
    "prevRank": 14,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 15,
+   "rank": 14,
    "userid": 4168426,
    "name": "微生念",
    "menpai": "问情宫",
@@ -289,10 +270,10 @@
    "sex": "女",
    "wuxing": 15,
    "prevRank": 15,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 16,
+   "rank": 15,
    "userid": 6136914,
    "name": "丞澈",
    "menpai": "蓬莱岛",
@@ -308,10 +289,10 @@
    "sex": "女",
    "wuxing": 255,
    "prevRank": 16,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 17,
+   "rank": 16,
    "userid": 3953471,
    "name": "惊慌失措",
    "menpai": "海鲸帮",
@@ -327,10 +308,10 @@
    "sex": "男",
    "wuxing": 255,
    "prevRank": 17,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 18,
+   "rank": 17,
    "userid": 5202735,
    "name": "孤墨尘",
    "menpai": "虚渺宫",
@@ -346,10 +327,10 @@
    "sex": "男",
    "wuxing": 10,
    "prevRank": 18,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 19,
+   "rank": 18,
    "userid": 6042929,
    "name": "桃沐櫻風",
    "menpai": "武当派",
@@ -365,10 +346,10 @@
    "sex": "男",
    "wuxing": 255,
    "prevRank": 19,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 20,
+   "rank": 19,
    "userid": 4421011,
    "name": "张城主",
    "menpai": "落月山庄",
@@ -384,7 +365,26 @@
    "sex": "男",
    "wuxing": 255,
    "prevRank": 20,
-   "delta": 0
+   "delta": 1
+  },
+  {
+   "rank": 20,
+   "userid": 6479440,
+   "name": "翱翔天际",
+   "menpai": "崆峒派",
+   "lv": 3828,
+   "kongfu": 1957.67,
+   "exp": 5630084277.0806,
+   "money": 389994522,
+   "yueli": 1068282,
+   "xiayi": -20432.2,
+   "looks": 6310,
+   "fuyuan": 229,
+   "age": 424,
+   "sex": "男",
+   "wuxing": 15,
+   "prevRank": 10,
+   "delta": -10
   },
   {
    "rank": 21,
@@ -1531,15 +1531,15 @@
    "userid": 9702639,
    "name": "铁铠冥魂",
    "menpai": "虚渺宫",
-   "lv": 3121,
-   "kongfu": 1773.67,
-   "exp": 3053064982.4592,
-   "money": 31043180.210135,
-   "yueli": 577496,
-   "xiayi": 657815.9,
+   "lv": 3123,
+   "kongfu": 1774.33,
+   "exp": 3059538834.8588,
+   "money": 32476415.95777,
+   "yueli": 578622,
+   "xiayi": 659775.9,
    "looks": 6430,
    "fuyuan": 235,
-   "age": 278,
+   "age": 279,
    "sex": "男",
    "wuxing": 255,
    "prevRank": 81,
@@ -1813,6 +1813,25 @@
   },
   {
    "rank": 96,
+   "userid": 7088369,
+   "name": "王逸乐",
+   "menpai": "昆仑派",
+   "lv": 3041,
+   "kongfu": 1747,
+   "exp": 2824892661.5173,
+   "money": 3069162,
+   "yueli": 639462,
+   "xiayi": 1066403.5,
+   "looks": 5660,
+   "fuyuan": 207,
+   "age": 240,
+   "sex": "男",
+   "wuxing": 255,
+   "prevRank": 97,
+   "delta": 1
+  },
+  {
+   "rank": 97,
    "userid": 9126124,
    "name": "贾钰",
    "menpai": "天龙寺",
@@ -1828,26 +1847,7 @@
    "sex": "男",
    "wuxing": 255,
    "prevRank": 96,
-   "delta": 0
-  },
-  {
-   "rank": 97,
-   "userid": 7088369,
-   "name": "王逸乐",
-   "menpai": "昆仑派",
-   "lv": 3040,
-   "kongfu": 1746.67,
-   "exp": 2823011419.5916,
-   "money": 2511688,
-   "yueli": 639286,
-   "xiayi": 1066403.5,
-   "looks": 5650,
-   "fuyuan": 207,
-   "age": 240,
-   "sex": "男",
-   "wuxing": 255,
-   "prevRank": 97,
-   "delta": 0
+   "delta": -1
   },
   {
    "rank": 98,
