@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="description" content="放置江湖 高手榜查询：实时排行榜、按昵称/ID/门派搜索、数值排序。" />
+<meta name="theme-color" content="#8c2f28" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="放置江湖 · 高手榜" />
+<meta property="og:description" content="全服武学造诣排行，支持按昵称、ID、门派查询。" />
+<meta name="twitter:card" content="summary" />
+<!-- 部署后把下面这行换成你自己的绝对地址，例如 https://xxx.github.io/fzjh-rank/ -->
+<!-- <link rel="canonical" href="https://example.github.io/fzjh-rank/" /> -->
+<title>放置江湖 · 高手榜</title>
+<link rel="stylesheet" href="./assets/style.css?v=11" />
+</head>
+<body>
+
+<a class="skip" href="#board">跳到榜单内容</a>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">
+      <span class="seal">江<br>湖</span>
+      <div>
+        <h1>高手榜</h1>
+        <p class="sub">放置江湖 · 全服高手榜</p>
+      </div>
+      <a class="navbtn" href="./exp.html">经验变化 ›</a>
+    </div>
+    <div class="meta">
+      <span id="updated" class="pill">数据加载中…</span>
+      <span id="count" class="pill ghost">— 人</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="搜索昵称 / ID / 门派" autocomplete="off" enterkeyhint="search" aria-label="搜索玩家" />
+      <button id="clear" class="clear" type="button" aria-label="清空搜索" hidden>×</button>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="门派筛选"></div>
+  </section>
+
+  <section class="tablecard" id="board" tabindex="-1">
+    <div class="scroll">
+      <table id="tbl">
+        <caption class="sr-only">放置江湖高手榜前 100 名</caption>
+        <thead>
+          <tr>
+            <th class="c-rank" data-key="rank" scope="col">名次</th>
+            <th class="c-name" data-key="name" scope="col">侠名</th>
+            <th class="c-school" data-key="menpai" scope="col">门派</th>
+            <th class="c-lv num" data-key="lv" scope="col">等级</th>
+            <th class="c-exp num" data-key="exp" scope="col">经验</th>
+            <th class="c-luck num hide-sm" data-key="fuyuan" scope="col">福缘</th>
+            <th class="c-looks num hide-md" data-key="looks" scope="col">容貌</th>
+            <th class="c-age num hide-md" data-key="age" scope="col">年龄</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p id="empty" class="empty" hidden>没有匹配的侠客，换个关键词试试。</p>
+  </section>
+
+  <p class="foot">
+    数据取自游戏内公开排行榜，每日自动刷新 2 次 · 仅供参考，不作为任何交易依据。<br />
+    点击表头可排序，点击侠名可看该玩家详情；地址后加 <code>?me=你的ID</code> 可高亮自己。
+  </p>
+</main>
+
+<dialog id="pf" class="pf" aria-labelledby="pf-name">
+  <div class="pf-head">
+    <div class="pf-title">
+      <h2 id="pf-name">—</h2>
+      <p class="pf-sub" id="pf-sub"></p>
+    </div>
+    <button id="pf-close" class="pf-x" type="button" aria-label="关闭详情">×</button>
+  </div>
+  <div class="pf-body" id="pf-body"></div>
+</dialog>
+
+<script src="./assets/app.js?v=11"></script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+name: 刷新高手榜
+
+# 北京时间 = UTC+8
+#   0 22 * * *  → 次日 06:00（早班，抓全量：榜单 + 档案）
+#   0 10 * * *  → 当日 18:00（晚班，只抓榜单，档案每天更新一次就够）
+on:
+  schedule:
+    - cron: '0 22 * * *'
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '运行模式'
+        required: true
+        default: 'probe'
+        type: choice
+        options:
+          - probe        # 只验证能不能连上游戏服，不写文件
+          - full         # 榜单 + 档案
+          - board        # 只抓榜单
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-fzjh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+
+      # 凭据全部走 Secrets，绝不写进仓库
+      - name: 连通性探测
+        env:
+          FZJH_UUID: ${{ secrets.FZJH_UUID }}
+          FZJH_ACCOUNT: ${{ secrets.FZJH_ACCOUNT }}
+          FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
+        run: python scripts/fetch.py --probe
+
+      - name: 抓榜单
+        if: github.event_name == 'schedule' || inputs.mode != 'probe'
+        env:
+          FZJH_UUID: ${{ secrets.FZJH_UUID }}
+          FZJH_ACCOUNT: ${{ secrets.FZJH_ACCOUNT }}
+          FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
+        run: python scripts/fetch.py
+
+      - name: 抓玩家档案
+        # 档案体积大（约 1MB/轮），每天只在早班更新一次
+        if: (github.event_name == 'schedule' && github.event.schedule == '0 22 * * *') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')
+        env:
+          FZJH_UUID: ${{ secrets.FZJH_UUID }}
+          FZJH_ACCOUNT: ${{ secrets.FZJH_ACCOUNT }}
+          FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
+        run: python scripts/fetch_profiles.py
+
+      - name: 提交数据
+        run: |
+          set -e
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data
+          if git diff --staged --quiet; then
+            echo "数据无变化，跳过提交"
+            exit 0
+          fi
+          git commit -m "数据刷新 $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')"
+          git push
+
+      - name: 结果摘要
+        if: always()
+        run: python scripts/summary.py >> $GITHUB_STEP_SUMMARY

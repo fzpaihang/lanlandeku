@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="description" content="放置江湖 高手榜经验变化：三日经验增长对比。" />
+<meta name="theme-color" content="#8c2f28" />
+<meta name="robots" content="noindex" />
+<title>经验变化 · 放置江湖高手榜</title>
+<link rel="stylesheet" href="./assets/style.css?v=11" />
+</head>
+<body>
+
+<a class="skip" href="#board">跳到榜单内容</a>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">
+      <span class="seal">经<br>验</span>
+      <div>
+        <h1>经验变化</h1>
+        <p class="sub">放置江湖 · 高手榜三日增长对比</p>
+      </div>
+      <a class="navbtn" href="./index.html">‹ 返回高手榜</a>
+    </div>
+    <div class="meta">
+      <span id="span-info" class="pill">对比区间读取中…</span>
+      <span id="count" class="pill ghost">— 人</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <p id="banner" class="banner" hidden></p>
+
+  <section class="tablecard" id="board" tabindex="-1">
+    <div class="scroll">
+      <table id="tbl">
+        <caption class="sr-only">高手榜玩家经验增长对比</caption>
+        <thead>
+          <tr>
+            <th class="c-rank" data-key="rank" scope="col">名次</th>
+            <th class="c-name" data-key="name" scope="col">侠名</th>
+            <th class="c-school" data-key="menpai" scope="col">门派</th>
+            <th class="c-exp num" data-key="exp" scope="col">当前经验</th>
+            <th class="c-grow num" data-key="grow" scope="col">区间增长</th>
+            <th class="c-day num hide-sm" data-key="perDay" scope="col">日均</th>
+            <th class="c-pct num hide-md" data-key="pct" scope="col">增幅</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p id="empty" class="empty" hidden>数据不足，暂时无法对比。</p>
+  </section>
+
+  <p class="foot">
+    每次刷新都会记一次经验快照（5 分钟内重跑则覆盖上一条），保留最近 8 天。<br />
+    ⚠️ 经验不是实时值——玩家领取经验后才会跳变，所以短时间的差值常常是 0，请以天为单位看。<br />
+    「区间增长」默认取 3 天前那一次快照做对比；不足 3 天时用最早的一条，表头会标出实际区间。
+  </p>
+</main>
+
+<script src="./assets/exp.js?v=11"></script>
+</body>
+</html>
