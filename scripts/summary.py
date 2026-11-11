@@ -32,7 +32,8 @@ def main():
     args = sys.argv[1:]
     if "--server" in args:
         want = args[args.index("--server") + 1]
-        servers = [s for s in servers if s.get("key") == want]
+        keys = [x.strip() for x in want.split(",") if x.strip()]
+        servers = [s for s in servers if s.get("key") in keys]
         if not servers:
             print("- **本次目标分区 `%s` 不在 index.json 里** ❌" % want)
             return 1

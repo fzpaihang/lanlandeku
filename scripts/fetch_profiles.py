@@ -348,10 +348,13 @@ def main():
 
     if "--server" in args:
         want = args[args.index("--server") + 1]
-        targets = [s for s in servers if s["key"] == want]
-        if not targets:
-            raise SystemExit("没有这个服务器：%s（可选：%s）" % (
-                want, "、".join(s["key"] for s in servers)))
+        # 支持逗号分隔多个分区，与 fetch.py 保持一致
+        keys = [x.strip() for x in want.split(",") if x.strip()]
+        targets = [s for s in servers if s["key"] in keys]
+        missing = [k for k in keys if k not in [s["key"] for s in servers]]
+        if missing or not targets:
+            raise SystemExit("没有这些服务器：%s（可选：%s）" % (
+                "、".join(missing or keys), "、".join(s["key"] for s in servers)))
     else:
         targets = servers
 
