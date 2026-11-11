@@ -59,6 +59,13 @@
     hint.setAttribute('data-show', overflow ? '1' : '0');
   }
 
+  // 时间戳 → 两位年份-月份（如 18-02）
+  function fmtYM(ts) {
+    if (!ts) return '';
+    var d = new Date(ts * 1000);
+    return String(d.getFullYear()).slice(2) + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+  }
+
   // 「2026-11-10」→ 今天 / 昨天 / 3 天前 / 11-01
   function agoLabel(date) {
     if (!date) return '';
@@ -302,6 +309,28 @@
     grid.appendChild(cell('加力', p.jiaLi));
     grid.appendChild(cell('正气', fmtBig(p.zhengqi)));
     pfBody.appendChild(grid);
+
+    // 传承历程（曾用名）
+    var hist = p.history || [];
+    if (hist.length) {
+      var sH = section('传承历程 · ' + hist.length + ' 转');
+      var chain = h('div', 'pf-chain');
+
+      var origin = h('span', 'pf-life origin');
+      origin.appendChild(h('b', null, hist[0].p || '初代'));
+      chain.appendChild(origin);
+
+      hist.forEach(function (x, i) {
+        chain.appendChild(h('span', 'pf-arrow', '→'));
+        var cell = h('span', 'pf-life' + (i === hist.length - 1 ? ' cur' : ''));
+        cell.appendChild(h('b', null, x.n || '—'));
+        if (x.t) cell.appendChild(h('span', 'when', fmtYM(x.t)));
+        chain.appendChild(cell);
+      });
+
+      sH.appendChild(chain);
+      pfBody.appendChild(sH);
+    }
 
     // 准备位
     var prepKeys = Object.keys(p.prepared || {});

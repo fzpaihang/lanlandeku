@@ -401,3 +401,20 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   font-variant-numeric:tabular-nums;white-space:nowrap;
 }
 .zhuan.hi{background:#f8ece8;color:var(--accent)}
+
+/* 传承历程（曾用名） */
+.pf-chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.pf-life{
+  display:inline-flex;flex-direction:column;align-items:center;gap:1px;
+  padding:5px 10px;border-radius:9px;
+  background:#f7f4ed;border:1px solid var(--line-2);
+}
+.pf-life b{font-weight:600;font-size:13.5px;color:var(--ink-2)}
+.pf-life .when{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pf-life.cur{background:var(--accent-soft);border-color:#e3cec8}
+.pf-life.cur b{color:var(--accent)}
+.pf-arrow{color:#c6cad0;font-size:12px;line-height:1}
+@media (max-width:560px){
+  .pf-life{padding:4px 8px}
+  .pf-life b{font-size:13px}
+}

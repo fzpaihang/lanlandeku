@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.join(BASE, "scripts"))
 
 import fetch as F  # noqa: E402  复用握手 / 加密 / 请求
 
-SLEEP = 0.55
+SLEEP = 0.7
 NEW_DAYS = 30          # 「近期新增」保留天数
 
 SLOT_CN = {
@@ -105,6 +105,18 @@ def slim(p, board_row, names, old=None, today=None):
         except (TypeError, ValueError):
             return None
 
+    # ---- 传承链（曾用名）：每条的 parentName 是上一世，inheritName 是这一世 ----
+    history = []
+    for x in (p.get("inheritHistory") or []):
+        if not isinstance(x, dict):
+            continue
+        history.append({
+            "n": x.get("inheritName") or "",
+            "p": x.get("parentName") or "",
+            "t": int(x.get("inheritTime") or 0),
+        })
+    history.sort(key=lambda x: x["t"])
+
     # ---- 近期新增武学：与上一版档案比对 ----
     new_skills = []
     if old:
@@ -150,6 +162,7 @@ def slim(p, board_row, names, old=None, today=None):
         "rank": (board_row or {}).get("rank"),
         "skills": skills,
         "newSkills": new_skills,
+        "history": history,
         "prepared": prepared,
         "equips": equips,
     }
@@ -212,7 +225,7 @@ def fetch_server(srv, names, args):
     if fail and "--only" not in args:
         retry_ids = [f["userid"] for f in fail]
         print("[2.5/3] 失败 %d 份，冷却后再补一轮…" % len(retry_ids))
-        time.sleep(8)
+        time.sleep(20)
         still = []
         for uid in retry_ids:
             try:

@@ -193,13 +193,22 @@ def rows_of(d):
 
 
 def post_with_retry(cfg, path, body, keys, t):
+    """请求失败（含空响应导致解析失败）自动重试，退避 3s / 6s。
+
+    限流时服务端会返回空包，api_post 会抛 JSON 解析异常，这里一并兜住。
+    """
+    last = {"errcode": -1, "errmsg": "未发起请求"}
     for i in range(RETRY):
-        d = api_post(cfg, path, body, keys, t)
-        if d.get("errcode") == 0:
-            return d
+        try:
+            d = api_post(cfg, path, body, keys, t)
+            if d.get("errcode") == 0:
+                return d
+            last = d
+        except Exception as e:
+            last = {"errcode": -1, "errmsg": "%s: %s" % (type(e).__name__, e)}
         if i < RETRY - 1:
-            time.sleep(3)
-    return d
+            time.sleep(3 + i * 3)
+    return last
 
 
 def update_history(rows, now_ts, out_dir):
