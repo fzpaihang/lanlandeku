@@ -17,6 +17,7 @@
 
   var el = {
     tbody: document.getElementById('tbody'),
+    cards: document.getElementById('cards'),
     q: document.getElementById('q'),
     clear: document.getElementById('clear'),
     chips: document.getElementById('chips'),
@@ -25,6 +26,10 @@
     empty: document.getElementById('empty'),
     tbl: document.getElementById('tbl')
   };
+
+  /* 窄屏走卡片列表，其余走表格；断点与 style.css 的 560px 保持一致 */
+  var mqMobile = window.matchMedia('(max-width: 560px)');
+  var isMobile = function () { return mqMobile.matches; };
 
   /* ---------- 工具 ---------- */
 
@@ -132,15 +137,99 @@
     return out;
   }
 
+  /* 移动端卡片：主行 名次+侠名+转数，次行 门派·等级·经验·福缘
+     刻意不放 uid（详情里有）和武学造诣（榜单不展示该字段） */
+  function renderCards(list) {
+    if (!el.cards) return;
+    el.cards.textContent = '';
+    var frag = document.createDocumentFragment();
+
+    list.forEach(function (r) {
+      var hid = !!hiddenSet[String(r.userid)];
+      var isMe = state.me && String(r.userid) === String(state.me);
+      var cls = 'pcard' + (r.rank <= 3 ? ' rk' + r.rank : '') + (isMe ? ' me' : '');
+      var card = h('article', cls);
+
+      // 左列：名次 + 涨跌 / NEW
+      var left = h('div', 'pc-l');
+      left.appendChild(h('span', 'rank' + (r.rank <= 3 ? ' r' + r.rank : ''), String(r.rank)));
+      if (state.hasPrev && r.delta !== null && r.delta !== undefined && r.delta !== 0) {
+        left.appendChild(h('span', 'delta ' + (r.delta > 0 ? 'up' : 'down'),
+          (r.delta > 0 ? '▲' : '▼') + Math.abs(r.delta)));
+      } else if (state.hasPrev && r.delta === null) {
+        left.appendChild(h('span', 'delta new', 'NEW'));
+      }
+      card.appendChild(left);
+
+      var body = h('div', 'pc-body');
+
+      // 主行：侠名 + 我 + 转数
+      var top = h('div', 'pc-top');
+      if (hid) {
+        top.appendChild(h('span', 'nm-plain', r.name || '—'));
+        top.appendChild(h('span', 'badge-hidden', '已隐藏'));
+      } else {
+        var btn = h('button', 'nm-btn');
+        btn.type = 'button';
+        btn.setAttribute('aria-label', '查看 ' + (r.name || '该玩家') + ' 的详细信息');
+        btn.appendChild(h('span', null, r.name || '—'));
+        btn.appendChild(h('span', 'arw', '›'));
+        btn.addEventListener('click', function () { openProfile(r); });
+        top.appendChild(btn);
+      }
+      if (isMe) top.appendChild(h('span', 'badge-me', '我'));
+      if (r.inheritCount !== null && r.inheritCount !== undefined) {
+        var z = Number(r.inheritCount) || 0;
+        top.appendChild(h('span', 'zhuan' + (z >= 4 ? ' hi' : ''), z + '转'));
+      }
+      body.appendChild(top);
+
+      // 次行：门派 · 等级 · 经验 · 福缘
+      var sub = h('div', 'pc-sub');
+      if (r.menpai) sub.appendChild(h('span', 'school', r.menpai));
+      if (hid) {
+        sub.appendChild(h('span', 'pc-kv', '数值已隐藏'));
+      } else {
+        if (r.lv != null) sub.appendChild(kv('等级', String(r.lv)));
+        sub.appendChild(kv('经验', fmtBig(r.exp)));
+        if (r.fuyuan != null) sub.appendChild(kv('福缘', String(r.fuyuan)));
+      }
+      body.appendChild(sub);
+
+      card.appendChild(body);
+      frag.appendChild(card);
+    });
+
+    el.cards.appendChild(frag);
+  }
+
+  function kv(label, value) {
+    var s = h('span', 'pc-kv');
+    s.appendChild(document.createTextNode(label + ' '));
+    s.appendChild(h('b', null, value));
+    return s;
+  }
+
   function render() {
     var list = sorted(state.rows.filter(matches));
-    el.tbody.textContent = '';
     el.empty.hidden = list.length > 0;
+    el.count.textContent = list.length + ' / ' + state.rows.length + ' 人';
+
+    // 窄屏：表格整体不参与渲染，直接出卡片
+    if (isMobile()) {
+      el.tbody.textContent = '';
+      renderCards(list);
+      return;
+    }
+    if (el.cards) el.cards.textContent = '';
 
     var frag = document.createDocumentFragment();
     list.forEach(function (r) {
       var tr = document.createElement('tr');
-      if (state.me && String(r.userid) === String(state.me)) tr.className = 'me';
+      var rowCls = [];
+      if (state.me && String(r.userid) === String(state.me)) rowCls.push('me');
+      if (r.rank <= 3) rowCls.push('rk' + r.rank);
+      if (rowCls.length) tr.className = rowCls.join(' ');
 
       // 名次
       var tdRank = h('td', 'c-rank');
@@ -574,6 +663,11 @@
 
       // 窗口尺寸或滚动位置变化时，更新「左右滑动」提示
       window.addEventListener('resize', updateScrollHint);
+
+      // 跨过 560px 断点时切换「表格 / 卡片」两套渲染
+      var onMQ = function () { render(); };
+      if (mqMobile.addEventListener) mqMobile.addEventListener('change', onMQ);
+      else if (mqMobile.addListener) mqMobile.addListener(onMQ);
 
       // 支持 ?uid=123 直接打开某人档案
       var uidParam = new URLSearchParams(location.search).get('uid');

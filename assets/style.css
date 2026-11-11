@@ -15,6 +15,12 @@
   --down:#2f7a5c;
   --radius:12px;
   --shadow:0 1px 2px rgba(31,35,40,.03),0 4px 14px rgba(31,35,40,.05);
+  /* 间距基准 4px，实际只用 8 / 12 / 16 / 24 */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px;
+  /* 行高节奏：桌面表格 48，移动卡片 64 */
+  --row-h:48px; --card-h:64px;
+  /* 标题与印记用宋体，正文与数字仍走 sans */
+  --serif:"Songti SC","STSong","SimSun","Noto Serif SC",serif;
 }
 
 *{box-sizing:border-box}
@@ -48,22 +54,33 @@ body{
   padding:20px 0 16px;
   margin-bottom:16px;
 }
-.hero .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:14px;min-width:0}
+/* 固定两栏：左 brand，右 meta（时间/人数/跳转）；分区切换单独占一行 */
+.hero .wrap{
+  display:grid;
+  grid-template-columns:1fr auto;
+  grid-template-areas:
+    "brand meta"
+    "switch switch";
+  align-items:center;
+  gap:var(--sp-2) var(--sp-4);
+}
+.brand{grid-area:brand;display:flex;align-items:center;gap:14px;min-width:0}
+.brand-txt{min-width:0}
 .seal{
   width:44px;height:44px;flex:0 0 44px;border-radius:10px;
   background:var(--accent);color:#fff;
-  font:600 12px/1.15 "Songti SC","STSong",serif;
+  font:600 12px/1.15 var(--serif);
   display:flex;align-items:center;justify-content:center;text-align:center;
   letter-spacing:1px;box-shadow:0 2px 8px rgba(140,47,40,.22);
 }
-h1{margin:0;font-size:21px;font-weight:650;letter-spacing:.5px}
-.sub{margin:2px 0 0;color:var(--muted);font-size:13px}
-.meta{display:flex;gap:8px;flex-wrap:wrap}
+h1{margin:0;font-family:var(--serif);font-size:23px;font-weight:700;letter-spacing:2px;line-height:1.25}
+.sub{margin:1px 0 0;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{grid-area:meta;display:flex;gap:var(--sp-2);align-items:center;flex-wrap:nowrap;justify-content:flex-end}
 .pill{
   display:inline-block;padding:4px 11px;border-radius:999px;
   background:var(--accent-soft);color:var(--accent);
   font-size:12.5px;font-weight:500;white-space:nowrap;
+  font-variant-numeric:tabular-nums;
 }
 .pill.ghost{background:#fff;color:var(--ink-2);border:1px solid var(--line)}
 
@@ -105,12 +122,13 @@ h1{margin:0;font-size:21px;font-weight:650;letter-spacing:.5px}
   box-shadow:var(--shadow);overflow:hidden;
 }
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+/* 固定栅格：列宽只由表头决定，行高统一 48px，长昵称走省略号 */
+table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
 thead th{
   position:sticky;top:0;z-index:2;
   background:#faf8f3;color:var(--ink-2);
   font-size:12.5px;font-weight:600;letter-spacing:.2px;
-  text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);
+  text-align:left;height:40px;padding:0 12px;border-bottom:1px solid var(--line);
   cursor:pointer;user-select:none;white-space:nowrap;
 }
 thead th:hover{color:var(--accent)}
@@ -118,13 +136,29 @@ thead th.num{text-align:right}
 thead th[aria-sort="descending"]::after{content:" ↓";color:var(--accent);font-size:11px}
 thead th[aria-sort="ascending"]::after{content:" ↑";color:var(--accent);font-size:11px}
 
-tbody td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+tbody tr{height:var(--row-h);transition:background .12s}
+tbody td{
+  padding:0 12px;border-bottom:1px solid var(--line-2);
+  vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
 tbody tr:last-child td{border-bottom:0}
-tbody tr{transition:background .12s}
 tbody tr:hover{background:#fbf9f4}
 td.num{text-align:right;font-variant-numeric:tabular-nums}
 
-.c-rank{width:64px}
+/* 前三名：左侧金/银/铜细界栏，替代大色块 */
+tbody tr.rk1 td:first-child{box-shadow:inset 2px 0 0 var(--gold)}
+tbody tr.rk2 td:first-child{box-shadow:inset 2px 0 0 var(--silver)}
+tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
+
+/* 列宽（侠名列自动吃掉剩余宽度） */
+.c-rank{width:72px}
+.c-school{width:104px}
+.c-lv{width:80px}
+.c-exp{width:130px}
+.c-luck{width:72px}
+.c-looks{width:72px}
+.c-age{width:78px}
+
 .rank{
   display:inline-flex;align-items:center;justify-content:center;
   min-width:26px;height:26px;padding:0 6px;border-radius:7px;
@@ -134,12 +168,15 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .rank.r2{background:linear-gradient(135deg,#eceef2,#d3d7de);color:#4a5260}
 .rank.r3{background:linear-gradient(135deg,#f4ddca,#e2b995);color:#6d4426}
 
-.name{font-weight:600;color:var(--ink);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.nm{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+/* 侠名：单行，徽章不换行，超长省略 */
+.name{font-weight:600;color:var(--ink);display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}
+.nm{display:inline-flex;align-items:center;gap:6px;font-weight:600;min-width:0;overflow:hidden}
+.nm > span:first-child,.nm-btn > span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .me .name{color:var(--accent)}
 .badge-me{
-  font-size:10.5px;padding:1px 6px;border-radius:5px;
+  font-size:10.5px;line-height:20px;height:20px;padding:0 6px;border-radius:5px;
   background:var(--accent);color:#fff;font-weight:600;letter-spacing:.3px;
+  flex:0 0 auto;white-space:nowrap;
 }
 
 .school{
@@ -151,7 +188,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   background:#f3f1eb;color:var(--ink-2);font-size:11.5px;white-space:nowrap;
 }
 
-.delta{font-size:11px;font-weight:600;margin-left:6px;letter-spacing:-.2px}
+.delta{font-size:11px;font-weight:600;margin-left:6px;letter-spacing:-.2px;white-space:nowrap}
 .delta.up{color:var(--up)}
 .delta.down{color:var(--down)}
 .delta.new{color:var(--gold)}
@@ -170,34 +207,80 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   font-size:11.5px;color:var(--ink-2);
 }
 
-/* ---------- responsive ---------- */
-@media (max-width:720px){
-  thead th,tbody td{padding:10px 8px}
-  h1{font-size:19px}
+/* ---------- 移动端卡片列表（≤560 显示，≥561 隐藏） ---------- */
+.cards{display:none}
+
+.pcard{
+  display:flex;align-items:center;gap:10px;
+  min-height:var(--card-h);padding:10px 12px;
+  border-bottom:1px solid var(--line-2);
+  position:relative;
 }
+.pcard:last-child{border-bottom:0}
+.pcard.rk1{box-shadow:inset 2px 0 0 var(--gold)}
+.pcard.rk2{box-shadow:inset 2px 0 0 var(--silver)}
+.pcard.rk3{box-shadow:inset 2px 0 0 var(--bronze)}
+
+.pc-l{display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 auto;min-width:34px}
+.pc-body{flex:1 1 auto;min-width:0}
+.pc-top{display:flex;align-items:center;gap:6px;min-width:0;line-height:1.35}
+.pc-top .nm-btn{font-size:15px;min-width:0}
+.pc-top .nm-plain{font-size:15px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-sub{
+  display:flex;align-items:center;gap:10px;flex-wrap:nowrap;overflow:hidden;
+  margin-top:3px;font-size:12px;color:var(--muted);line-height:1.4;
+}
+.pc-kv{white-space:nowrap;font-variant-numeric:tabular-nums}
+.pc-kv b{color:var(--ink-2);font-weight:600}
+.pc-sub .school{font-size:11.5px;padding:1px 7px;flex:0 0 auto}
+.pcard.me .pc-top{color:var(--accent)}
+
+/* 经验页卡片右侧：区间增长为主，增幅为辅 */
+.pc-r{
+  flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:1px;
+  margin-left:8px;text-align:right;
+}
+.pc-r .grow{font-size:14px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pc-pct{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ---------- responsive：三档 ---------- */
+/* 561–900 平板：表格精简为 6 列，「容貌 / 年龄」收进详情弹窗 */
+@media (max-width:900px){
+  thead th,tbody td{padding:0 10px}
+  .c-looks,.c-age{display:none}
+  .c-exp{width:118px}
+  .c-school{width:92px}
+}
+@media (max-width:720px){
+  h1{font-size:20px;letter-spacing:1.5px}
+}
+
+/* ≤560 手机：放弃宽表格，改为一屏一张卡片 */
 @media (max-width:560px){
   .wrap{padding:0 10px}
-  .hero{padding:16px 0 14px;margin-bottom:14px}
-  .hero .wrap{gap:8px}
-  .seal{width:40px;height:40px;flex-basis:40px;font-size:11.5px}
-  .meta{flex:1 1 100%;margin-top:2px}
-  .pill{font-size:11.5px;padding:4px 9px}
-  .c-school{display:none}
-  .school-inline{display:inline-block}
-  /* 表格横向滑动：列全部保留，靠滑动查看（不做吸附，留出可用宽度） */
-  .scroll{overflow-x:auto;overflow-y:hidden}
-  table{table-layout:fixed;width:486px;max-width:none}
-  thead th,tbody td{padding:10px 6px}
-  .c-rank{width:44px}
-  .c-name{width:152px}
-  .c-lv{width:48px}
-  .c-exp{width:80px}
-  .c-luck{width:48px}
-  .c-looks{width:56px}
-  .c-age{width:58px}
-  .nm{white-space:nowrap}
-  .name{flex-direction:column;align-items:flex-start;gap:0;line-height:1.4;font-size:14px}
-  .nm{font-weight:600}
+  .hero{padding:14px 0 12px;margin-bottom:12px}
+  /* 窄屏：品牌 / meta / 分区栏 各占一行，避免 navbtn 被挤出视口 */
+  .hero .wrap{
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "brand"
+      "meta"
+      "switch";
+    gap:6px;
+  }
+  .meta{justify-content:flex-start;flex-wrap:wrap}
+  .brand{gap:10px}
+  .seal{width:36px;height:36px;flex-basis:36px;font-size:10.5px;border-radius:9px}
+  h1{font-size:18px;letter-spacing:1px}
+  .sub{font-size:11.5px;margin-top:0}
+  .pill{font-size:11.5px;padding:3px 9px}
+  .navbtn{padding:4px 10px;font-size:12px;margin-left:0}
+
+  /* 表格与滑动提示全部让位给卡片 */
+  .tablecard .scroll{display:none}
+  .scroll-hint{display:none !important}
+  .cards{display:block}
+
   .chips{
     flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
     padding-bottom:4px;margin-right:-10px;padding-right:10px;
@@ -240,13 +323,13 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   display:flex;align-items:center;justify-content:center;flex:0 0 30px;
 }
 .pf-x:hover{background:#e4ddd0}
-.pf-body{padding:16px 18px 20px;overflow-y:auto;flex:1 1 auto;-webkit-overflow-scrolling:touch}
+.pf-body{padding:16px 18px 20px;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;-webkit-overflow-scrolling:touch}
 
 .pf-grid{
-  display:grid;grid-template-columns:repeat(4,1fr);
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
   gap:8px;margin:0 0 18px;
 }
-.pf-cell{background:#faf8f3;border:1px solid var(--line-2);border-radius:9px;padding:8px 10px}
+.pf-cell{background:#faf8f3;border:1px solid var(--line-2);border-radius:9px;padding:8px 10px;min-width:0}
 .pf-cell dt{color:var(--muted);font-size:11.5px;margin:0 0 2px}
 .pf-cell dd{margin:0;font-size:14.5px;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 
@@ -285,10 +368,11 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .pf-err{color:var(--accent)}
 
 @media (max-width:560px){
-  .pf{width:auto;max-width:calc(100vw - 16px);max-height:88vh;border-radius:14px}
+  /* 用 100%（不含滚动条）而不是 100vw（含滚动条），保证左右留白对称 */
+  .pf{width:calc(100% - 16px);max-width:none;max-height:88vh;border-radius:14px;margin:auto}
   .pf-head{padding:14px 14px 12px}
   .pf-body{padding:14px 14px 18px}
-  .pf-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+  .pf-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
   .pf-cell dd{font-size:13.5px}
 }
 .pf-tag.unknown b{color:var(--muted);font-weight:400}
@@ -359,34 +443,29 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   .scroll-hint[data-show="1"]{display:block}
 }
 
-/* 经验变化页：同样横向滑动，列宽单独配平 */
-@media (max-width:560px){
-  table.tbl-exp{table-layout:fixed;width:506px;max-width:none}
-  .tbl-exp .c-rank{width:44px}
-  .tbl-exp .c-name{width:140px}
-  .tbl-exp .c-exp{width:88px}
-  .tbl-exp .c-grow{width:88px}
-  .tbl-exp .c-day{width:76px}
-  .tbl-exp .c-pct{width:70px}
-}
+/* 经验变化页在窄屏同样走卡片，表格相关的旧横滑列宽已移除 */
 
-/* 分区切换器 */
+
+/* 分区切换器：始终单行，超出则横向滑动（不做换行，避免多行错位） */
 .srv-switch{
-  flex:1 1 100%;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
-  margin-top:11px;padding-top:10px;border-top:1px dashed var(--line-2);
+  grid-area:switch;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;
+  margin-top:9px;padding-top:9px;border-top:1px dashed var(--line-2);
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
 }
-.srv-label{color:var(--muted);font-size:12px;margin-right:2px;letter-spacing:.3px}
+.srv-switch::-webkit-scrollbar{display:none}
+.srv-label{color:var(--muted);font-size:12px;margin-right:2px;letter-spacing:.3px;flex:0 0 auto}
 .srv{
   padding:4px 12px;border-radius:999px;background:#f3f1eb;color:var(--ink-2);
   font-size:12.5px;text-decoration:none;border:1px solid transparent;
-  transition:background .14s,color .14s;white-space:nowrap;
+  transition:background .14s,color .14s;white-space:nowrap;flex:0 0 auto;
 }
 .srv:hover{background:#eae5d9;color:var(--ink)}
 .srv.active{background:var(--accent);color:#fff}
 .srv:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (max-width:560px){
-  .srv-switch{margin-top:8px;padding-top:8px;overflow-x:auto;flex-wrap:nowrap}
-  .srv{flex:0 0 auto;padding:4px 10px;font-size:12px}
+  .srv-switch{margin-top:6px;padding-top:8px}
+  .srv{padding:4px 10px;font-size:12px}
 }
 
 /* 转数 */

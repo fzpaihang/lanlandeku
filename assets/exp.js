@@ -11,12 +11,16 @@
 
   var el = {
     tbody: document.getElementById('tbody'),
+    cards: document.getElementById('cards'),
     count: document.getElementById('count'),
     spanInfo: document.getElementById('span-info'),
     banner: document.getElementById('banner'),
     empty: document.getElementById('empty'),
     tbl: document.getElementById('tbl')
   };
+
+  var mqMobile = window.matchMedia('(max-width: 560px)');
+  var isMobile = function () { return mqMobile.matches; };
 
   function fmtBig(n) {
     if (n === null || n === undefined || n === '') return '—';
@@ -55,15 +59,80 @@
     });
   }
 
+  /* 移动端卡片：主行 名次+侠名+门派，次行 经验·日均，右侧 区间增长+增幅 */
+  function renderCards(list) {
+    if (!el.cards) return;
+    el.cards.textContent = '';
+    var frag = document.createDocumentFragment();
+
+    list.forEach(function (r) {
+      var isMe = state.me && String(r.userid) === String(state.me);
+      var card = h('article', 'pcard' + (r.rank <= 3 ? ' rk' + r.rank : '') + (isMe ? ' me' : ''));
+
+      var left = h('div', 'pc-l');
+      left.appendChild(h('span', 'rank' + (r.rank <= 3 ? ' r' + r.rank : ''), String(r.rank)));
+      card.appendChild(left);
+
+      var body = h('div', 'pc-body');
+      var top = h('div', 'pc-top');
+      var a = document.createElement('a');
+      a.className = 'nm-link';
+      a.href = './index.html?uid=' + encodeURIComponent(r.userid) +
+        ((window.FZJH && FZJH.key) ? '&s=' + encodeURIComponent(FZJH.key) : '');
+      a.textContent = r.name || '—';
+      top.appendChild(a);
+      if (isMe) top.appendChild(h('span', 'badge-me', '我'));
+      if (r.menpai) top.appendChild(h('span', 'school', r.menpai));
+      body.appendChild(top);
+
+      var sub = h('div', 'pc-sub');
+      sub.appendChild(kv('经验', fmtBig(r.expN)));
+      if (r.perDay !== null) sub.appendChild(kv('日均', '+' + fmtBig(r.perDay)));
+      body.appendChild(sub);
+
+      card.appendChild(body);
+
+      // 右侧：区间增长为主，增幅为辅
+      var right = h('div', 'pc-r');
+      var growCls = 'grow ' + (r.grow > 0 ? 'up' : (r.grow < 0 ? 'down' : 'flat'));
+      right.appendChild(h('span', growCls,
+        r.grow === null ? '—' : (r.grow > 0 ? '+' : '') + fmtBig(r.grow)));
+      right.appendChild(h('span', 'pc-pct',
+        r.pct === null ? '—' : (r.pct > 0 ? '+' : '') + r.pct.toFixed(2) + '%'));
+      card.appendChild(right);
+
+      frag.appendChild(card);
+    });
+
+    el.cards.appendChild(frag);
+  }
+
+  function kv(label, value) {
+    var s = h('span', 'pc-kv');
+    s.appendChild(document.createTextNode(label + ' '));
+    s.appendChild(h('b', null, value));
+    return s;
+  }
+
   function render() {
     var list = sorted(state.rows);
-    el.tbody.textContent = '';
     el.empty.hidden = list.length > 0;
+    el.count.textContent = list.length + ' 人';
+
+    if (isMobile()) {
+      el.tbody.textContent = '';
+      renderCards(list);
+      return;
+    }
+    if (el.cards) el.cards.textContent = '';
 
     var frag = document.createDocumentFragment();
     list.forEach(function (r) {
       var tr = document.createElement('tr');
-      if (state.me && String(r.userid) === String(state.me)) tr.className = 'me';
+      var rowCls = [];
+      if (state.me && String(r.userid) === String(state.me)) rowCls.push('me');
+      if (r.rank <= 3) rowCls.push('rk' + r.rank);
+      if (rowCls.length) tr.className = rowCls.join(' ');
 
       var tdRank = h('td', 'c-rank');
       tdRank.appendChild(h('span', 'rank' + (r.rank <= 3 ? ' r' + r.rank : ''), String(r.rank)));
@@ -101,8 +170,6 @@
       frag.appendChild(tr);
     });
     el.tbody.appendChild(frag);
-
-    el.count.textContent = list.length + ' 人';
 
     updateScrollHint();
 
@@ -199,6 +266,11 @@
   else boot();
 
   window.addEventListener('resize', updateScrollHint);
+
+  // 跨过 560px 断点时切换「表格 / 卡片」两套渲染
+  var onMQ = function () { render(); };
+  if (mqMobile.addEventListener) mqMobile.addEventListener('change', onMQ);
+  else if (mqMobile.addListener) mqMobile.addListener(onMQ);
 
   Array.prototype.forEach.call(document.querySelectorAll('th[data-key]'), function (th) {
     th.addEventListener('click', function () {
