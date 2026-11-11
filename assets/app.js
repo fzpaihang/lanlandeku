@@ -176,20 +176,17 @@
       tdS.appendChild(h('span', 'school', r.menpai || '—'));
       tr.appendChild(tdS);
 
-      // 等级
-      tr.appendChild(h('td', 'c-lv num', r.lv != null ? String(r.lv) : '—'));
+      // 数值列：隐私名单内的玩家一律显示「已隐藏」
+      var hid = !!hiddenSet[String(r.userid)];
+      function numCell(cls, text) {
+        tr.appendChild(h('td', cls + (hid ? ' masked' : ''), hid ? '已隐藏' : text));
+      }
 
-      // 经验
-      tr.appendChild(h('td', 'c-exp num', fmtBig(r.exp)));
-
-      // 福缘
-      tr.appendChild(h('td', 'c-luck num', r.fuyuan != null ? String(r.fuyuan) : '—'));
-
-      // 容貌
-      tr.appendChild(h('td', 'c-looks num', fmtInt(r.looks)));
-
-      // 年龄
-      tr.appendChild(h('td', 'c-age num', r.age != null ? r.age + ' 岁' : '—'));
+      numCell('c-lv num', r.lv != null ? String(r.lv) : '—');
+      numCell('c-exp num', fmtBig(r.exp));
+      numCell('c-luck num', r.fuyuan != null ? String(r.fuyuan) : '—');
+      numCell('c-looks num', fmtInt(r.looks));
+      numCell('c-age num', r.age != null ? r.age + ' 岁' : '—');
 
       frag.appendChild(tr);
     });

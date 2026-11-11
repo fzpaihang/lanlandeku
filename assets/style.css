@@ -425,3 +425,6 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   font-size:10px;line-height:1.5;padding:0 5px;border-radius:5px;
   background:#eceff2;color:#7b848f;font-weight:600;white-space:nowrap;
 }
+
+/* 隐藏玩家的数值占位 */
+td.masked{color:#a8afb8;font-weight:400;font-size:12px;letter-spacing:.2px}
