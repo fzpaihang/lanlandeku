@@ -56,7 +56,7 @@
     var hint = document.getElementById('scroll-hint');
     if (!box || !hint) return;
     var overflow = box.scrollWidth - box.clientWidth > 4;
-    hint.setAttribute('data-show', (overflow && box.scrollLeft < 4) ? '1' : '0');
+    hint.setAttribute('data-show', overflow ? '1' : '0');
   }
 
   // 「2026-11-10」→ 今天 / 昨天 / 3 天前 / 11-01
@@ -507,8 +507,6 @@
 
       // 窗口尺寸或滚动位置变化时，更新「左右滑动」提示
       window.addEventListener('resize', updateScrollHint);
-      var sb = document.querySelector('.scroll');
-      if (sb) sb.addEventListener('scroll', updateScrollHint, { passive: true });
 
       // 支持 ?uid=123 直接打开某人档案
       var uidParam = new URLSearchParams(location.search).get('uid');

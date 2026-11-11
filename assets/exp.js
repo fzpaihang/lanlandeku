@@ -40,7 +40,7 @@
     var hint = document.getElementById('scroll-hint');
     if (!box || !hint) return;
     var overflow = box.scrollWidth - box.clientWidth > 4;
-    hint.setAttribute('data-show', (overflow && box.scrollLeft < 4) ? '1' : '0');
+    hint.setAttribute('data-show', overflow ? '1' : '0');
   }
 
   function sorted(list) {
@@ -200,8 +200,6 @@
   else boot();
 
   window.addEventListener('resize', updateScrollHint);
-  var sb = document.querySelector('.scroll');
-  if (sb) sb.addEventListener('scroll', updateScrollHint, { passive: true });
 
   Array.prototype.forEach.call(document.querySelectorAll('th[data-key]'), function (th) {
     th.addEventListener('click', function () {
