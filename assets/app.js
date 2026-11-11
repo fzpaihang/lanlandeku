@@ -146,7 +146,13 @@
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
       if (r.menpai) nm.appendChild(h('span', 'school-inline', r.menpai));
       wrap.appendChild(nm);
-      wrap.appendChild(h('span', 'uid', '#' + r.userid));
+      var metaRow = h('span', 'meta-row');
+      metaRow.appendChild(h('span', 'uid', '#' + r.userid));
+      if (r.inheritCount !== null && r.inheritCount !== undefined) {
+        var z = Number(r.inheritCount) || 0;
+        metaRow.appendChild(h('span', 'zhuan' + (z >= 4 ? ' hi' : ''), z + '转'));
+      }
+      wrap.appendChild(metaRow);
       tdName.appendChild(wrap);
       tr.appendChild(tdName);
 

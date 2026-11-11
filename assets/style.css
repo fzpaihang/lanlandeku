@@ -189,23 +189,16 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   .school-inline{display:inline-block}
   /* 表格改为横向滑动：列不再隐藏，靠滑动查看，前两列吸附 */
   .scroll{overflow-x:auto;overflow-y:hidden}
-  table{table-layout:fixed;width:474px;max-width:none}
+  table{table-layout:fixed;width:486px;max-width:none}
   thead th,tbody td{padding:10px 6px}
   .c-rank{width:44px}
-  .c-name{width:140px}
+  .c-name{width:152px}
   .c-lv{width:48px}
   .c-exp{width:80px}
   .c-luck{width:48px}
   .c-looks{width:56px}
   .c-age{width:58px}
   .nm{white-space:nowrap}
-  th.c-rank,td.c-rank{position:sticky;left:0;z-index:3;background:var(--card)}
-  th.c-name,td.c-name{
-    position:sticky;left:44px;z-index:3;background:var(--card);
-    box-shadow:7px 0 9px -7px rgba(31,35,40,.22), 1px 0 0 var(--line-2);
-  }
-  thead th.c-rank,thead th.c-name{background:#fbf9f4;z-index:4}
-  tbody tr:hover td.c-rank,tbody tr:hover td.c-name{background:#fbf9f4}
   .name{flex-direction:column;align-items:flex-start;gap:0;line-height:1.4;font-size:14px}
   .nm{font-weight:600}
   .uid{font-size:11px;font-weight:400}
@@ -399,3 +392,12 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   .srv-switch{margin-top:8px;padding-top:8px;overflow-x:auto;flex-wrap:nowrap}
   .srv{flex:0 0 auto;padding:4px 10px;font-size:12px}
 }
+
+/* 转数 */
+.meta-row{display:inline-flex;align-items:center;gap:6px}
+.zhuan{
+  font-size:10.5px;line-height:1.5;padding:0 5px;border-radius:5px;
+  background:#f0ede4;color:var(--ink-2);font-weight:600;
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.zhuan.hi{background:#f8ece8;color:var(--accent)}

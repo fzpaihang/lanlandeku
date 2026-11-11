@@ -414,6 +414,7 @@ def fetch_server(srv, board, max_pages):
             "age": r.get("age"),
             "sex": r.get("sex"),
             "wuxing": r.get("wuxing"),
+            "inheritCount": r.get("inheritCount"),
         })
 
     # 排名变化：与上一版对比
