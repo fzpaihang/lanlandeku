@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-11 19:40:48",
- "updatedTs": 1794397248,
+ "updatedAt": "2026-11-11 21:27:54",
+ "updatedTs": 1794403674,
  "hasPrev": true,
  "total": 98,
  "rows": [
@@ -89,12 +89,12 @@
   {
    "rank": 5,
    "userid": 4496302,
-   "name": "張城主",
+   "name": "天才兔兔",
    "menpai": "财神帮",
    "lv": 3866,
    "kongfu": 2022,
-   "exp": 5796356761.4826,
-   "money": 89582007.752141,
+   "exp": 5796403706.4826,
+   "money": 89661414.752141,
    "yueli": 1068048.25,
    "xiayi": -1105246,
    "looks": 12698,
@@ -408,6 +408,26 @@
   },
   {
    "rank": 21,
+   "userid": 4151345,
+   "name": "救苦天尊",
+   "menpai": "全真教",
+   "lv": 3652,
+   "kongfu": 1950.67,
+   "exp": 4890185667.2251,
+   "money": 307204588,
+   "yueli": 815425.25,
+   "xiayi": 1931115,
+   "looks": 5598,
+   "fuyuan": 259,
+   "age": 424,
+   "sex": "男",
+   "wuxing": 183,
+   "inheritCount": 5,
+   "prevRank": 22,
+   "delta": 1
+  },
+  {
+   "rank": 22,
    "userid": 5931284,
    "name": "带三个表",
    "menpai": "丐帮",
@@ -424,27 +444,7 @@
    "wuxing": 219,
    "inheritCount": 5,
    "prevRank": 21,
-   "delta": 0
-  },
-  {
-   "rank": 22,
-   "userid": 4151345,
-   "name": "救苦天尊",
-   "menpai": "全真教",
-   "lv": 3651,
-   "kongfu": 1950.33,
-   "exp": 4884417010.5242,
-   "money": 305801160,
-   "yueli": 814535.25,
-   "xiayi": 1931195,
-   "looks": 5598,
-   "fuyuan": 259,
-   "age": 424,
-   "sex": "男",
-   "wuxing": 183,
-   "inheritCount": 5,
-   "prevRank": 22,
-   "delta": 0
+   "delta": -1
   },
   {
    "rank": 23,
@@ -463,8 +463,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 24,
-   "delta": 1
+   "prevRank": 23,
+   "delta": 0
   },
   {
    "rank": 24,
@@ -483,8 +483,8 @@
    "sex": "女",
    "wuxing": 246,
    "inheritCount": 5,
-   "prevRank": 23,
-   "delta": -1
+   "prevRank": 24,
+   "delta": 0
   },
   {
    "rank": 25,
@@ -1873,15 +1873,15 @@
    "menpai": "昆仑派",
    "lv": 3041,
    "kongfu": 1747,
-   "exp": 2825187132.5173,
-   "money": 3254356,
-   "yueli": 639795,
+   "exp": 2825376363.5173,
+   "money": 3009376,
+   "yueli": 639964,
    "xiayi": 1066603.5,
    "looks": 5660,
    "fuyuan": 207,
    "age": 240,
    "sex": "男",
-   "wuxing": 15,
+   "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 94,
    "delta": 0
