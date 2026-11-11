@@ -211,7 +211,7 @@ def post_with_retry(cfg, path, body, keys, t):
     return last
 
 
-def update_history(rows, now_ts, out_dir):
+def update_history(rows, now_ts, out_dir, drop=None):
     """把本次经验值记成快照，供「经验变化」页做增长对比。
 
     - 每次刷新记一条（带时间戳），所以两次刷新之间也能看出涨了多少
@@ -220,6 +220,8 @@ def update_history(rows, now_ts, out_dir):
     """
     os.makedirs(out_dir, exist_ok=True)
     p = os.path.join(out_dir, "exp-history.json")
+
+    drop = set(str(u) for u in (drop or ()))
 
     hist = {"snapshots": []}
     if os.path.exists(p):
@@ -244,6 +246,11 @@ def update_history(rows, now_ts, out_dir):
 
     cutoff = int(now_ts) - 8 * 86400
     snaps = [s for s in snaps if s.get("ts", 0) >= cutoff][-60:]
+    if drop:
+        for snap in snaps:
+            for u in list(snap.get("exp", {})):
+                if u in drop:
+                    del snap["exp"][u]
 
     tmp = p + ".tmp"
     with io.open(tmp, "w", encoding="utf-8") as f:
@@ -274,6 +281,33 @@ def probe(cfg):
         return 0
     print("[probe] ✗ 数据未取到")
     return 1
+
+
+def load_hidden():
+    """读取 data/hidden.json → {uid: set(server)}；server 为空表示全部服务器"""
+    path = os.path.join(BASE_DIR, "data", "hidden.json")
+    out = {}
+    if not os.path.exists(path):
+        return out
+    try:
+        with io.open(path, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception:
+        return out
+    for x in (d.get("players") or []):
+        uid = str(x.get("uid") or "").strip()
+        if not uid:
+            continue
+        out.setdefault(uid, set())
+        if x.get("server"):
+            out[uid].add(str(x["server"]))
+    return out
+
+
+def hidden_uids_for(hidden, server_key):
+    """该分区下需要完全隐藏的 uid 集合"""
+    return set(u for u, servers in hidden.items()
+               if not servers or server_key in servers)
 
 
 def load_servers():
@@ -426,6 +460,17 @@ def fetch_server(srv, board, max_pages):
             "inheritCount": r.get("inheritCount"),
         })
 
+    # 隐私名单：整条从榜单剔除（不是只遮数值）
+    hidden = load_hidden()
+    drop = hidden_uids_for(hidden, srv["key"])
+    if drop:
+        keep = [x for x in out_rows if str(x["userid"]) not in drop]
+        if len(keep) != len(out_rows):
+            print("      已从榜单移除隐藏玩家 %d 位" % (len(out_rows) - len(keep)))
+        out_rows = keep
+        for i, x in enumerate(out_rows, 1):
+            x["rank"] = i
+
     # 排名变化：与上一版对比
     cur_path = os.path.join(out_dir, "gaoshoubang.json")
     prev_rank = {}
@@ -456,7 +501,7 @@ def fetch_server(srv, board, max_pages):
         json.dump(payload, f, ensure_ascii=False, indent=1)
     os.replace(tmp, cur_path)
 
-    n_hist = update_history(out_rows, t, out_dir)
+    n_hist = update_history(out_rows, t, out_dir, drop)
 
     print("[3/3] 已写入 %s" % cur_path)
     print("      共 %d 人  |  更新于 %s" % (len(out_rows), payload["updatedAt"]))

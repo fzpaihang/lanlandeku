@@ -51,35 +51,6 @@ def lv_of(exp):
 
 
 
-def load_hidden():
-    """读取 data/hidden.json → {uid: set(server)}；server 为空表示全部服务器"""
-    path = os.path.join(BASE, "data", "hidden.json")
-    out = {}
-    if not os.path.exists(path):
-        return out
-    try:
-        with io.open(path, encoding="utf-8") as f:
-            d = json.load(f)
-    except Exception:
-        return out
-    for x in (d.get("players") or []):
-        uid = str(x.get("uid") or "").strip()
-        if not uid:
-            continue
-        out.setdefault(uid, set())
-        if x.get("server"):
-            out[uid].add(str(x["server"]))
-    return out
-
-
-def is_hidden(hidden, uid, server_key):
-    """该玩家在该分区是否被隐藏"""
-    servers = hidden.get(str(uid))
-    if servers is None:
-        return False
-    return True if not servers else (server_key in servers)
-
-
 def _days_ago(today, n):
     """'2026-11-10' 往前推 n 天 → '2026-10-11'"""
     import datetime
@@ -210,13 +181,20 @@ def fetch_server(srv, names, args):
         board = json.load(f)
     rows = {r["userid"]: r for r in board.get("rows", [])}
 
-    hidden = load_hidden()
-    hidden_uids = [u for u in hidden if is_hidden(hidden, u, srv["key"])]
+    if "--only" in args:
+        i = args.index("--only")
+        targets = [int(x) for x in args[i + 1:] if x.isdigit()]
+    else:
+        targets = [r["userid"] for r in board.get("rows", [])]
+        if "--limit" in args:
+            targets = targets[: int(args[args.index("--limit") + 1])]
+
+    # 隐私名单：跳过这些玩家，并删掉已存在的档案文件
+    hidden_uids = F.hidden_uids_for(F.load_hidden(), srv["key"])
     if hidden_uids:
         before = len(targets)
         targets = [u for u in targets if str(u) not in hidden_uids]
         print("      跳过隐藏玩家 %d 位（%d → %d 份）" % (before - len(targets), before, len(targets)))
-        # 已存在的档案文件必须删掉，否则直接访问 JSON 仍能看到
         hd = os.path.join(out_dir0, "profiles")
         for u in hidden_uids:
             fp = os.path.join(hd, "%s.json" % u)
@@ -226,14 +204,6 @@ def fetch_server(srv, names, args):
                     print("      已删除隐藏玩家的档案文件：%s.json" % u)
                 except OSError:
                     pass
-
-    if "--only" in args:
-        i = args.index("--only")
-        targets = [int(x) for x in args[i + 1:] if x.isdigit()]
-    else:
-        targets = [r["userid"] for r in board.get("rows", [])]
-        if "--limit" in args:
-            targets = targets[: int(args[args.index("--limit") + 1])]
 
     t = time.time()
     print("[1/3] 握手…")
@@ -308,7 +278,7 @@ def fetch_server(srv, names, args):
 
     # 清掉已下榜玩家的旧文件：只删「本轮目标之外」的，抓取失败的保留旧版
     removed = 0
-    if "--only" not in args:
+    if "--only" not in args and "--limit" not in args:
         valid = set(str(u) for u in targets)
         for fn in os.listdir(out_dir):
             if fn.endswith(".json") and fn[:-5] not in valid:

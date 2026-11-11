@@ -1,10 +1,10 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-11 11:56:10",
- "updatedTs": 1794369370,
- "hasPrev": false,
- "total": 100,
+ "updatedAt": "2026-11-11 13:45:16",
+ "updatedTs": 1794375916,
+ "hasPrev": true,
+ "total": 99,
  "rows": [
   {
    "rank": 1,
@@ -23,8 +23,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 1,
+   "delta": 0
   },
   {
    "rank": 2,
@@ -43,31 +43,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 2,
+   "delta": 0
   },
   {
    "rank": 3,
-   "userid": 4047491326,
-   "name": "玲珑望月",
-   "menpai": "蓬莱岛",
-   "lv": 3709,
-   "kongfu": 1969.67,
-   "exp": 5122599511.8536,
-   "money": 257148967.47855,
-   "yueli": 1317785,
-   "xiayi": -104356,
-   "looks": 6605,
-   "fuyuan": 279,
-   "age": 424,
-   "sex": "女",
-   "wuxing": 194,
-   "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
-  },
-  {
-   "rank": 4,
    "userid": 4047812012,
    "name": "墨素雪",
    "menpai": "虚渺宫",
@@ -83,11 +63,11 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 4,
+   "delta": 1
   },
   {
-   "rank": 5,
+   "rank": 4,
    "userid": 4047550622,
    "name": "唐轻风",
    "menpai": "天狼教",
@@ -103,11 +83,11 @@
    "sex": "男",
    "wuxing": 40,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 5,
+   "delta": 1
   },
   {
-   "rank": 6,
+   "rank": 5,
    "userid": 4047347987,
    "name": "风寻真",
    "menpai": "少林派",
@@ -123,11 +103,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 6,
+   "delta": 1
   },
   {
-   "rank": 7,
+   "rank": 6,
    "userid": 4048013396,
    "name": "魅影陌客",
    "menpai": "官府",
@@ -143,11 +123,11 @@
    "sex": "女",
    "wuxing": 90,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 7,
+   "delta": 1
   },
   {
-   "rank": 8,
+   "rank": 7,
    "userid": 4047625094,
    "name": "朝夕寄语",
    "menpai": "燕氏皇族",
@@ -163,11 +143,11 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 8,
+   "delta": 1
   },
   {
-   "rank": 9,
+   "rank": 8,
    "userid": 4047631905,
    "name": "董天宝",
    "menpai": "武当派",
@@ -183,11 +163,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 9,
+   "delta": 1
   },
   {
-   "rank": 10,
+   "rank": 9,
    "userid": 4048250022,
    "name": "月兔",
    "menpai": "永夜楼",
@@ -203,19 +183,19 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 10,
+   "delta": 1
   },
   {
-   "rank": 11,
+   "rank": 10,
    "userid": 4048236091,
    "name": "缥缈生",
    "menpai": "蓬莱岛",
    "lv": 3384,
    "kongfu": 1861.33,
-   "exp": 3890785296.2122,
+   "exp": 3890789576.2122,
    "money": 8630098,
-   "yueli": 949701,
+   "yueli": 950001,
    "xiayi": 1291305,
    "looks": 6414,
    "fuyuan": 207,
@@ -223,11 +203,11 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 11,
+   "delta": 1
   },
   {
-   "rank": 12,
+   "rank": 11,
    "userid": 4048248127,
    "name": "海鹰扬",
    "menpai": "明教",
@@ -243,11 +223,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 12,
+   "delta": 1
   },
   {
-   "rank": 13,
+   "rank": 12,
    "userid": 4048146031,
    "name": "龙象圣王",
    "menpai": "昆仑派",
@@ -263,11 +243,11 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 13,
+   "delta": 1
   },
   {
-   "rank": 14,
+   "rank": 13,
    "userid": 4047372832,
    "name": "瓷",
    "menpai": "官府",
@@ -283,11 +263,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 14,
+   "delta": 1
   },
   {
-   "rank": 15,
+   "rank": 14,
    "userid": 4048338747,
    "name": "鲸筝恩",
    "menpai": "蓬莱岛",
@@ -303,11 +283,11 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 15,
+   "delta": 1
   },
   {
-   "rank": 16,
+   "rank": 15,
    "userid": 4047882767,
    "name": "颜珺",
    "menpai": "虚渺宫",
@@ -323,11 +303,11 @@
    "sex": "女",
    "wuxing": 22,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 16,
+   "delta": 1
   },
   {
-   "rank": 17,
+   "rank": 16,
    "userid": 4048305480,
    "name": "飞龙瞬影",
    "menpai": "江湖浪人",
@@ -343,11 +323,11 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 17,
+   "delta": 1
   },
   {
-   "rank": 18,
+   "rank": 17,
    "userid": 4047944921,
    "name": "紫兮衣兮",
    "menpai": "官府",
@@ -363,11 +343,11 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 18,
+   "delta": 1
   },
   {
-   "rank": 19,
+   "rank": 18,
    "userid": 4048423382,
    "name": "淡墨霞烟",
    "menpai": "拜日教",
@@ -383,11 +363,11 @@
    "sex": "女",
    "wuxing": 195,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 19,
+   "delta": 1
   },
   {
-   "rank": 20,
+   "rank": 19,
    "userid": 4048220461,
    "name": "墨锦雪",
    "menpai": "万灵谷",
@@ -403,11 +383,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 20,
+   "delta": 1
   },
   {
-   "rank": 21,
+   "rank": 20,
    "userid": 4047671015,
    "name": "信口茨凰",
    "menpai": "官府",
@@ -423,11 +403,11 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 21,
+   "delta": 1
   },
   {
-   "rank": 22,
+   "rank": 21,
    "userid": 4048059633,
    "name": "以向",
    "menpai": "江湖浪人",
@@ -443,19 +423,19 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 22,
+   "delta": 1
   },
   {
-   "rank": 23,
+   "rank": 22,
    "userid": 4048468937,
    "name": "谜团",
    "menpai": "永夜楼",
    "lv": 3081,
    "kongfu": 1760.33,
-   "exp": 2937094509.7923,
-   "money": 153045967,
-   "yueli": 593119,
+   "exp": 2937161933.7923,
+   "money": 153179898,
+   "yueli": 593288,
    "xiayi": -122784.2,
    "looks": 6717,
    "fuyuan": 165,
@@ -463,11 +443,11 @@
    "sex": "男",
    "wuxing": 195,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 23,
+   "delta": 1
   },
   {
-   "rank": 24,
+   "rank": 23,
    "userid": 4048177485,
    "name": "程留香",
    "menpai": "问情宫",
@@ -483,11 +463,11 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 24,
+   "delta": 1
   },
   {
-   "rank": 25,
+   "rank": 24,
    "userid": 4048176684,
    "name": "十次荷包",
    "menpai": "虚渺宫",
@@ -503,11 +483,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 25,
+   "delta": 1
   },
   {
-   "rank": 26,
+   "rank": 25,
    "userid": 4047741028,
    "name": "酒灬儿",
    "menpai": "永夜楼",
@@ -523,11 +503,11 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 26,
+   "delta": 1
   },
   {
-   "rank": 27,
+   "rank": 26,
    "userid": 4048406591,
    "name": "高皇君",
    "menpai": "财神帮",
@@ -543,11 +523,11 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 27,
+   "delta": 1
   },
   {
-   "rank": 28,
+   "rank": 27,
    "userid": 4048245628,
    "name": "怅然若失",
    "menpai": "天龙寺",
@@ -563,11 +543,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 28,
+   "delta": 1
   },
   {
-   "rank": 29,
+   "rank": 28,
    "userid": 4048166384,
    "name": "沈乾丿",
    "menpai": "鸩羽山",
@@ -583,11 +563,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 29,
+   "delta": 1
   },
   {
-   "rank": 30,
+   "rank": 29,
    "userid": 4047734656,
    "name": "不氪观芸",
    "menpai": "全真教",
@@ -603,11 +583,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 30,
+   "delta": 1
   },
   {
-   "rank": 31,
+   "rank": 30,
    "userid": 4048175055,
    "name": "李长眠",
    "menpai": "虚渺宫",
@@ -623,11 +603,11 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 31,
+   "delta": 1
   },
   {
-   "rank": 32,
+   "rank": 31,
    "userid": 4048468378,
    "name": "淡墨浅曦",
    "menpai": "幽冥教",
@@ -643,11 +623,11 @@
    "sex": "女",
    "wuxing": 195,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 32,
+   "delta": 1
   },
   {
-   "rank": 33,
+   "rank": 32,
    "userid": 4047971829,
    "name": "张天机",
    "menpai": "拜日教",
@@ -663,11 +643,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 33,
+   "delta": 1
   },
   {
-   "rank": 34,
+   "rank": 33,
    "userid": 4047965998,
    "name": "梦成者",
    "menpai": "唐门",
@@ -683,11 +663,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 34,
+   "delta": 1
   },
   {
-   "rank": 35,
+   "rank": 34,
    "userid": 4047976142,
    "name": "小居魔尊",
    "menpai": "崆峒派",
@@ -703,11 +683,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 35,
+   "delta": 1
   },
   {
-   "rank": 36,
+   "rank": 35,
    "userid": 4048182165,
    "name": "姬穸",
    "menpai": "蓬莱岛",
@@ -723,11 +703,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 36,
+   "delta": 1
   },
   {
-   "rank": 37,
+   "rank": 36,
    "userid": 4048160354,
    "name": "武当逆徒",
    "menpai": "武当派",
@@ -743,11 +723,11 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 37,
+   "delta": 1
   },
   {
-   "rank": 38,
+   "rank": 37,
    "userid": 4048328938,
    "name": "九幽妖凰",
    "menpai": "官府",
@@ -763,11 +743,11 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 38,
+   "delta": 1
   },
   {
-   "rank": 39,
+   "rank": 38,
    "userid": 4048078908,
    "name": "太清宫使",
    "menpai": "天龙寺",
@@ -783,11 +763,11 @@
    "sex": "女",
    "wuxing": 190,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 39,
+   "delta": 1
   },
   {
-   "rank": 40,
+   "rank": 39,
    "userid": 4048423615,
    "name": "灰幻",
    "menpai": "永夜楼",
@@ -803,11 +783,11 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 40,
+   "delta": 1
   },
   {
-   "rank": 41,
+   "rank": 40,
    "userid": 4047968728,
    "name": "月落长歌",
    "menpai": "天龙寺",
@@ -823,11 +803,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 41,
+   "delta": 1
   },
   {
-   "rank": 42,
+   "rank": 41,
    "userid": 4047884544,
    "name": "濮阳听芹",
    "menpai": "华山",
@@ -843,11 +823,11 @@
    "sex": "女",
    "wuxing": 210,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 42,
+   "delta": 1
   },
   {
-   "rank": 43,
+   "rank": 42,
    "userid": 4048330555,
    "name": "欧阳猫猫",
    "menpai": "幽冥教",
@@ -863,11 +843,11 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 43,
+   "delta": 1
   },
   {
-   "rank": 44,
+   "rank": 43,
    "userid": 4048392398,
    "name": "栾武子",
    "menpai": "问情宫",
@@ -883,11 +863,11 @@
    "sex": "男",
    "wuxing": 217,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 44,
+   "delta": 1
   },
   {
-   "rank": 45,
+   "rank": 44,
    "userid": 4047927103,
    "name": "横推八百",
    "menpai": "少林派",
@@ -903,11 +883,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 45,
+   "delta": 1
   },
   {
-   "rank": 46,
+   "rank": 45,
    "userid": 4048010228,
    "name": "一无是处",
    "menpai": "幽冥教",
@@ -923,11 +903,11 @@
    "sex": "女",
    "wuxing": 200,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 46,
+   "delta": 1
   },
   {
-   "rank": 47,
+   "rank": 46,
    "userid": 4047843243,
    "name": "子芸酱",
    "menpai": "天龙寺",
@@ -943,11 +923,11 @@
    "sex": "女",
    "wuxing": 236,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 47,
+   "delta": 1
   },
   {
-   "rank": 48,
+   "rank": 47,
    "userid": 4047957752,
    "name": "风之晓夜",
    "menpai": "蓬莱岛",
@@ -963,11 +943,11 @@
    "sex": "女",
    "wuxing": 200,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 48,
+   "delta": 1
   },
   {
-   "rank": 49,
+   "rank": 48,
    "userid": 4047644352,
    "name": "飞雪无极",
    "menpai": "虚渺宫",
@@ -983,11 +963,11 @@
    "sex": "男",
    "wuxing": 100,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 49,
+   "delta": 1
   },
   {
-   "rank": 50,
+   "rank": 49,
    "userid": 4048167600,
    "name": "大衍天玄",
    "menpai": "武当派",
@@ -1003,11 +983,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 50,
+   "delta": 1
   },
   {
-   "rank": 51,
+   "rank": 50,
    "userid": 4048237476,
    "name": "涛少迷弟",
    "menpai": "伏龙山",
@@ -1023,11 +1003,11 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 51,
+   "delta": 1
   },
   {
-   "rank": 52,
+   "rank": 51,
    "userid": 4048516316,
    "name": "恭王",
    "menpai": "官府",
@@ -1043,11 +1023,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 52,
+   "delta": 1
   },
   {
-   "rank": 53,
+   "rank": 52,
    "userid": 4047815768,
    "name": "轩辕翊",
    "menpai": "全真教",
@@ -1063,11 +1043,11 @@
    "sex": "男",
    "wuxing": 191,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 53,
+   "delta": 1
   },
   {
-   "rank": 54,
+   "rank": 53,
    "userid": 4048112512,
    "name": "夜天无",
    "menpai": "丐帮",
@@ -1083,11 +1063,11 @@
    "sex": "男",
    "wuxing": 40,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 54,
+   "delta": 1
   },
   {
-   "rank": 55,
+   "rank": 54,
    "userid": 4047393004,
    "name": "苏溟蝶",
    "menpai": "虚渺宫",
@@ -1103,11 +1083,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 55,
+   "delta": 1
   },
   {
-   "rank": 56,
+   "rank": 55,
    "userid": 4047731062,
    "name": "缥缈无定",
    "menpai": "华山",
@@ -1123,11 +1103,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 56,
+   "delta": 1
   },
   {
-   "rank": 57,
+   "rank": 56,
    "userid": 4047969262,
    "name": "羡青山",
    "menpai": "财神帮",
@@ -1143,11 +1123,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 57,
+   "delta": 1
   },
   {
-   "rank": 58,
+   "rank": 57,
    "userid": 4048025176,
    "name": "狸貓",
    "menpai": "官府",
@@ -1163,11 +1143,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 58,
+   "delta": 1
   },
   {
-   "rank": 59,
+   "rank": 58,
    "userid": 4047594563,
    "name": "幽琅凝风",
    "menpai": "天狼教",
@@ -1183,11 +1163,11 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 59,
+   "delta": 1
   },
   {
-   "rank": 60,
+   "rank": 59,
    "userid": 4047786959,
    "name": "江默寒",
    "menpai": "官府",
@@ -1203,11 +1183,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 60,
+   "delta": 1
   },
   {
-   "rank": 61,
+   "rank": 60,
    "userid": 4048164522,
    "name": "钟发白",
    "menpai": "天竞门",
@@ -1223,11 +1203,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 61,
+   "delta": 1
   },
   {
-   "rank": 62,
+   "rank": 61,
    "userid": 4047605247,
    "name": "三十二相",
    "menpai": "少林派",
@@ -1243,11 +1223,11 @@
    "sex": "男",
    "wuxing": 19,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 62,
+   "delta": 1
   },
   {
-   "rank": 63,
+   "rank": 62,
    "userid": 4048429471,
    "name": "凌道",
    "menpai": "蓬莱岛",
@@ -1263,11 +1243,11 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 63,
+   "delta": 1
   },
   {
-   "rank": 64,
+   "rank": 63,
    "userid": 4048511628,
    "name": "聂圣",
    "menpai": "永夜楼",
@@ -1283,11 +1263,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 64,
+   "delta": 1
   },
   {
-   "rank": 65,
+   "rank": 64,
    "userid": 4048028023,
    "name": "纣临七海",
    "menpai": "虚渺宫",
@@ -1303,11 +1283,11 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 65,
+   "delta": 1
   },
   {
-   "rank": 66,
+   "rank": 65,
    "userid": 4048294111,
    "name": "洛伶",
    "menpai": "落月山庄",
@@ -1323,11 +1303,11 @@
    "sex": "女",
    "wuxing": 21,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 66,
+   "delta": 1
   },
   {
-   "rank": 67,
+   "rank": 66,
    "userid": 4048317734,
    "name": "遁地符",
    "menpai": "虚渺宫",
@@ -1343,11 +1323,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 67,
+   "delta": 1
   },
   {
-   "rank": 68,
+   "rank": 67,
    "userid": 4048476678,
    "name": "柯西里",
    "menpai": "虚渺宫",
@@ -1363,11 +1343,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 68,
+   "delta": 1
   },
   {
-   "rank": 69,
+   "rank": 68,
    "userid": 4047702316,
    "name": "顾纨",
    "menpai": "天龙寺",
@@ -1383,11 +1363,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 69,
+   "delta": 1
   },
   {
-   "rank": 70,
+   "rank": 69,
    "userid": 4048185980,
    "name": "花藏雪",
    "menpai": "蓬莱岛",
@@ -1403,11 +1383,11 @@
    "sex": "男",
    "wuxing": 25,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 70,
+   "delta": 1
   },
   {
-   "rank": 71,
+   "rank": 70,
    "userid": 4048003126,
    "name": "永夜通行",
    "menpai": "官府",
@@ -1423,11 +1403,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 71,
+   "delta": 1
   },
   {
-   "rank": 72,
+   "rank": 71,
    "userid": 4047365034,
    "name": "永夜凌月",
    "menpai": "峨眉派",
@@ -1443,11 +1423,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 72,
+   "delta": 1
   },
   {
-   "rank": 73,
+   "rank": 72,
    "userid": 4048124935,
    "name": "爆杀陌猪",
    "menpai": "拜日教",
@@ -1463,11 +1443,11 @@
    "sex": "女",
    "wuxing": 50,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 73,
+   "delta": 1
   },
   {
-   "rank": 74,
+   "rank": 73,
    "userid": 4048193933,
    "name": "猖狂承欢",
    "menpai": "华山",
@@ -1483,11 +1463,11 @@
    "sex": "男",
    "wuxing": 27,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 74,
+   "delta": 1
   },
   {
-   "rank": 75,
+   "rank": 74,
    "userid": 4047313955,
    "name": "飞之剑",
    "menpai": "少林派",
@@ -1503,11 +1483,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 75,
+   "delta": 1
   },
   {
-   "rank": 76,
+   "rank": 75,
    "userid": 4047905876,
    "name": "虚灵之刃",
    "menpai": "虚渺宫",
@@ -1523,11 +1503,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 76,
+   "delta": 1
   },
   {
-   "rank": 77,
+   "rank": 76,
    "userid": 4048234550,
    "name": "裁决之人",
    "menpai": "官府",
@@ -1543,11 +1523,11 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 77,
+   "delta": 1
   },
   {
-   "rank": 78,
+   "rank": 77,
    "userid": 4048100054,
    "name": "孙剑道",
    "menpai": "华山",
@@ -1563,11 +1543,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 78,
+   "delta": 1
   },
   {
-   "rank": 79,
+   "rank": 78,
    "userid": 4048021103,
    "name": "无极圣王",
    "menpai": "武当派",
@@ -1583,11 +1563,11 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 79,
+   "delta": 1
   },
   {
-   "rank": 80,
+   "rank": 79,
    "userid": 4047812059,
    "name": "郑丹",
    "menpai": "幽冥教",
@@ -1603,11 +1583,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 80,
+   "delta": 1
   },
   {
-   "rank": 81,
+   "rank": 80,
    "userid": 4048320715,
    "name": "慕雨清",
    "menpai": "华山",
@@ -1623,11 +1603,11 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 81,
+   "delta": 1
   },
   {
-   "rank": 82,
+   "rank": 81,
    "userid": 4048423028,
    "name": "湛明秋",
    "menpai": "虚渺宫",
@@ -1643,11 +1623,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 82,
+   "delta": 1
   },
   {
-   "rank": 83,
+   "rank": 82,
    "userid": 4048196773,
    "name": "蓝萧逸",
    "menpai": "天竞门",
@@ -1663,11 +1643,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 83,
+   "delta": 1
   },
   {
-   "rank": 84,
+   "rank": 83,
    "userid": 4048409159,
    "name": "乐途笑笑",
    "menpai": "江湖浪人",
@@ -1683,11 +1663,11 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 84,
+   "delta": 1
   },
   {
-   "rank": 85,
+   "rank": 84,
    "userid": 4048350152,
    "name": "飞龙悦潺",
    "menpai": "幽冥教",
@@ -1703,11 +1683,11 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 85,
+   "delta": 1
   },
   {
-   "rank": 86,
+   "rank": 85,
    "userid": 4047976261,
    "name": "寂圣",
    "menpai": "丐帮",
@@ -1723,11 +1703,11 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 86,
+   "delta": 1
   },
   {
-   "rank": 87,
+   "rank": 86,
    "userid": 4048516355,
    "name": "白青",
    "menpai": "虚渺宫",
@@ -1743,11 +1723,11 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 87,
+   "delta": 1
   },
   {
-   "rank": 88,
+   "rank": 87,
    "userid": 4048281360,
    "name": "白洲梓",
    "menpai": "落月山庄",
@@ -1763,11 +1743,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 88,
+   "delta": 1
   },
   {
-   "rank": 89,
+   "rank": 88,
    "userid": 4048182563,
    "name": "墨道空",
    "menpai": "虚渺宫",
@@ -1783,11 +1763,11 @@
    "sex": "男",
    "wuxing": 240,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 89,
+   "delta": 1
   },
   {
-   "rank": 90,
+   "rank": 89,
    "userid": 4048295171,
    "name": "愁明月",
    "menpai": "虚渺宫",
@@ -1803,11 +1783,11 @@
    "sex": "男",
    "wuxing": 240,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 90,
+   "delta": 1
   },
   {
-   "rank": 91,
+   "rank": 90,
    "userid": 4048524994,
    "name": "孙一宁",
    "menpai": "问情宫",
@@ -1823,11 +1803,11 @@
    "sex": "女",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 91,
+   "delta": 1
   },
   {
-   "rank": 92,
+   "rank": 91,
    "userid": 4048526473,
    "name": "极逆抬镁",
    "menpai": "问情宫",
@@ -1843,11 +1823,11 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 92,
+   "delta": 1
   },
   {
-   "rank": 93,
+   "rank": 92,
    "userid": 4048474488,
    "name": "今相思",
    "menpai": "财神帮",
@@ -1863,11 +1843,11 @@
    "sex": "男",
    "wuxing": 240,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 93,
+   "delta": 1
   },
   {
-   "rank": 94,
+   "rank": 93,
    "userid": 4047577486,
    "name": "圣嘉然",
    "menpai": "虚渺宫",
@@ -1883,11 +1863,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 94,
+   "delta": 1
   },
   {
-   "rank": 95,
+   "rank": 94,
    "userid": 4047854345,
    "name": "人别离",
    "menpai": "伏龙山",
@@ -1903,11 +1883,11 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 95,
+   "delta": 1
   },
   {
-   "rank": 96,
+   "rank": 95,
    "userid": 4048544574,
    "name": "威龙",
    "menpai": "伏龙山",
@@ -1923,11 +1903,11 @@
    "sex": "男",
    "wuxing": 213,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 96,
+   "delta": 1
   },
   {
-   "rank": 97,
+   "rank": 96,
    "userid": 4048417445,
    "name": "玉豪六世",
    "menpai": "蓬莱岛",
@@ -1943,11 +1923,11 @@
    "sex": "男",
    "wuxing": 35,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 97,
+   "delta": 1
   },
   {
-   "rank": 98,
+   "rank": 97,
    "userid": 4048469797,
    "name": "白井鋭利",
    "menpai": "问情宫",
@@ -1963,11 +1943,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 98,
+   "delta": 1
   },
   {
-   "rank": 99,
+   "rank": 98,
    "userid": 4047862844,
    "name": "段千凡",
    "menpai": "伏龙山",
@@ -1983,11 +1963,11 @@
    "sex": "男",
    "wuxing": 240,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 99,
+   "delta": 1
   },
   {
-   "rank": 100,
+   "rank": 99,
    "userid": 4047385123,
    "name": "永夜凌猫",
    "menpai": "明教",
@@ -2003,8 +1983,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 100,
+   "delta": 1
   }
  ]
 }
