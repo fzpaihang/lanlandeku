@@ -174,13 +174,13 @@
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
       if (r.menpai) nm.appendChild(h('span', 'school-inline', r.menpai));
       wrap.appendChild(nm);
-      var metaRow = h('span', 'meta-row');
-      metaRow.appendChild(h('span', 'uid', '#' + r.userid));
+      // 侠名下方只保留转数；uid 不展示（详情弹窗里有），避免 11 位 uid 把列撑得不整齐
       if (r.inheritCount !== null && r.inheritCount !== undefined) {
+        var metaRow = h('span', 'meta-row');
         var z = Number(r.inheritCount) || 0;
         metaRow.appendChild(h('span', 'zhuan' + (z >= 4 ? ' hi' : ''), z + '转'));
+        wrap.appendChild(metaRow);
       }
-      wrap.appendChild(metaRow);
       tdName.appendChild(wrap);
       tr.appendChild(tdName);
 

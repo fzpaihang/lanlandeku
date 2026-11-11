@@ -80,7 +80,6 @@
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
       if (r.menpai) nm.appendChild(h('span', 'school-inline', r.menpai));
       wrap.appendChild(nm);
-      wrap.appendChild(h('span', 'uid', '#' + r.userid));
       tdName.appendChild(wrap);
       tr.appendChild(tdName);
 
