@@ -78,9 +78,11 @@ def load_cfg():
     if os.environ.get("FZJH_CHANNEL"):
         cfg["channel"] = os.environ["FZJH_CHANNEL"].strip()
 
-    missing = [k for k in ("uuid", "account", "hotver") if not cfg.get(k)]
-    if missing:
-        raise SystemExit("缺少配置：%s（可用 config.json 或 FZJH_* 环境变量提供）" % "、".join(missing))
+    # 校验放到 load_servers 里做：多服务器时 uuid/account 在 servers 数组内，
+    # 顶层可能只有 hotver/ver 这类公共项。
+    if not cfg.get("hotver"):
+        raise SystemExit("缺少配置：hotver（config.json 或 FZJH_HOTVER）")
+    cfg["hotver"] = int(str(cfg["hotver"]).strip())
     cfg.setdefault("ver", "2.1.02")
     cfg.setdefault("channel", "taptap")
     cfg.setdefault("device", "")
@@ -191,15 +193,15 @@ def post_with_retry(cfg, path, body, keys, t):
     return d
 
 
-def update_history(rows, now_ts):
+def update_history(rows, now_ts, out_dir):
     """把本次经验值记成快照，供「经验变化」页做增长对比。
 
     - 每次刷新记一条（带时间戳），所以两次刷新之间也能看出涨了多少
     - 距上次记录不足 5 分钟则覆盖上一条，避免误重跑产生 0 差值干扰
     - 只保留最近 8 天，且最多 60 条
     """
-    p = os.path.join(BASE_DIR, "data", "exp-history.json")
-
+    os.makedirs(out_dir, exist_ok=True)
+    p = os.path.join(out_dir, "exp-history.json")
 
     hist = {"snapshots": []}
     if os.path.exists(p):
@@ -256,19 +258,93 @@ def probe(cfg):
     return 1
 
 
-def main():
+def load_servers():
+    """返回服务器列表：[{key,name,channel,uuid,account,ver,hotver,device}]
+
+    来源优先级：
+      1) 环境变量 FZJH_SERVERS（JSON 数组，CI 用，一个 Secret 装全部服务器）
+      2) config.json 的 servers 字段
+      3) config.json 顶层单套凭据（旧格式，兼容）
+    """
     cfg = load_cfg()
-    args = sys.argv[1:]
-    if "--probe" in args:
-        return probe(cfg)
+    raw = os.environ.get("FZJH_SERVERS")
+    items = None
+    if raw:
+        try:
+            items = json.loads(raw)
+        except Exception as e:
+            raise SystemExit("FZJH_SERVERS 不是合法 JSON：%s" % e)
+    elif isinstance(cfg.get("servers"), list):
+        items = cfg["servers"]
 
-    board = 1
-    max_pages = 40
-    if "--board" in args:
-        board = int(args[args.index("--board") + 1])
-    if "--max-pages" in args:
-        max_pages = int(args[args.index("--max-pages") + 1])
+    if not items:
+        items = [{
+            "key": cfg.get("channel", "default"),
+            "name": cfg.get("name") or "默认分区",
+            "channel": cfg.get("channel", "taptap"),
+            "uuid": cfg.get("uuid"),
+            "account": cfg.get("account"),
+            "default": True,
+        }]
 
+    out = []
+    seen = set()
+    for i, s in enumerate(items):
+        key = str(s.get("key") or s.get("channel") or ("s%d" % i)).strip()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({
+            "key": key,
+            "name": s.get("name") or key,
+            "channel": s.get("channel") or key,
+            "uuid": s.get("uuid"),
+            "account": s.get("account"),
+            "ver": s.get("ver") or cfg.get("ver", "2.1.02"),
+            "hotver": s.get("hotver") or cfg.get("hotver"),
+            "device": s.get("device", cfg.get("device", "")),
+            "default": bool(s.get("default")) or i == 0,
+        })
+
+    for s in out:
+        miss = [k for k in ("uuid", "account", "hotver") if not s.get(k)]
+        if miss:
+            raise SystemExit("服务器 %s 缺少配置：%s" % (s["key"], "、".join(miss)))
+    return out
+
+
+def server_cfg(srv):
+    """把服务器配置转成 build_headers/handshake 需要的 cfg 结构"""
+    return {
+        "uuid": srv["uuid"],
+        "account": int(srv["account"]) if str(srv["account"]).isdigit() else srv["account"],
+        "hotver": srv["hotver"],
+        "ver": srv.get("ver", "2.1.02"),
+        "channel": srv["channel"],
+        "device": srv.get("device", ""),
+    }
+
+
+def server_dir(key):
+    return os.path.join(BASE_DIR, "data", "servers", key)
+
+
+def write_index(servers):
+    """给前端用的服务器清单（不含任何凭据）"""
+    items = [{"key": s["key"], "name": s["name"], "default": s["default"]} for s in servers]
+    p = os.path.join(BASE_DIR, "data", "servers", "index.json")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    tmp = p + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"servers": items}, f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(tmp, p)
+
+
+def fetch_server(srv, board, max_pages):
+    """抓单个服务器：榜单 + 经验快照，写到 data/servers/<key>/"""
+    cfg = server_cfg(srv)
+    out_dir = server_dir(srv["key"])
+    os.makedirs(out_dir, exist_ok=True)
     t = time.time()
     print("[1/3] 握手…")
     keys = handshake(cfg, t)
@@ -322,7 +398,7 @@ def main():
         })
 
     # 排名变化：与上一版对比
-    cur_path = os.path.join(BASE_DIR, "data", "gaoshoubang.json")
+    cur_path = os.path.join(out_dir, "gaoshoubang.json")
     prev_rank = {}
     has_prev = os.path.exists(cur_path)
     if has_prev:
@@ -351,7 +427,7 @@ def main():
         json.dump(payload, f, ensure_ascii=False, indent=1)
     os.replace(tmp, cur_path)
 
-    n_hist = update_history(out_rows, t)
+    n_hist = update_history(out_rows, t, out_dir)
 
     print("[3/3] 已写入 %s" % cur_path)
     print("      共 %d 人  |  更新于 %s" % (len(out_rows), payload["updatedAt"]))
@@ -359,6 +435,52 @@ def main():
     for x in out_rows[:3]:
         print("      #%d %s（%s）武学 %s" % (x["rank"], x["name"], x["menpai"], x["kongfu"]))
     return 0
+
+
+
+def main():
+    args = sys.argv[1:]
+    servers = load_servers()
+    write_index(servers)
+
+    if "--probe" in args:
+        ok = True
+        for i, s in enumerate(servers, 1):
+            print("--- [%d/%d] %s（%s）---" % (i, len(servers), s["name"], s["channel"]))
+            if probe(server_cfg(s)) != 0:
+                ok = False
+            if i < len(servers):
+                time.sleep(1.5)
+        return 0 if ok else 1
+
+    board = 1
+    max_pages = 40
+    if "--board" in args:
+        board = int(args[args.index("--board") + 1])
+    if "--max-pages" in args:
+        max_pages = int(args[args.index("--max-pages") + 1])
+
+    if "--server" in args:
+        want = args[args.index("--server") + 1]
+        targets = [s for s in servers if s["key"] == want]
+        if not targets:
+            raise SystemExit("没有这个服务器：%s（可选：%s）" % (
+                want, "、".join(s["key"] for s in servers)))
+    else:
+        targets = servers
+
+    rc = 0
+    for i, s in enumerate(targets, 1):
+        print("\n===== [%d/%d] %s · %s =====" % (i, len(targets), s["name"], s["channel"]))
+        try:
+            if fetch_server(s, board, max_pages) != 0:
+                rc = 1
+        except Exception as e:
+            print("!! 抓取失败：%s: %s" % (type(e).__name__, e))
+            rc = 1
+        if i < len(targets):
+            time.sleep(2)
+    return rc
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@
 - 桌面端 8 列：名次 / 侠名 / 门派 / 等级 / 经验 / 福缘 / 容貌 / 年龄
 - 手机端自动收成 4 列：名次 / 侠名+门派 / 等级 / 经验，一屏能看到 12 行
 - 点表头排序；搜昵称、ID、门派都能搜；地址加 `?me=你的ID` 高亮自己
+- **多分区切换**：页头「分区」一排按钮，苍松迎客 / 墨羽惊鸿 各自独立的数据
 - **点侠名弹出该玩家完整档案**：12 项基础数值、准备位、近期新增武学、全部武学（可展开）、装备
 - **经验变化页**（右上角按钮进入）：每次刷新记一次经验快照，按 3 天窗口算增长、日均、增幅
 - 有历史数据后，名次旁会显示涨跌箭头（▲2 / ▼1 / NEW）
@@ -23,10 +24,11 @@ fzjh-rank/
 │  ├─ app.js
 │  └─ exp.js
 ├─ data/
-│  ├─ gaoshoubang.json  榜单快照（每次刷新覆盖）
-│  ├─ exp-history.json  经验历史（每次刷新追加一条，保留 8 天）
 │  ├─ names.json        技能/装备 id → 中文名（一次性生成）
-│  └─ profiles/         每人一个档案文件，点击时才请求
+│  └─ servers/
+│     ├─ index.json     分区清单（前端读，不含凭据）
+│     ├─ taptap/        苍松迎客：gaoshoubang.json / exp-history.json / profiles/
+│     └─ taptap_4/      墨羽惊鸿：同上
 ├─ scripts/
 │  ├─ fetch.py          抓榜单 + 记经验快照（自包含，只依赖 pycryptodome）
 │  ├─ fetch_profiles.py 抓玩家档案
@@ -39,6 +41,27 @@ fzjh-rank/
 ├─ refresh.bat         双击即刷新，日志写 data/logs/
 └─ .gitignore
 ```
+
+## 多分区是怎么工作的
+
+**分区由请求头 `channel` 决定，但每个分区必须有自己的一套 `uuid` + `account`**——服务端会校验账号是否在该分区，用别的分区凭据会返回 `500 游戏档案数据不存在`。
+
+已知的 taptap 分区：
+
+| channel | 分区 |
+|---|---|
+| `taptap` | 苍松迎客 [1服] |
+| `taptap_2` | 白鹤亮翅 [2服] |
+| `taptap_3` | 丹凤朝阳 [3服] |
+| `taptap_4` | 墨羽惊鸿 [新服] |
+
+凭据从对应客户端里取（只读）：
+
+- `uuid` ← `/data/user/<N>/com.xhtt.app.fzjh/shared_prefs/extends.xml` 的 `fzjh_uuid`
+- `account` ← 同目录 `Cocos2dxPrefsFile.xml` 的 `userid`
+
+> 分身/多开客户端在**另一个 Android 用户空间**（`/data/user/10/…`），主空间读到的 uuid 是另一个分区的，别搞混。
+> 4399 端是独立渠道：`uuid` 前缀为 `4399`，`channel` 填 `4399`。
 
 ## 数据是怎么来的
 

@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var DATA_URL = './data/gaoshoubang.json';
+  function dataUrl(){ return (window.FZJH && FZJH.base ? FZJH.base : './data/servers/taptap/') + 'gaoshoubang.json'; }
   var state = {
     rows: [],
     q: '',
@@ -447,7 +447,8 @@
     var q = '?uid=' + encodeURIComponent(row.userid) + (state.me ? '&me=' + encodeURIComponent(state.me) : '');
     history.replaceState(null, '', location.pathname + q);
 
-    fetch('./data/profiles/' + row.userid + '.json', { cache: 'no-cache' })
+    var base = (window.FZJH && FZJH.base) ? FZJH.base : './data/servers/taptap/';
+    fetch(base + 'profiles/' + row.userid + '.json', { cache: 'no-cache' })
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -483,7 +484,8 @@
 
   /* ---------- 启动 ---------- */
 
-  fetch(DATA_URL, { cache: 'no-cache' })
+  function boot() {
+  fetch(dataUrl(), { cache: 'no-cache' })
     .then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -518,4 +520,8 @@
       el.empty.hidden = false;
       el.empty.textContent = '数据读取失败（' + e.message + '）。若是本地打开，请用本地服务器访问，不要直接双击 html。';
     });
+  }
+
+  if (window.FZJH && FZJH.init) FZJH.init(boot);
+  else boot();
 })();

@@ -2,8 +2,9 @@
 (function () {
   'use strict';
 
-  var BOARD = './data/gaoshoubang.json';
-  var HIST = './data/exp-history.json';
+  function base() { return (window.FZJH && FZJH.base) ? FZJH.base : './data/servers/taptap/'; }
+  function boardUrl() { return base() + 'gaoshoubang.json'; }
+  function histUrl() { return base() + 'exp-history.json'; }
   var WINDOW_DAYS = 3;
 
   var state = { rows: [], sortKey: 'grow', sortDir: 'desc', me: new URLSearchParams(location.search).get('me') || '' };
@@ -73,7 +74,7 @@
       var nm = h('span', 'nm');
       var a = document.createElement('a');
       a.className = 'nm-link';
-      a.href = './index.html?uid=' + encodeURIComponent(r.userid);
+      a.href = './index.html?uid=' + encodeURIComponent(r.userid) + ((window.FZJH && FZJH.key) ? '&s=' + encodeURIComponent(FZJH.key) : '');
       a.textContent = r.name || '—';
       nm.appendChild(a);
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
@@ -122,12 +123,13 @@
     el.count.hidden = true;
   }
 
+  function boot() {
   Promise.all([
-    fetch(BOARD, { cache: 'no-cache' }).then(function (r) {
+    fetch(boardUrl(), { cache: 'no-cache' }).then(function (r) {
       if (!r.ok) throw new Error('榜单 HTTP ' + r.status);
       return r.json();
     }),
-    fetch(HIST, { cache: 'no-cache' }).then(function (r) {
+    fetch(histUrl(), { cache: 'no-cache' }).then(function (r) {
       if (!r.ok) throw new Error('快照 HTTP ' + r.status);
       return r.json();
     })
@@ -192,6 +194,10 @@
   }).catch(function (e) {
     fail('读取失败：' + e.message);
   });
+  }
+
+  if (window.FZJH && FZJH.init) FZJH.init(boot);
+  else boot();
 
   window.addEventListener('resize', updateScrollHint);
   var sb = document.querySelector('.scroll');

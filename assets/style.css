@@ -380,3 +380,22 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   .tbl-exp .c-day{width:76px}
   .tbl-exp .c-pct{width:70px}
 }
+
+/* 分区切换器 */
+.srv-switch{
+  flex:1 1 100%;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  margin-top:11px;padding-top:10px;border-top:1px dashed var(--line-2);
+}
+.srv-label{color:var(--muted);font-size:12px;margin-right:2px;letter-spacing:.3px}
+.srv{
+  padding:4px 12px;border-radius:999px;background:#f3f1eb;color:var(--ink-2);
+  font-size:12.5px;text-decoration:none;border:1px solid transparent;
+  transition:background .14s,color .14s;white-space:nowrap;
+}
+.srv:hover{background:#eae5d9;color:var(--ink)}
+.srv.active{background:var(--accent);color:#fff}
+.srv:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:560px){
+  .srv-switch{margin-top:8px;padding-top:8px;overflow-x:auto;flex-wrap:nowrap}
+  .srv{flex:0 0 auto;padding:4px 10px;font-size:12px}
+}

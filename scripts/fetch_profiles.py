@@ -155,14 +155,14 @@ def slim(p, board_row, names, old=None, today=None):
     }
 
 
-def main():
-    args = sys.argv[1:]
-    cfg = F.load_cfg()
-
-    with io.open(os.path.join(BASE, "data", "names.json"), encoding="utf-8") as f:
-        names = json.load(f)
-
-    board_path = os.path.join(BASE, "data", "gaoshoubang.json")
+def fetch_server(srv, names, args):
+    """抓单个服务器的玩家档案，写到 data/servers/<key>/profiles/"""
+    cfg = F.server_cfg(srv)
+    out_dir0 = F.server_dir(srv["key"])
+    board_path = os.path.join(out_dir0, "gaoshoubang.json")
+    if not os.path.exists(board_path):
+        print("!! %s 还没有榜单数据，先跑 fetch.py --server %s" % (srv["name"], srv["key"]))
+        return 1
     with io.open(board_path, encoding="utf-8") as f:
         board = json.load(f)
     rows = {r["userid"]: r for r in board.get("rows", [])}
@@ -182,12 +182,12 @@ def main():
     print("[2/3] 抓取 %d 份档案（间隔 %.2fs）…" % (len(targets), SLEEP))
     players, fail = {}, []
     olds = {}
-    out_dir0 = os.path.join(BASE, "data", "profiles")
+    prof_dir = os.path.join(out_dir0, "profiles")
     today = F.bj_date(t)
     for i, uid in enumerate(targets, 1):
         try:
             # 先读上一版，供「新增武学」比对；写盘在最后统一做
-            op = os.path.join(out_dir0, "%s.json" % uid)
+            op = os.path.join(prof_dir, "%s.json" % uid)
             if os.path.exists(op):
                 try:
                     with io.open(op, encoding="utf-8") as f:
@@ -235,7 +235,7 @@ def main():
         return 1
 
     # 每人一个小文件，页面点击时才请求，避免首屏加载 1.5MB
-    out_dir = os.path.join(BASE, "data", "profiles")
+    out_dir = prof_dir
     os.makedirs(out_dir, exist_ok=True)
     written = 0
     for uid, prof in players.items():
@@ -268,6 +268,37 @@ def main():
     print("      样例 %s：武学 %d 门，准备位 %d 个，装备 %d 件" % (
         u["name"], len(u["skills"]), len(u["prepared"]), len(u["equips"])))
     return 0
+
+
+
+def main():
+    args = sys.argv[1:]
+    servers = F.load_servers()
+
+    with io.open(os.path.join(BASE, "data", "names.json"), encoding="utf-8") as f:
+        names = json.load(f)
+
+    if "--server" in args:
+        want = args[args.index("--server") + 1]
+        targets = [s for s in servers if s["key"] == want]
+        if not targets:
+            raise SystemExit("没有这个服务器：%s（可选：%s）" % (
+                want, "、".join(s["key"] for s in servers)))
+    else:
+        targets = servers
+
+    rc = 0
+    for i, srv in enumerate(targets, 1):
+        print("\n===== [%d/%d] %s · %s =====" % (i, len(targets), srv["name"], srv["channel"]))
+        try:
+            if fetch_server(srv, names, args) != 0:
+                rc = 1
+        except Exception as e:
+            print("!! 抓取失败：%s: %s" % (type(e).__name__, e))
+            rc = 1
+        if i < len(targets):
+            time.sleep(2)
+    return rc
 
 
 if __name__ == "__main__":
