@@ -187,10 +187,25 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   .pill{font-size:11.5px;padding:4px 9px}
   .c-school{display:none}
   .school-inline{display:inline-block}
-  table{table-layout:fixed}
-  .c-rank{width:46px}
-  .c-lv{width:44px}
-  .c-exp{width:86px}
+  /* 表格改为横向滑动：列不再隐藏，靠滑动查看，前两列吸附 */
+  .scroll{overflow-x:auto;overflow-y:hidden}
+  table{table-layout:fixed;width:474px;max-width:none}
+  thead th,tbody td{padding:10px 6px}
+  .c-rank{width:44px}
+  .c-name{width:140px}
+  .c-lv{width:48px}
+  .c-exp{width:80px}
+  .c-luck{width:48px}
+  .c-looks{width:56px}
+  .c-age{width:58px}
+  .nm{white-space:nowrap}
+  th.c-rank,td.c-rank{position:sticky;left:0;z-index:3;background:var(--card)}
+  th.c-name,td.c-name{
+    position:sticky;left:44px;z-index:3;background:var(--card);
+    box-shadow:7px 0 9px -7px rgba(31,35,40,.22), 1px 0 0 var(--line-2);
+  }
+  thead th.c-rank,thead th.c-name{background:#fbf9f4;z-index:4}
+  tbody tr:hover td.c-rank,tbody tr:hover td.c-name{background:#fbf9f4}
   .name{flex-direction:column;align-items:flex-start;gap:0;line-height:1.4;font-size:14px}
   .nm{font-weight:600}
   .uid{font-size:11px;font-weight:400}
@@ -345,3 +360,23 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .pf-search-input:focus{border-color:#c9b7b2;box-shadow:0 0 0 3px rgba(140,47,40,.07)}
 .pf-count{flex:0 0 auto;color:var(--muted);font-size:12px;white-space:nowrap}
 .pf-none{margin:10px 0 4px;color:var(--muted);font-size:13px;text-align:center}
+
+/* 横向滑动提示（仅窄屏出现，滑动后自动隐藏） */
+.scroll-hint{
+  display:none;margin:0 0 8px;text-align:center;
+  color:var(--muted);font-size:11.5px;letter-spacing:.4px;
+}
+@media (max-width:560px){
+  .scroll-hint[data-show="1"]{display:block}
+}
+
+/* 经验变化页：同样横向滑动，列宽单独配平 */
+@media (max-width:560px){
+  table.tbl-exp{table-layout:fixed;width:506px;max-width:none}
+  .tbl-exp .c-rank{width:44px}
+  .tbl-exp .c-name{width:140px}
+  .tbl-exp .c-exp{width:88px}
+  .tbl-exp .c-grow{width:88px}
+  .tbl-exp .c-day{width:76px}
+  .tbl-exp .c-pct{width:70px}
+}

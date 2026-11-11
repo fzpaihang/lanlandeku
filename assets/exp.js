@@ -34,6 +34,14 @@
     return n;
   }
 
+  function updateScrollHint() {
+    var box = document.querySelector('.scroll');
+    var hint = document.getElementById('scroll-hint');
+    if (!box || !hint) return;
+    var overflow = box.scrollWidth - box.clientWidth > 4;
+    hint.setAttribute('data-show', (overflow && box.scrollLeft < 4) ? '1' : '0');
+  }
+
   function sorted(list) {
     var k = state.sortKey, dir = state.sortDir === 'asc' ? 1 : -1;
     return list.slice().sort(function (a, b) {
@@ -86,8 +94,8 @@
         r.grow === null ? '—' : (r.grow > 0 ? '+' : '') + fmtBig(r.grow)));
       tr.appendChild(tdG);
 
-      tr.appendChild(h('td', 'c-day num hide-sm', r.perDay === null ? '—' : '+' + fmtBig(r.perDay)));
-      tr.appendChild(h('td', 'c-pct num hide-md',
+      tr.appendChild(h('td', 'c-day num', r.perDay === null ? '—' : '+' + fmtBig(r.perDay)));
+      tr.appendChild(h('td', 'c-pct num',
         r.pct === null ? '—' : (r.pct > 0 ? '+' : '') + r.pct.toFixed(2) + '%'));
 
       frag.appendChild(tr);
@@ -95,6 +103,8 @@
     el.tbody.appendChild(frag);
 
     el.count.textContent = list.length + ' 人';
+
+    updateScrollHint();
 
     Array.prototype.forEach.call(el.tbl.querySelectorAll('th[data-key]'), function (th) {
       if (th.dataset.key === state.sortKey) {
@@ -182,6 +192,10 @@
   }).catch(function (e) {
     fail('读取失败：' + e.message);
   });
+
+  window.addEventListener('resize', updateScrollHint);
+  var sb = document.querySelector('.scroll');
+  if (sb) sb.addEventListener('scroll', updateScrollHint, { passive: true });
 
   Array.prototype.forEach.call(document.querySelectorAll('th[data-key]'), function (th) {
     th.addEventListener('click', function () {

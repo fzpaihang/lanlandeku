@@ -50,6 +50,15 @@
     return Math.floor(d / 86400) + ' 天前更新';
   }
 
+  /* 窄屏横向滑动提示：表格溢出且未滑动时显示 */
+  function updateScrollHint() {
+    var box = document.querySelector('.scroll');
+    var hint = document.getElementById('scroll-hint');
+    if (!box || !hint) return;
+    var overflow = box.scrollWidth - box.clientWidth > 4;
+    hint.setAttribute('data-show', (overflow && box.scrollLeft < 4) ? '1' : '0');
+  }
+
   // 「2026-11-10」→ 今天 / 昨天 / 3 天前 / 11-01
   function agoLabel(date) {
     if (!date) return '';
@@ -153,19 +162,21 @@
       tr.appendChild(h('td', 'c-exp num', fmtBig(r.exp)));
 
       // 福缘
-      tr.appendChild(h('td', 'c-luck num hide-sm', r.fuyuan != null ? String(r.fuyuan) : '—'));
+      tr.appendChild(h('td', 'c-luck num', r.fuyuan != null ? String(r.fuyuan) : '—'));
 
       // 容貌
-      tr.appendChild(h('td', 'c-looks num hide-md', fmtInt(r.looks)));
+      tr.appendChild(h('td', 'c-looks num', fmtInt(r.looks)));
 
       // 年龄
-      tr.appendChild(h('td', 'c-age num hide-md', r.age != null ? r.age + ' 岁' : '—'));
+      tr.appendChild(h('td', 'c-age num', r.age != null ? r.age + ' 岁' : '—'));
 
       frag.appendChild(tr);
     });
     el.tbody.appendChild(frag);
 
     el.count.textContent = list.length + ' / ' + state.rows.length + ' 人';
+
+    updateScrollHint();
 
     Array.prototype.forEach.call(el.tbl.querySelectorAll('th[data-key]'), function (th) {
       if (th.dataset.key === state.sortKey) {
@@ -485,6 +496,11 @@
       el.updated.title = '数据时间：' + (d.updatedAt || '未知');
       buildChips();
       render();
+
+      // 窗口尺寸或滚动位置变化时，更新「左右滑动」提示
+      window.addEventListener('resize', updateScrollHint);
+      var sb = document.querySelector('.scroll');
+      if (sb) sb.addEventListener('scroll', updateScrollHint, { passive: true });
 
       // 支持 ?uid=123 直接打开某人档案
       var uidParam = new URLSearchParams(location.search).get('uid');

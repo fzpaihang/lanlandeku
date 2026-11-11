@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#8c2f28" />
 <meta name="robots" content="noindex" />
 <title>经验变化 · 放置江湖高手榜</title>
-<link rel="stylesheet" href="./assets/style.css?v=12" />
+<link rel="stylesheet" href="./assets/style.css?v=14" />
 </head>
 <body>
 
@@ -35,8 +35,9 @@
   <p id="banner" class="banner" hidden></p>
 
   <section class="tablecard" id="board" tabindex="-1">
+    <p class="scroll-hint" id="scroll-hint" data-show="0">← 左右滑动查看更多 →</p>
     <div class="scroll">
-      <table id="tbl">
+      <table id="tbl" class="tbl-exp">
         <caption class="sr-only">高手榜玩家经验增长对比</caption>
         <thead>
           <tr>
@@ -45,8 +46,8 @@
             <th class="c-school" data-key="menpai" scope="col">门派</th>
             <th class="c-exp num" data-key="exp" scope="col">当前经验</th>
             <th class="c-grow num" data-key="grow" scope="col">区间增长</th>
-            <th class="c-day num hide-sm" data-key="perDay" scope="col">日均</th>
-            <th class="c-pct num hide-md" data-key="pct" scope="col">增幅</th>
+            <th class="c-day num" data-key="perDay" scope="col">日均</th>
+            <th class="c-pct num" data-key="pct" scope="col">增幅</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -62,6 +63,6 @@
   </p>
 </main>
 
-<script src="./assets/exp.js?v=12"></script>
+<script src="./assets/exp.js?v=14"></script>
 </body>
 </html>
