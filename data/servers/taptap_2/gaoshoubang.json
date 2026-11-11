@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-11 21:29:22",
- "updatedTs": 1794403762,
+ "updatedAt": "2026-11-12 00:43:19",
+ "updatedTs": 1794415399,
  "hasPrev": true,
  "total": 20,
  "rows": [
@@ -233,9 +233,9 @@
    "menpai": "武当派",
    "lv": 2953,
    "kongfu": 1717.67,
-   "exp": 2586589893.341,
-   "money": 487484404.50904,
-   "yueli": 630406,
+   "exp": 2588118070.4259,
+   "money": 488197878.50354,
+   "yueli": 630476,
    "xiayi": 21788.4,
    "looks": 5890,
    "fuyuan": 130,
