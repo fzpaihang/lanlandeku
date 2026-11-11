@@ -200,6 +200,18 @@ def fetch_server(srv, names, args):
         targets = [r["userid"] for r in board.get("rows", [])]
         if "--limit" in args:
             targets = targets[: int(args[args.index("--limit") + 1])]
+        else:
+            # 双保险：榜单可能因抓取失败保留上一版（人数会超过 maxRank），
+            # 这里再按上限截断一次，避免多抓几十份档案。
+            mr = srv.get("maxRank")
+            if mr:
+                try:
+                    mr = int(mr)
+                except (TypeError, ValueError):
+                    mr = 0
+                if mr and len(targets) > mr:
+                    print("      榜单 %d 人超过抓取上限 %d，按上限截断" % (len(targets), mr))
+                    targets = targets[:mr]
 
     # 隐私名单：跳过这些玩家，并删掉已存在的档案文件
     hidden_uids = F.hidden_uids_for(F.load_hidden(), srv["key"])

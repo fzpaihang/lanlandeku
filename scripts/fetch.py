@@ -537,6 +537,9 @@ def main():
         ok = True
         for i, s in enumerate(targets, 1):
             print("--- [%d/%d] %s（%s）---" % (i, len(targets), s["name"], s["channel"]))
+            # 打出来方便在 CI 日志里确认 Secret 里的 maxRank 有没有生效
+            print("[probe] 抓取上限：%s" % (
+                ("前 %s 名" % s["maxRank"]) if s.get("maxRank") else "不限（全量）"))
             if probe(server_cfg(s)) != 0:
                 ok = False
             if i < len(targets):
