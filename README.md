@@ -161,7 +161,7 @@ git init
 git add .
 git commit -m "init"
 git branch -M main
-git remote add origin https://github.com/<你的用户名>/fzjh-rank.git
+git remote add origin https://github.com/<你的用户名>/lanlandeku.git
 git push -u origin main
 ```
 
@@ -210,7 +210,7 @@ Actions 标签页 → 左侧「刷新高手榜」→ **Run workflow** → 模式
 
 ### 5. 开启 Pages
 
-Settings → Pages → Source 选 `main` / 根目录，得到 `https://<用户名>.github.io/fzjh-rank/`。
+Settings → Pages → Source 选 `main` / 根目录，得到 `https://<用户名>.github.io/lanlandeku/`。
 
 ### 几个坑
 
