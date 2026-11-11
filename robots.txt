@@ -1,0 +1,19 @@
+# 这个站点只给熟人看，不希望出现在搜索引擎结果里
+User-agent: *
+Disallow: /
+
+# 顺带挡一下几个常见的抓取器（它们不一定守规矩，但写上没坏处）
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: Googlebot
+Disallow: /
+
+User-agent: bingbot
+Disallow: /
+
+User-agent: Sogou web spider
+Disallow: /
+
+User-agent: 360Spider
+Disallow: /
