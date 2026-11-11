@@ -366,6 +366,7 @@ def load_servers():
             "hotver": s.get("hotver") or cfg.get("hotver"),
             "device": s.get("device", cfg.get("device", "")),
             "default": bool(s.get("default")) or i == 0,
+            "maxRank": s.get("maxRank"),
         })
 
     for s in out:
@@ -413,6 +414,7 @@ def fetch_server(srv, board, max_pages):
     print("      会话密钥 FZJH03 = %s" % keys["FZJH03"][0])
 
     print("[2/3] 抓取 %s（每页 10 条，间隔 %.1fs）…" % (BOARD_CN.get(board, board), SLEEP))
+    max_rank = srv.get("maxRank")
     rows, seen = [], set()
     stale = 0
     for p in range(1, max_pages + 1):
@@ -429,6 +431,11 @@ def fetch_server(srv, board, max_pages):
                 rows.append(r)
                 added += 1
         print("      第 %2d 页 +%2d 条  累计 %d" % (p, added, len(rows)))
+        # 只抓前 maxRank 名（例如 4399 只取前 50 名）
+        if max_rank and len(rows) >= int(max_rank):
+            rows = rows[: int(max_rank)]
+            print("      已抓满前 %d 名，停止" % int(max_rank))
+            break
         stale = stale + 1 if added == 0 else 0
         if stale >= 2:
             print("      连续无新增，停止")
