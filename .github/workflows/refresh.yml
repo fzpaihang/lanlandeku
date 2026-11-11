@@ -46,8 +46,9 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    # 单区全量实测 7–8 分钟，30 分钟留足重试与排队余量
-    timeout-minutes: 30
+    # 单区全量实测 7–8 分钟；五区一次跑（server=all）实测 29 分钟，
+    # 因此放宽到 45 分钟，避免「手动全量」卡在 30 分钟上限被中断导致数据不提交。
+    timeout-minutes: 45
 
     steps:
       - name: 检出仓库
