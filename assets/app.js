@@ -57,22 +57,12 @@
 
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
-  /* 显示具体更新时间：今天 → "19:41 更新"；昨天 → "昨天 19:41 更新"；
-     更早 → "11-09 19:41 更新" */
+  /* 更新时间统一显示「几月几号 几点几分」，不做今天/昨天判断，
+     这样任何一天的显示格式都一致：11月11日 19:28 更新 */
   function fmtUpdated(ts, fallback) {
     if (!ts) return fallback ? ('更新于 ' + fallback) : '';
-    var now = Math.floor(Date.now() / 1000);
     var t = bjParts(ts);
-    var hhmm = pad2(t.hh) + ':' + pad2(t.mm);
-    var today = bjParts(now);
-    if (t.y === today.y && t.m === today.m && t.day === today.day) {
-      return hhmm + ' 更新';
-    }
-    var y = bjParts(now - 86400);
-    if (t.y === y.y && t.m === y.m && t.day === y.day) {
-      return '昨天 ' + hhmm + ' 更新';
-    }
-    return pad2(t.m) + '-' + pad2(t.day) + ' ' + hhmm + ' 更新';
+    return t.m + '月' + t.day + '日 ' + pad2(t.hh) + ':' + pad2(t.mm) + ' 更新';
   }
 
   /* 窄屏横向滑动提示：表格溢出且未滑动时显示 */
