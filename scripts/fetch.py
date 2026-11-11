@@ -81,6 +81,15 @@ def load_cfg():
     # 校验放到 load_servers 里做：多服务器时 uuid/account 在 servers 数组内，
     # 顶层可能只有 hotver/ver 这类公共项。
     if not cfg.get("hotver"):
+        blob = os.environ.get("FZJH_SERVERS")
+        if blob:
+            try:
+                d = json.loads(blob)
+                if isinstance(d, dict) and d.get("hotver"):
+                    cfg["hotver"] = d["hotver"]
+            except Exception:
+                pass
+    if not cfg.get("hotver"):
         raise SystemExit("缺少配置：hotver（config.json 或 FZJH_HOTVER）")
     cfg["hotver"] = int(str(cfg["hotver"]).strip())
     cfg.setdefault("ver", "2.1.02")
@@ -271,9 +280,19 @@ def load_servers():
     items = None
     if raw:
         try:
-            items = json.loads(raw)
+            data = json.loads(raw)
         except Exception as e:
             raise SystemExit("FZJH_SERVERS 不是合法 JSON：%s" % e)
+        # 兼容两种写法：直接贴数组，或把整个 config.json 贴进来
+        if isinstance(data, dict):
+            items = data.get("servers") or []
+            if not items:
+                raise SystemExit("FZJH_SERVERS 里没有 servers 字段")
+            for k in ("hotver", "ver", "device"):
+                if data.get(k) and not cfg.get(k):
+                    cfg[k] = data[k]
+        else:
+            items = data
     elif isinstance(cfg.get("servers"), list):
         items = cfg["servers"]
 
