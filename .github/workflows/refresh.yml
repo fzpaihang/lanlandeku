@@ -87,7 +87,7 @@ jobs:
           echo "target=$t" >> "$GITHUB_OUTPUT"
           echo "label=$n"  >> "$GITHUB_OUTPUT"
           {
-            echo "### 本次刷新：$n（\`$t\`）"
+            echo "### 本次刷新：$n（$t）"
             echo ""
             echo "- 触发方式：${MODE:-schedule}"
             echo "- UTC 时间：$(date -u '+%Y-%m-%d %H:%M:%S')"
@@ -100,7 +100,7 @@ jobs:
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
           T: ${{ steps.t.outputs.target }}
         run: |
-          if [ "$T" = "all" ]; then python scripts/fetch.py --probe
+          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch.py --probe
           else python scripts/fetch.py --probe --server "$T"; fi
 
       - name: 抓榜单
@@ -110,7 +110,7 @@ jobs:
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
           T: ${{ steps.t.outputs.target }}
         run: |
-          if [ "$T" = "all" ]; then python scripts/fetch.py
+          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch.py
           else python scripts/fetch.py --server "$T"; fi
 
       - name: 抓玩家档案
@@ -121,7 +121,7 @@ jobs:
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
           T: ${{ steps.t.outputs.target }}
         run: |
-          if [ "$T" = "all" ]; then python scripts/fetch_profiles.py
+          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch_profiles.py
           else python scripts/fetch_profiles.py --server "$T"; fi
 
       - name: 提交数据
@@ -144,5 +144,5 @@ jobs:
         env:
           T: ${{ steps.t.outputs.target }}
         run: |
-          if [ "$T" = "all" ]; then python scripts/summary.py >> $GITHUB_STEP_SUMMARY
+          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/summary.py >> $GITHUB_STEP_SUMMARY
           else python scripts/summary.py --server "$T" >> $GITHUB_STEP_SUMMARY; fi
