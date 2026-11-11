@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-11 13:45:16",
- "updatedTs": 1794375916,
+ "updatedAt": "2026-11-11 13:51:01",
+ "updatedTs": 1794376261,
  "hasPrev": true,
  "total": 99,
  "rows": [
@@ -63,8 +63,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 4,
-   "delta": 1
+   "prevRank": 3,
+   "delta": 0
   },
   {
    "rank": 4,
@@ -83,8 +83,8 @@
    "sex": "男",
    "wuxing": 40,
    "inheritCount": 5,
-   "prevRank": 5,
-   "delta": 1
+   "prevRank": 4,
+   "delta": 0
   },
   {
    "rank": 5,
@@ -103,8 +103,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 6,
-   "delta": 1
+   "prevRank": 5,
+   "delta": 0
   },
   {
    "rank": 6,
@@ -123,8 +123,8 @@
    "sex": "女",
    "wuxing": 90,
    "inheritCount": 5,
-   "prevRank": 7,
-   "delta": 1
+   "prevRank": 6,
+   "delta": 0
   },
   {
    "rank": 7,
@@ -143,8 +143,8 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 8,
-   "delta": 1
+   "prevRank": 7,
+   "delta": 0
   },
   {
    "rank": 8,
@@ -163,8 +163,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 9,
-   "delta": 1
+   "prevRank": 8,
+   "delta": 0
   },
   {
    "rank": 9,
@@ -183,8 +183,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 10,
-   "delta": 1
+   "prevRank": 9,
+   "delta": 0
   },
   {
    "rank": 10,
@@ -203,8 +203,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 11,
-   "delta": 1
+   "prevRank": 10,
+   "delta": 0
   },
   {
    "rank": 11,
@@ -223,8 +223,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 12,
-   "delta": 1
+   "prevRank": 11,
+   "delta": 0
   },
   {
    "rank": 12,
@@ -243,8 +243,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": 13,
-   "delta": 1
+   "prevRank": 12,
+   "delta": 0
   },
   {
    "rank": 13,
@@ -263,8 +263,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 14,
-   "delta": 1
+   "prevRank": 13,
+   "delta": 0
   },
   {
    "rank": 14,
@@ -283,8 +283,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 15,
-   "delta": 1
+   "prevRank": 14,
+   "delta": 0
   },
   {
    "rank": 15,
@@ -303,8 +303,8 @@
    "sex": "女",
    "wuxing": 22,
    "inheritCount": 5,
-   "prevRank": 16,
-   "delta": 1
+   "prevRank": 15,
+   "delta": 0
   },
   {
    "rank": 16,
@@ -323,8 +323,8 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 17,
-   "delta": 1
+   "prevRank": 16,
+   "delta": 0
   },
   {
    "rank": 17,
@@ -343,8 +343,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 18,
-   "delta": 1
+   "prevRank": 17,
+   "delta": 0
   },
   {
    "rank": 18,
@@ -363,8 +363,8 @@
    "sex": "女",
    "wuxing": 195,
    "inheritCount": 5,
-   "prevRank": 19,
-   "delta": 1
+   "prevRank": 18,
+   "delta": 0
   },
   {
    "rank": 19,
@@ -383,8 +383,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 20,
-   "delta": 1
+   "prevRank": 19,
+   "delta": 0
   },
   {
    "rank": 20,
@@ -403,8 +403,8 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 21,
-   "delta": 1
+   "prevRank": 20,
+   "delta": 0
   },
   {
    "rank": 21,
@@ -423,8 +423,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": 22,
-   "delta": 1
+   "prevRank": 21,
+   "delta": 0
   },
   {
    "rank": 22,
@@ -443,8 +443,8 @@
    "sex": "男",
    "wuxing": 195,
    "inheritCount": 5,
-   "prevRank": 23,
-   "delta": 1
+   "prevRank": 22,
+   "delta": 0
   },
   {
    "rank": 23,
@@ -463,8 +463,8 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 24,
-   "delta": 1
+   "prevRank": 23,
+   "delta": 0
   },
   {
    "rank": 24,
@@ -483,8 +483,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 25,
-   "delta": 1
+   "prevRank": 24,
+   "delta": 0
   },
   {
    "rank": 25,
@@ -503,8 +503,8 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 26,
-   "delta": 1
+   "prevRank": 25,
+   "delta": 0
   },
   {
    "rank": 26,
@@ -523,8 +523,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 27,
-   "delta": 1
+   "prevRank": 26,
+   "delta": 0
   },
   {
    "rank": 27,
@@ -543,8 +543,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 28,
-   "delta": 1
+   "prevRank": 27,
+   "delta": 0
   },
   {
    "rank": 28,
@@ -563,8 +563,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 29,
-   "delta": 1
+   "prevRank": 28,
+   "delta": 0
   },
   {
    "rank": 29,
@@ -583,8 +583,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 30,
-   "delta": 1
+   "prevRank": 29,
+   "delta": 0
   },
   {
    "rank": 30,
@@ -603,8 +603,8 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 31,
-   "delta": 1
+   "prevRank": 30,
+   "delta": 0
   },
   {
    "rank": 31,
@@ -623,8 +623,8 @@
    "sex": "女",
    "wuxing": 195,
    "inheritCount": 5,
-   "prevRank": 32,
-   "delta": 1
+   "prevRank": 31,
+   "delta": 0
   },
   {
    "rank": 32,
@@ -643,8 +643,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 33,
-   "delta": 1
+   "prevRank": 32,
+   "delta": 0
   },
   {
    "rank": 33,
@@ -663,8 +663,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 34,
-   "delta": 1
+   "prevRank": 33,
+   "delta": 0
   },
   {
    "rank": 34,
@@ -683,8 +683,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 35,
-   "delta": 1
+   "prevRank": 34,
+   "delta": 0
   },
   {
    "rank": 35,
@@ -703,8 +703,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 36,
-   "delta": 1
+   "prevRank": 35,
+   "delta": 0
   },
   {
    "rank": 36,
@@ -723,8 +723,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": 37,
-   "delta": 1
+   "prevRank": 36,
+   "delta": 0
   },
   {
    "rank": 37,
@@ -743,8 +743,8 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 38,
-   "delta": 1
+   "prevRank": 37,
+   "delta": 0
   },
   {
    "rank": 38,
@@ -763,8 +763,8 @@
    "sex": "女",
    "wuxing": 190,
    "inheritCount": 5,
-   "prevRank": 39,
-   "delta": 1
+   "prevRank": 38,
+   "delta": 0
   },
   {
    "rank": 39,
@@ -783,8 +783,8 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 40,
-   "delta": 1
+   "prevRank": 39,
+   "delta": 0
   },
   {
    "rank": 40,
@@ -803,8 +803,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 41,
-   "delta": 1
+   "prevRank": 40,
+   "delta": 0
   },
   {
    "rank": 41,
@@ -823,8 +823,8 @@
    "sex": "女",
    "wuxing": 210,
    "inheritCount": 5,
-   "prevRank": 42,
-   "delta": 1
+   "prevRank": 41,
+   "delta": 0
   },
   {
    "rank": 42,
@@ -843,8 +843,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 43,
-   "delta": 1
+   "prevRank": 42,
+   "delta": 0
   },
   {
    "rank": 43,
@@ -863,8 +863,8 @@
    "sex": "男",
    "wuxing": 217,
    "inheritCount": 5,
-   "prevRank": 44,
-   "delta": 1
+   "prevRank": 43,
+   "delta": 0
   },
   {
    "rank": 44,
@@ -883,8 +883,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 45,
-   "delta": 1
+   "prevRank": 44,
+   "delta": 0
   },
   {
    "rank": 45,
@@ -903,8 +903,8 @@
    "sex": "女",
    "wuxing": 200,
    "inheritCount": 5,
-   "prevRank": 46,
-   "delta": 1
+   "prevRank": 45,
+   "delta": 0
   },
   {
    "rank": 46,
@@ -923,8 +923,8 @@
    "sex": "女",
    "wuxing": 236,
    "inheritCount": 5,
-   "prevRank": 47,
-   "delta": 1
+   "prevRank": 46,
+   "delta": 0
   },
   {
    "rank": 47,
@@ -943,8 +943,8 @@
    "sex": "女",
    "wuxing": 200,
    "inheritCount": 5,
-   "prevRank": 48,
-   "delta": 1
+   "prevRank": 47,
+   "delta": 0
   },
   {
    "rank": 48,
@@ -963,8 +963,8 @@
    "sex": "男",
    "wuxing": 100,
    "inheritCount": 5,
-   "prevRank": 49,
-   "delta": 1
+   "prevRank": 48,
+   "delta": 0
   },
   {
    "rank": 49,
@@ -983,8 +983,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 50,
-   "delta": 1
+   "prevRank": 49,
+   "delta": 0
   },
   {
    "rank": 50,
@@ -1003,8 +1003,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 51,
-   "delta": 1
+   "prevRank": 50,
+   "delta": 0
   },
   {
    "rank": 51,
@@ -1023,8 +1023,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 52,
-   "delta": 1
+   "prevRank": 51,
+   "delta": 0
   },
   {
    "rank": 52,
@@ -1043,8 +1043,8 @@
    "sex": "男",
    "wuxing": 191,
    "inheritCount": 5,
-   "prevRank": 53,
-   "delta": 1
+   "prevRank": 52,
+   "delta": 0
   },
   {
    "rank": 53,
@@ -1063,8 +1063,8 @@
    "sex": "男",
    "wuxing": 40,
    "inheritCount": 5,
-   "prevRank": 54,
-   "delta": 1
+   "prevRank": 53,
+   "delta": 0
   },
   {
    "rank": 54,
@@ -1083,8 +1083,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 55,
-   "delta": 1
+   "prevRank": 54,
+   "delta": 0
   },
   {
    "rank": 55,
@@ -1103,8 +1103,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 56,
-   "delta": 1
+   "prevRank": 55,
+   "delta": 0
   },
   {
    "rank": 56,
@@ -1123,8 +1123,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 57,
-   "delta": 1
+   "prevRank": 56,
+   "delta": 0
   },
   {
    "rank": 57,
@@ -1143,8 +1143,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 58,
-   "delta": 1
+   "prevRank": 57,
+   "delta": 0
   },
   {
    "rank": 58,
@@ -1163,8 +1163,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": 59,
-   "delta": 1
+   "prevRank": 58,
+   "delta": 0
   },
   {
    "rank": 59,
@@ -1183,8 +1183,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 60,
-   "delta": 1
+   "prevRank": 59,
+   "delta": 0
   },
   {
    "rank": 60,
@@ -1203,8 +1203,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 61,
-   "delta": 1
+   "prevRank": 60,
+   "delta": 0
   },
   {
    "rank": 61,
@@ -1223,8 +1223,8 @@
    "sex": "男",
    "wuxing": 19,
    "inheritCount": 5,
-   "prevRank": 62,
-   "delta": 1
+   "prevRank": 61,
+   "delta": 0
   },
   {
    "rank": 62,
@@ -1243,8 +1243,8 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 63,
-   "delta": 1
+   "prevRank": 62,
+   "delta": 0
   },
   {
    "rank": 63,
@@ -1263,8 +1263,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 64,
-   "delta": 1
+   "prevRank": 63,
+   "delta": 0
   },
   {
    "rank": 64,
@@ -1283,8 +1283,8 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 65,
-   "delta": 1
+   "prevRank": 64,
+   "delta": 0
   },
   {
    "rank": 65,
@@ -1303,8 +1303,8 @@
    "sex": "女",
    "wuxing": 21,
    "inheritCount": 5,
-   "prevRank": 66,
-   "delta": 1
+   "prevRank": 65,
+   "delta": 0
   },
   {
    "rank": 66,
@@ -1323,8 +1323,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 67,
-   "delta": 1
+   "prevRank": 66,
+   "delta": 0
   },
   {
    "rank": 67,
@@ -1343,8 +1343,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 68,
-   "delta": 1
+   "prevRank": 67,
+   "delta": 0
   },
   {
    "rank": 68,
@@ -1363,8 +1363,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 69,
-   "delta": 1
+   "prevRank": 68,
+   "delta": 0
   },
   {
    "rank": 69,
@@ -1383,8 +1383,8 @@
    "sex": "男",
    "wuxing": 25,
    "inheritCount": 5,
-   "prevRank": 70,
-   "delta": 1
+   "prevRank": 69,
+   "delta": 0
   },
   {
    "rank": 70,
@@ -1403,8 +1403,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 71,
-   "delta": 1
+   "prevRank": 70,
+   "delta": 0
   },
   {
    "rank": 71,
@@ -1423,8 +1423,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 72,
-   "delta": 1
+   "prevRank": 71,
+   "delta": 0
   },
   {
    "rank": 72,
@@ -1443,8 +1443,8 @@
    "sex": "女",
    "wuxing": 50,
    "inheritCount": 5,
-   "prevRank": 73,
-   "delta": 1
+   "prevRank": 72,
+   "delta": 0
   },
   {
    "rank": 73,
@@ -1463,8 +1463,8 @@
    "sex": "男",
    "wuxing": 27,
    "inheritCount": 5,
-   "prevRank": 74,
-   "delta": 1
+   "prevRank": 73,
+   "delta": 0
   },
   {
    "rank": 74,
@@ -1483,8 +1483,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 75,
-   "delta": 1
+   "prevRank": 74,
+   "delta": 0
   },
   {
    "rank": 75,
@@ -1503,8 +1503,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 76,
-   "delta": 1
+   "prevRank": 75,
+   "delta": 0
   },
   {
    "rank": 76,
@@ -1523,8 +1523,8 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 77,
-   "delta": 1
+   "prevRank": 76,
+   "delta": 0
   },
   {
    "rank": 77,
@@ -1543,8 +1543,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 78,
-   "delta": 1
+   "prevRank": 77,
+   "delta": 0
   },
   {
    "rank": 78,
@@ -1563,8 +1563,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": 79,
-   "delta": 1
+   "prevRank": 78,
+   "delta": 0
   },
   {
    "rank": 79,
@@ -1583,8 +1583,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 80,
-   "delta": 1
+   "prevRank": 79,
+   "delta": 0
   },
   {
    "rank": 80,
@@ -1603,8 +1603,8 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 81,
-   "delta": 1
+   "prevRank": 80,
+   "delta": 0
   },
   {
    "rank": 81,
@@ -1623,8 +1623,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 82,
-   "delta": 1
+   "prevRank": 81,
+   "delta": 0
   },
   {
    "rank": 82,
@@ -1643,8 +1643,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 83,
-   "delta": 1
+   "prevRank": 82,
+   "delta": 0
   },
   {
    "rank": 83,
@@ -1663,8 +1663,8 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 84,
-   "delta": 1
+   "prevRank": 83,
+   "delta": 0
   },
   {
    "rank": 84,
@@ -1683,8 +1683,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 85,
-   "delta": 1
+   "prevRank": 84,
+   "delta": 0
   },
   {
    "rank": 85,
@@ -1703,8 +1703,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": 86,
-   "delta": 1
+   "prevRank": 85,
+   "delta": 0
   },
   {
    "rank": 86,
@@ -1723,8 +1723,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 87,
-   "delta": 1
+   "prevRank": 86,
+   "delta": 0
   },
   {
    "rank": 87,
@@ -1743,8 +1743,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 88,
-   "delta": 1
+   "prevRank": 87,
+   "delta": 0
   },
   {
    "rank": 88,
@@ -1763,8 +1763,8 @@
    "sex": "男",
    "wuxing": 240,
    "inheritCount": 5,
-   "prevRank": 89,
-   "delta": 1
+   "prevRank": 88,
+   "delta": 0
   },
   {
    "rank": 89,
@@ -1783,8 +1783,8 @@
    "sex": "男",
    "wuxing": 240,
    "inheritCount": 5,
-   "prevRank": 90,
-   "delta": 1
+   "prevRank": 89,
+   "delta": 0
   },
   {
    "rank": 90,
@@ -1803,8 +1803,8 @@
    "sex": "女",
    "wuxing": 10,
    "inheritCount": 5,
-   "prevRank": 91,
-   "delta": 1
+   "prevRank": 90,
+   "delta": 0
   },
   {
    "rank": 91,
@@ -1823,8 +1823,8 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": 5,
-   "prevRank": 92,
-   "delta": 1
+   "prevRank": 91,
+   "delta": 0
   },
   {
    "rank": 92,
@@ -1843,8 +1843,8 @@
    "sex": "男",
    "wuxing": 240,
    "inheritCount": 5,
-   "prevRank": 93,
-   "delta": 1
+   "prevRank": 92,
+   "delta": 0
   },
   {
    "rank": 93,
@@ -1863,8 +1863,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 94,
-   "delta": 1
+   "prevRank": 93,
+   "delta": 0
   },
   {
    "rank": 94,
@@ -1883,8 +1883,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 95,
-   "delta": 1
+   "prevRank": 94,
+   "delta": 0
   },
   {
    "rank": 95,
@@ -1903,8 +1903,8 @@
    "sex": "男",
    "wuxing": 213,
    "inheritCount": 5,
-   "prevRank": 96,
-   "delta": 1
+   "prevRank": 95,
+   "delta": 0
   },
   {
    "rank": 96,
@@ -1923,8 +1923,8 @@
    "sex": "男",
    "wuxing": 35,
    "inheritCount": 5,
-   "prevRank": 97,
-   "delta": 1
+   "prevRank": 96,
+   "delta": 0
   },
   {
    "rank": 97,
@@ -1943,8 +1943,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 98,
-   "delta": 1
+   "prevRank": 97,
+   "delta": 0
   },
   {
    "rank": 98,
@@ -1963,8 +1963,8 @@
    "sex": "男",
    "wuxing": 240,
    "inheritCount": 5,
-   "prevRank": 99,
-   "delta": 1
+   "prevRank": 98,
+   "delta": 0
   },
   {
    "rank": 99,
@@ -1983,8 +1983,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 100,
-   "delta": 1
+   "prevRank": 99,
+   "delta": 0
   }
  ]
 }
