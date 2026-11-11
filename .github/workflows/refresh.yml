@@ -1,12 +1,15 @@
 name: 刷新高手榜
 
-# 北京时间 = UTC+8
-#   0 22 * * *  → 次日 06:00（早班，抓全量：榜单 + 档案）
-#   0 10 * * *  → 当日 18:00（晚班，只抓榜单，档案每天更新一次就够）
+# 北京时间 = UTC+8，每个分区一天只跑一次全量，时间错开
+#   0 22 * * *  → 次日 06:00  苍松迎客（taptap）
+#   0 4  * * *  → 当日 12:00  墨羽惊鸿（taptap_4）
+#   0 10 * * *  → 当日 18:00  4399
+# 单区全量约 7–8 分钟，三条任务互不重叠，也避免连续请求触发限流。
 on:
   schedule:
-    - cron: '0 22 * * *'
-    - cron: '0 10 * * *'
+    - cron: '0 22 * * *'   # 06:00 苍松迎客
+    - cron: '0 4 * * *'    # 12:00 墨羽惊鸿
+    - cron: '0 10 * * *'   # 18:00 4399
   workflow_dispatch:
     inputs:
       mode:
@@ -18,6 +21,16 @@ on:
           - probe        # 只验证能不能连上游戏服，不写文件
           - full         # 榜单 + 档案
           - board        # 只抓榜单
+      server:
+        description: '目标分区（手动触发时生效，定时任务由 cron 决定）'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - taptap
+          - taptap_4
+          - 4399
 
 permissions:
   contents: write
@@ -29,7 +42,8 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # 单区全量实测 7–8 分钟，30 分钟留足重试与排队余量
+    timeout-minutes: 30
 
     steps:
       - name: 检出仓库
@@ -44,35 +58,75 @@ jobs:
       - name: 安装依赖
         run: pip install -r requirements.txt
 
+      # 定时任务没有输入参数，靠 github.event.schedule 反查本次该抓哪个区
+      - name: 解析本次目标分区
+        id: t
+        env:
+          SCHED: ${{ github.event.schedule }}
+          PICK: ${{ inputs.server }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          if [ -n "$MODE" ]; then
+            t="$PICK"
+          else
+            case "$SCHED" in
+              '0 22 * * *') t='taptap' ;;
+              '0 4 * * *')  t='taptap_4' ;;
+              '0 10 * * *') t='4399' ;;
+              *)            t='all' ;;
+            esac
+          fi
+
+          case "$t" in
+            taptap)   n='苍松迎客' ;;
+            taptap_4) n='墨羽惊鸿' ;;
+            4399)     n='4399' ;;
+            *)        n='全部' ;;
+          esac
+
+          echo "target=$t" >> "$GITHUB_OUTPUT"
+          echo "label=$n"  >> "$GITHUB_OUTPUT"
+          {
+            echo "### 本次刷新：$n（\`$t\`）"
+            echo ""
+            echo "- 触发方式：${MODE:-schedule}"
+            echo "- UTC 时间：$(date -u '+%Y-%m-%d %H:%M:%S')"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       # 凭据全部走 Secrets，绝不写进仓库
       - name: 连通性探测
         env:
-          FZJH_UUID: ${{ secrets.FZJH_UUID }}
-          FZJH_ACCOUNT: ${{ secrets.FZJH_ACCOUNT }}
           FZJH_SERVERS: ${{ secrets.FZJH_SERVERS }}
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
-        run: python scripts/fetch.py --probe
+          T: ${{ steps.t.outputs.target }}
+        run: |
+          if [ "$T" = "all" ]; then python scripts/fetch.py --probe
+          else python scripts/fetch.py --probe --server "$T"; fi
 
       - name: 抓榜单
         if: github.event_name == 'schedule' || inputs.mode != 'probe'
         env:
-          FZJH_UUID: ${{ secrets.FZJH_UUID }}
-          FZJH_ACCOUNT: ${{ secrets.FZJH_ACCOUNT }}
           FZJH_SERVERS: ${{ secrets.FZJH_SERVERS }}
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
-        run: python scripts/fetch.py
+          T: ${{ steps.t.outputs.target }}
+        run: |
+          if [ "$T" = "all" ]; then python scripts/fetch.py
+          else python scripts/fetch.py --server "$T"; fi
 
       - name: 抓玩家档案
-        # 档案体积大（约 1MB/轮），每天只在早班更新一次
-        if: (github.event_name == 'schedule' && github.event.schedule == '0 22 * * *') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')
+        # 每个区的定时任务都是一次全量，所以只要不是 probe/board 就抓档案
+        if: (github.event_name == 'schedule') || (inputs.mode == 'full')
         env:
-          FZJH_UUID: ${{ secrets.FZJH_UUID }}
-          FZJH_ACCOUNT: ${{ secrets.FZJH_ACCOUNT }}
           FZJH_SERVERS: ${{ secrets.FZJH_SERVERS }}
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
-        run: python scripts/fetch_profiles.py
+          T: ${{ steps.t.outputs.target }}
+        run: |
+          if [ "$T" = "all" ]; then python scripts/fetch_profiles.py
+          else python scripts/fetch_profiles.py --server "$T"; fi
 
       - name: 提交数据
+        env:
+          LABEL: ${{ steps.t.outputs.label }}
         run: |
           set -e
           git config user.name  "github-actions[bot]"
@@ -82,9 +136,13 @@ jobs:
             echo "数据无变化，跳过提交"
             exit 0
           fi
-          git commit -m "数据刷新 $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')"
+          git commit -m "数据刷新 $LABEL $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')"
           git push
 
       - name: 结果摘要
         if: always()
-        run: python scripts/summary.py >> $GITHUB_STEP_SUMMARY
+        env:
+          T: ${{ steps.t.outputs.target }}
+        run: |
+          if [ "$T" = "all" ]; then python scripts/summary.py >> $GITHUB_STEP_SUMMARY
+          else python scripts/summary.py --server "$T" >> $GITHUB_STEP_SUMMARY; fi

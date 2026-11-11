@@ -28,6 +28,15 @@ def main():
         print("- **没有找到分区数据**（data/servers/index.json 缺失，说明本轮抓取没跑起来）")
         return 1
 
+    # 单分区任务只看本次目标，避免把没参与本轮的分区也列进来
+    args = sys.argv[1:]
+    if "--server" in args:
+        want = args[args.index("--server") + 1]
+        servers = [s for s in servers if s.get("key") == want]
+        if not servers:
+            print("- **本次目标分区 `%s` 不在 index.json 里** ❌" % want)
+            return 1
+
     ok = True
     for s in servers:
         key, name = s.get("key"), s.get("name") or s.get("key")

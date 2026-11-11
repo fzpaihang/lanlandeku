@@ -517,13 +517,23 @@ def main():
     servers = load_servers()
     write_index(servers)
 
+    # --server 先解析出来，probe 和抓取都用同一份目标列表
+    if "--server" in args:
+        want = args[args.index("--server") + 1]
+        targets = [s for s in servers if s["key"] == want]
+        if not targets:
+            raise SystemExit("没有这个服务器：%s（可选：%s）" % (
+                want, "、".join(s["key"] for s in servers)))
+    else:
+        targets = servers
+
     if "--probe" in args:
         ok = True
-        for i, s in enumerate(servers, 1):
-            print("--- [%d/%d] %s（%s）---" % (i, len(servers), s["name"], s["channel"]))
+        for i, s in enumerate(targets, 1):
+            print("--- [%d/%d] %s（%s）---" % (i, len(targets), s["name"], s["channel"]))
             if probe(server_cfg(s)) != 0:
                 ok = False
-            if i < len(servers):
+            if i < len(targets):
                 time.sleep(1.5)
         return 0 if ok else 1
 
@@ -533,15 +543,6 @@ def main():
         board = int(args[args.index("--board") + 1])
     if "--max-pages" in args:
         max_pages = int(args[args.index("--max-pages") + 1])
-
-    if "--server" in args:
-        want = args[args.index("--server") + 1]
-        targets = [s for s in servers if s["key"] == want]
-        if not targets:
-            raise SystemExit("没有这个服务器：%s（可选：%s）" % (
-                want, "、".join(s["key"] for s in servers)))
-    else:
-        targets = servers
 
     rc = 0
     for i, s in enumerate(targets, 1):
