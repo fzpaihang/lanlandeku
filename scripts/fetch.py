@@ -211,6 +211,52 @@ def post_with_retry(cfg, path, body, keys, t):
     return last
 
 
+VERSION_ERR_HINTS = ("版本过低", "请退出重进")
+
+
+def detect_hotver(cfg, keys, t, span=80):
+    """自动探测服务端接受的 hotver。
+
+    游戏每次更新 hotver 都会变（实测 18432→18443→18450→18464），写死在配置里迟早过期，
+    过期后所有接口都返回「游戏版本过低」。这里从配置值起逐个往上试，命中即返回。
+
+    注意限流（20616「请求错误」）要单独处理：它既不是成功也不是版本问题，
+    冷却后重试同一个版本号，仍失败就继续试下一个，不能据此判定放弃。
+
+    返回 (可用的 hotver, 该版本下第 1 页的响应)；探测失败返回 (None, 最后一次响应)。
+    """
+    base = int(cfg.get("hotver") or 0)
+    last = None
+    for hv in range(base, base + span):
+        c = dict(cfg)
+        c["hotver"] = hv
+        for attempt in range(2):
+            try:
+                d = api_post(c, "get_board/1", {"page": 1}, keys, t)
+            except Exception as e:
+                d = {"errcode": -1, "errmsg": "%s" % type(e).__name__}
+            code = d.get("errcode")
+            msg = d.get("errmsg") or ""
+            last = d
+            if code == 0:
+                return hv, d
+            if code == 20616:      # 限流：冷却后重试同一版本
+                if attempt == 0:
+                    time.sleep(1.8)
+                    continue
+                break              # 仍限流，换下一个试试
+            break                  # 其他错误，跳出内层判断
+        # 只有「版本过低」才能说明是版本号不对，其它错误都不该盲目往上加
+        msg = (last or {}).get("errmsg") or ""
+        if not any(hint in msg for hint in VERSION_ERR_HINTS):
+            if (last or {}).get("errcode") == 20616:
+                time.sleep(0.8)
+                continue           # 一直是限流，继续试下一个版本
+            return None, last
+        time.sleep(0.4)
+    return None, last
+
+
 def update_history(rows, now_ts, out_dir, drop=None):
     """把本次经验值记成快照，供「经验变化」页做增长对比。
 
@@ -271,7 +317,15 @@ def probe(cfg):
         return 2
     print("[probe] ✓ 握手成功")
 
-    d = post_with_retry(cfg, "get_board/1", {"page": 1}, keys, t)
+    # 顺带验证版本号，游戏一更新 hotver 就会过期
+    hv, d = detect_hotver(cfg, keys, t)
+    if hv is None:
+        msg = (d or {}).get("errmsg") or "无法确定可用版本号"
+        print("[probe] ✗ %s" % msg)
+        return 1
+    if hv != int(cfg["hotver"]):
+        print("[probe] 版本号需校正：%s → %s（游戏刚更新，属正常）" % (cfg["hotver"], hv))
+
     rs = rows_of(d)
     print("[probe] get_board/1 -> errcode=%s errmsg=%s rows=%d" % (
         d.get("errcode"), d.get("errmsg") or "-", len(rs)))
@@ -411,6 +465,16 @@ def fetch_server(srv, board, max_pages):
     t = time.time()
     print("[1/3] 握手…")
     keys = handshake(cfg, t)
+
+    # 游戏更新后旧 hotver 会报「游戏版本过低」，这里自动往上探测一次并纠正
+    hv, _first = detect_hotver(cfg, keys, t)
+    if hv is None:
+        print("      ✗ 版本号无法确定（可能维护中或接口异常），本轮跳过")
+        return 1
+    if hv != int(cfg["hotver"]):
+        print("      版本号自动校正：%s → %s（游戏刚更新）" % (cfg["hotver"], hv))
+        cfg["hotver"] = hv
+        keys = handshake(cfg, t)      # 换版本号后重新握手，保证会话一致
     print("      会话密钥 FZJH03 = %s" % keys["FZJH03"][0])
 
     print("[2/3] 抓取 %s（每页 10 条，间隔 %.1fs）…" % (BOARD_CN.get(board, board), SLEEP))

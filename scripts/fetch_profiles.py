@@ -233,6 +233,16 @@ def fetch_server(srv, names, args):
     print("[1/3] 握手…")
     keys = F.handshake(cfg, t)
 
+    # 与 fetch.py 一致：游戏更新后旧 hotver 会报「版本过低」，自动校正
+    hv, _ = F.detect_hotver(cfg, keys, t)
+    if hv is None:
+        print("      ✗ 版本号无法确定（可能维护中或接口异常），本轮跳过")
+        return 1
+    if hv != int(cfg["hotver"]):
+        print("      版本号自动校正：%s → %s（游戏刚更新）" % (cfg["hotver"], hv))
+        cfg["hotver"] = hv
+        keys = F.handshake(cfg, t)
+
     print("[2/3] 抓取 %d 份档案（间隔 %.2fs）…" % (len(targets), SLEEP))
     players, fail = {}, []
     olds = {}
