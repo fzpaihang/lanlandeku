@@ -69,13 +69,25 @@ def slim(p, board_row, names, old=None, today=None):
     sk_map = names.get("skills", {})
     eq_map = names.get("equips", {})
 
+    def skill_name(sid):
+        """技能 id → 中文名
+
+        自创武学的 id 形如 `<uid>_selfCreatedSkill_8495`，技能表里没有，也没地方
+        取名字，统一显示「自创武学」，避免把一串 id 甩给用户。
+        """
+        if sid in sk_map:
+            return sk_map[sid]
+        if "selfCreatedSkill" in str(sid):
+            return "自创武学"
+        return sid
+
     skills = []
     for sid, v in (p.get("skills") or {}).items():
         if not isinstance(v, dict):
             continue
         skills.append({
             "id": sid,
-            "n": sk_map.get(sid) or sid,
+            "n": skill_name(sid),
             "lv": lv_of(v.get("exp")),
         })
     skills.sort(key=lambda x: (-x["lv"], x["n"]))
@@ -85,7 +97,7 @@ def slim(p, board_row, names, old=None, today=None):
     for slot, sid in prep_raw.items():
         if not sid or not isinstance(sid, str):
             continue
-        prepared[SLOT_CN.get(slot, slot)] = sk_map.get(sid) or sid
+        prepared[SLOT_CN.get(slot, slot)] = skill_name(sid)
 
     equips = []
     for slot, v in (p.get("equips") or {}).items():
@@ -225,8 +237,11 @@ def fetch_server(srv, names, args):
                 except Exception:
                     olds[uid] = None
             d = F.post_with_retry(cfg, "get_user_info", {"userid": uid, "type": 0}, keys, t)
-            if d.get("errcode") == 0 and isinstance(d.get("data"), dict):
-                players[str(uid)] = slim(d["data"], rows.get(uid), names,
+            data = d.get("data")
+            # errcode=0 但 data 可能是空对象（账号不在该区时会这样），
+            # 不能当成成功，否则会把已有的好档案覆盖成空壳
+            if d.get("errcode") == 0 and isinstance(data, dict) and (data.get("name") or data.get("userid")):
+                players[str(uid)] = slim(data, rows.get(uid), names,
                                          old=olds.get(uid), today=today)
                 if i % 20 == 0 or i == len(targets):
                     print("      %d/%d  uid=%s %s" % (i, len(targets), uid,
@@ -247,8 +262,9 @@ def fetch_server(srv, names, args):
         for uid in retry_ids:
             try:
                 d = F.post_with_retry(cfg, "get_user_info", {"userid": uid, "type": 0}, keys, t)
-                if d.get("errcode") == 0 and isinstance(d.get("data"), dict):
-                    players[str(uid)] = slim(d["data"], rows.get(uid), names,
+                data = d.get("data")
+                if d.get("errcode") == 0 and isinstance(data, dict) and (data.get("name") or data.get("userid")):
+                    players[str(uid)] = slim(data, rows.get(uid), names,
                                              old=olds.get(uid), today=today)
                     print("      补抓成功 uid=%s %s" % (uid, players[str(uid)]["name"]))
                 else:

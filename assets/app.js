@@ -472,6 +472,16 @@
     return wrap;
   }
 
+  // 统一的地址拼装：必须带上 s=（分区），否则分享出去的链接会在别人的机器上
+  // 回落到默认分区，点开同名 uid 就是错的人或 404
+  function urlFor(uid) {
+    var q = [];
+    if (window.FZJH && FZJH.key) q.push('s=' + encodeURIComponent(FZJH.key));
+    if (state.me) q.push('me=' + encodeURIComponent(state.me));
+    if (uid) q.push('uid=' + encodeURIComponent(uid));
+    return location.pathname + (q.length ? '?' + q.join('&') : '');
+  }
+
   function openProfile(row) {
     if (hiddenSet[String(row.userid)]) return;
     pfName.textContent = row.name || '—';
@@ -485,8 +495,7 @@
       pf.setAttribute('open', '');
     }
 
-    var q = '?uid=' + encodeURIComponent(row.userid) + (state.me ? '&me=' + encodeURIComponent(state.me) : '');
-    history.replaceState(null, '', location.pathname + q);
+    history.replaceState(null, '', urlFor(row.userid));
 
     var base = (window.FZJH && FZJH.base) ? FZJH.base : './data/servers/taptap/';
     fetch(base + 'profiles/' + row.userid + '.json', { cache: 'no-cache' })
@@ -504,8 +513,7 @@
   function closeProfile() {
     if (typeof pf.close === 'function') pf.close();
     else pf.removeAttribute('open');
-    var q = state.me ? '?me=' + encodeURIComponent(state.me) : '';
-    history.replaceState(null, '', location.pathname + q);
+    history.replaceState(null, '', urlFor(null));
   }
 
   pfClose.addEventListener('click', closeProfile);
@@ -518,8 +526,7 @@
   // Esc 关闭时也清掉地址里的 uid（原生 dialog 的 cancel 行为）
   pf.addEventListener('close', function () {
     if (new URLSearchParams(location.search).get('uid')) {
-      var q = state.me ? '?me=' + encodeURIComponent(state.me) : '';
-      history.replaceState(null, '', location.pathname + q);
+      history.replaceState(null, '', urlFor(null));
     }
   });
 

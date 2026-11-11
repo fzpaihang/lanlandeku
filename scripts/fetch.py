@@ -240,7 +240,7 @@ def update_history(rows, now_ts, out_dir, drop=None):
     }
 
     if snaps and int(now_ts) - snaps[-1].get("ts", 0) < 300:
-        snaps[-1] = entry           # 半小时内重跑：覆盖，不留 0 差值的点
+        snaps[-1] = entry           # 5 分钟内重跑：覆盖，不留 0 差值的点
     else:
         snaps.append(entry)
 
@@ -515,7 +515,6 @@ def fetch_server(srv, board, max_pages):
 def main():
     args = sys.argv[1:]
     servers = load_servers()
-    write_index(servers)
 
     # --server 先解析出来，probe 和抓取都用同一份目标列表
     if "--server" in args:
@@ -536,6 +535,9 @@ def main():
             if i < len(targets):
                 time.sleep(1.5)
         return 0 if ok else 1
+
+    # probe 是只读的，只有真要抓数据时才刷新分区清单
+    write_index(servers)
 
     board = 1
     max_pages = 40

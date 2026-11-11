@@ -34,8 +34,20 @@
         try { localStorage.setItem('fzjh_server', cur.key); } catch (e) { }
 
         FZJH.renderSwitcher();
+        FZJH.syncLinks();
         cb(FZJH);
       });
+  };
+
+  // 站内跳转（高手榜 ⇄ 经验变化）不能把分区丢掉，否则换人打开就是另一个区
+  FZJH.syncLinks = function () {
+    if (!FZJH.key) return;
+    var extra = 's=' + encodeURIComponent(FZJH.key);
+    Array.prototype.forEach.call(document.querySelectorAll('a.navbtn'), function (a) {
+      var href = a.getAttribute('href') || '';
+      if (href.indexOf('s=') >= 0) return;
+      a.setAttribute('href', href + (href.indexOf('?') >= 0 ? '&' : '?') + extra);
+    });
   };
 
   FZJH.renderSwitcher = function () {
@@ -52,10 +64,12 @@
     label.textContent = '分区';
     host.appendChild(label);
 
+    var me = new URLSearchParams(location.search).get('me');
+
     list.forEach(function (s) {
       var a = document.createElement('a');
       a.className = 'srv' + (s.key === FZJH.key ? ' active' : '');
-      a.href = '?s=' + encodeURIComponent(s.key);
+      a.href = '?s=' + encodeURIComponent(s.key) + (me ? '&me=' + encodeURIComponent(me) : '');
       a.textContent = s.name || s.key;
       if (s.key === FZJH.key) a.setAttribute('aria-current', 'page');
       a.addEventListener('click', function () {
