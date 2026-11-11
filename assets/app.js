@@ -43,13 +43,36 @@
     return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
 
-  function relTime(ts) {
-    if (!ts) return '';
-    var d = Math.floor(Date.now() / 1000 - ts);
-    if (d < 60) return '刚刚更新';
-    if (d < 3600) return Math.floor(d / 60) + ' 分钟前更新';
-    if (d < 86400) return Math.floor(d / 3600) + ' 小时前更新';
-    return Math.floor(d / 86400) + ' 天前更新';
+  /* 时间统一按北京时间（UTC+8）展示，避免访客在别的时区看到错的时间 */
+  function bjParts(ts) {
+    var d = new Date((ts + 8 * 3600) * 1000);
+    return {
+      y: d.getUTCFullYear(),
+      m: d.getUTCMonth() + 1,
+      day: d.getUTCDate(),
+      hh: d.getUTCHours(),
+      mm: d.getUTCMinutes()
+    };
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  /* 显示具体更新时间：今天 → "19:41 更新"；昨天 → "昨天 19:41 更新"；
+     更早 → "11-09 19:41 更新" */
+  function fmtUpdated(ts, fallback) {
+    if (!ts) return fallback ? ('更新于 ' + fallback) : '';
+    var now = Math.floor(Date.now() / 1000);
+    var t = bjParts(ts);
+    var hhmm = pad2(t.hh) + ':' + pad2(t.mm);
+    var today = bjParts(now);
+    if (t.y === today.y && t.m === today.m && t.day === today.day) {
+      return hhmm + ' 更新';
+    }
+    var y = bjParts(now - 86400);
+    if (t.y === y.y && t.m === y.m && t.day === y.day) {
+      return '昨天 ' + hhmm + ' 更新';
+    }
+    return pad2(t.m) + '-' + pad2(t.day) + ' ' + hhmm + ' 更新';
   }
 
   /* 窄屏横向滑动提示：表格溢出且未滑动时显示 */
@@ -554,7 +577,7 @@
       state.rows = (d.rows || []).slice();
       state.hasPrev = !!d.hasPrev;
       state.rows.forEach(function (r) { r.rank = r.rank || 0; });
-      el.updated.textContent = relTime(d.updatedTs) || ('更新于 ' + (d.updatedAt || '未知'));
+      el.updated.textContent = fmtUpdated(d.updatedTs, d.updatedAt);
       el.updated.title = '数据时间：' + (d.updatedAt || '未知');
       buildChips();
       render();
