@@ -418,3 +418,10 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   .pf-life{padding:4px 8px}
   .pf-life b{font-size:13px}
 }
+
+/* 隐私名单：已隐藏玩家 */
+.nm-plain{font-weight:600;color:var(--ink)}
+.badge-hidden{
+  font-size:10px;line-height:1.5;padding:0 5px;border-radius:5px;
+  background:#eceff2;color:#7b848f;font-weight:600;white-space:nowrap;
+}

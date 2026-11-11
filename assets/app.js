@@ -2,6 +2,8 @@
 (function () {
   'use strict';
 
+  var hiddenSet = {};   // 隐私名单：这些 uid 不展示详情
+
   function dataUrl(){ return (window.FZJH && FZJH.base ? FZJH.base : './data/servers/taptap/') + 'gaoshoubang.json'; }
   var state = {
     rows: [],
@@ -143,13 +145,19 @@
       var tdName = h('td', 'c-name');
       var wrap = h('div', 'name');
       var nm = h('span', 'nm');
-      var btn = h('button', 'nm-btn');
-      btn.type = 'button';
-      btn.setAttribute('aria-label', '查看 ' + (r.name || '该玩家') + ' 的详细信息');
-      btn.appendChild(h('span', null, r.name || '—'));
-      btn.appendChild(h('span', 'arw', '›'));
-      btn.addEventListener('click', function () { openProfile(r); });
-      nm.appendChild(btn);
+      if (hiddenSet[String(r.userid)]) {
+        // 隐私名单内的玩家：不给详情入口
+        nm.appendChild(h('span', 'nm-plain', r.name || '—'));
+        nm.appendChild(h('span', 'badge-hidden', '已隐藏'));
+      } else {
+        var btn = h('button', 'nm-btn');
+        btn.type = 'button';
+        btn.setAttribute('aria-label', '查看 ' + (r.name || '该玩家') + ' 的详细信息');
+        btn.appendChild(h('span', null, r.name || '—'));
+        btn.appendChild(h('span', 'arw', '›'));
+        btn.addEventListener('click', function () { openProfile(r); });
+        nm.appendChild(btn);
+      }
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
       if (r.menpai) nm.appendChild(h('span', 'school-inline', r.menpai));
       wrap.appendChild(nm);
@@ -468,6 +476,7 @@
   }
 
   function openProfile(row) {
+    if (hiddenSet[String(row.userid)]) return;
     pfName.textContent = row.name || '—';
     pfSub.textContent = '第 ' + row.rank + ' 名 · ' + (row.menpai || '—') + ' · UID ' + row.userid;
     pfBody.textContent = '';
@@ -520,6 +529,18 @@
   /* ---------- 启动 ---------- */
 
   function boot() {
+  fetch('./data/hidden.json', { cache: 'no-cache' })
+    .then(function (r) { return r.ok ? r.json() : { players: [] }; })
+    .catch(function () { return { players: [] }; })
+    .then(function (h) {
+      (h.players || []).forEach(function (x) {
+        if (!x.server || x.server === (window.FZJH && FZJH.key)) hiddenSet[String(x.uid)] = true;
+      });
+      loadBoard();
+    });
+  }
+
+  function loadBoard() {
   fetch(dataUrl(), { cache: 'no-cache' })
     .then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
