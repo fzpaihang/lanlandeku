@@ -115,6 +115,13 @@ h1{margin:0;font-family:var(--serif);font-size:23px;font-weight:700;letter-spaci
 }
 .chip:hover{border-color:#d8cfc0;background:#fffdf9}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+/* 门派超过 8 个时的「展开全部 / 收起」按钮 */
+.chip-more{
+  border-style:dashed;border-color:#d5c9b8;color:var(--accent);
+  background:#fffdfa;font-weight:500;
+}
+.chip-more:hover{background:var(--accent-soft);border-color:#c0a898;color:var(--accent)}
+.chips.expanded{flex-wrap:wrap}
 
 /* ---------- table ---------- */
 .tablecard{
@@ -288,6 +295,13 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
   }
   .chips::-webkit-scrollbar{display:none}
   .chip{flex:0 0 auto}
+  /* 展开后改为换行铺开，方便一次看全所有门派 */
+  .chips.expanded{
+    flex-wrap:wrap;overflow-x:visible;
+    margin-right:0;padding-right:0;
+  }
+  /* 展开态按钮紧凑些，28 个门派少占两行 */
+  .chips.expanded .chip{padding:3px 9px;font-size:12px}
 }
 
 /* ---------- 玩家详情弹窗 ---------- */

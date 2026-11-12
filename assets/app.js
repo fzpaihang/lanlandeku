@@ -12,6 +12,7 @@
     sortKey: 'rank',
     sortDir: 'asc',
     hasPrev: false,
+    chipsAll: false,   // 门派筛选是否展开全部
     me: new URLSearchParams(location.search).get('me') || ''
   };
 
@@ -309,37 +310,58 @@
 
   /* ---------- 门派筛选 ---------- */
 
+  var CHIP_LIMIT = 8;   // 默认只露前 8 个门派（按人数排序）
+
   function buildChips() {
     var cnt = {};
     state.rows.forEach(function (r) {
       var s = r.menpai || '未知';
       cnt[s] = (cnt[s] || 0) + 1;
     });
-    var top = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; }).slice(0, 8);
+    var keys = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; });
+    var total = keys.length;
+
+    // 默认折叠；已选中的门派即使不在前 8 也要显示出来，否则收起后看不到当前筛选
+    var show = state.chipsAll ? keys : keys.slice(0, CHIP_LIMIT);
+    if (!state.chipsAll && state.school && show.indexOf(state.school) < 0) {
+      show = show.concat([state.school]);
+    }
 
     el.chips.textContent = '';
+    el.chips.classList.toggle('expanded', !!state.chipsAll);
+
     var all = h('button', 'chip', '全部');
     all.type = 'button';
-    all.setAttribute('aria-pressed', 'true');
+    all.setAttribute('aria-pressed', state.school ? 'false' : 'true');
     all.addEventListener('click', function () { selectSchool(''); });
     el.chips.appendChild(all);
 
-    top.forEach(function (s) {
-      var b = h('button', 'chip', s + ' ' + cnt[s]);
+    show.forEach(function (s) {
+      var b = h('button', 'chip', s + ' ' + (cnt[s] || 0));
       b.type = 'button';
       b.dataset.school = s;
-      b.setAttribute('aria-pressed', 'false');
+      b.setAttribute('aria-pressed', state.school === s ? 'true' : 'false');
       b.addEventListener('click', function () { selectSchool(s); });
       el.chips.appendChild(b);
     });
+
+    if (total > CHIP_LIMIT) {
+      var more = h('button', 'chip chip-more',
+        state.chipsAll ? '收起' : '展开全部 ' + total + ' 个门派');
+      more.type = 'button';
+      more.dataset.action = 'toggle-chips';
+      more.setAttribute('aria-expanded', state.chipsAll ? 'true' : 'false');
+      more.addEventListener('click', function () {
+        state.chipsAll = !state.chipsAll;
+        buildChips();
+      });
+      el.chips.appendChild(more);
+    }
   }
 
   function selectSchool(s) {
     state.school = s;
-    Array.prototype.forEach.call(el.chips.children, function (c) {
-      var on = s ? c.dataset.school === s : !c.dataset.school;
-      c.setAttribute('aria-pressed', on ? 'true' : 'false');
-    });
+    buildChips();   // 重建一次，保证选中态与「展开/收起」状态一致
     render();
   }
 
