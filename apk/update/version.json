@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "md5": "4280ef4e8e145143d063975519d721eb",
-  "size": 21120,
-  "notes": "首个自更新版本"
+  "version": 2,
+  "md5": "0b60ac26b422da1bb8040ed81f261715",
+  "size": 21173,
+  "notes": "修复热更后资源路径：按 sys.path 查找 names.json/config.json"
 }
