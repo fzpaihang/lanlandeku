@@ -1,346 +1,158 @@
 # -*- coding: utf-8 -*-
-"""放置江湖 · 玩家查询（Android / 桌面均可运行）
+"""放置江湖 · 玩家查询 —— 启动器
 
-输入 UID → 自动识别分区 → 拉取并展示该玩家完整档案。
-界面用 Kivy 构建；网络与解析逻辑在 lookup_core.py。
+职责（尽量保持稳定，非必要不改）：
+  1. 比对远程版本号
+  2. 有新版本就下载 code.zip → 校验 → 解压到 live/
+  3. 把 live/ 插到 sys.path 最前面，加载 app_ui 启动界面
+  4. 任何一步失败都静默回退到 APK 内置代码，保证一定能打开
+
+因此日常改界面/逻辑只需要更新远程 code.zip，用户不必重装 APK。
 """
+import hashlib
+import io
 import json
 import os
-import threading
+import shutil
+import sys
 import traceback
+import zipfile
 
-from kivy.app import App
-from kivy.clock import Clock
-from kivy.core.text import LabelBase
-from kivy.metrics import dp, sp
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.label import Label
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.textinput import TextInput
+import urllib.request
 
-import lookup_core as L
+HERE = os.path.dirname(os.path.abspath(__file__))
+UPDATE_BASE = "https://fzpaihang.github.io/lanlandeku/apk/update/"
+# 安卓上 ANDROID_PRIVATE 是应用可写目录；桌面调试时退回脚本目录
+DATA_DIR = os.environ.get("ANDROID_PRIVATE") or HERE
+LIVE_DIR = os.path.join(DATA_DIR, "live")
+VERSION_FILE = os.path.join(LIVE_DIR, "version.txt")
 
-# ---------- 中文字体：安卓系统自带，按优先级找一个 ----------
-_CN_CANDIDATES = [
-    "/system/fonts/DroidSansFallback.ttf",
-    "/system/fonts/NotoSansCJK-Regular.ttc",
-    "/system/fonts/NotoSansSC-Regular.otf",
-    "/system/fonts/DroidSansChinese.ttf",
-    "/system/fonts/NotoSansHans-Regular.otf",
-]
-FONT = "Roboto"
-for _p in _CN_CANDIDATES:
-    if os.path.exists(_p):
+REQUIRED = ("app_ui.py", "lookup_core.py", "fetch.py", "aes_pure.py")
+
+
+def log(msg):
+    try:
+        print("[launcher] %s" % msg)
+    except Exception:
+        pass
+
+
+def http_get(url, timeout):
+    req = urllib.request.Request(url, headers={"User-Agent": "fzjh-lookup"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+def local_version():
+    try:
+        with io.open(VERSION_FILE, encoding="utf-8") as f:
+            return int((f.read() or "0").strip())
+    except Exception:
+        return 0
+
+
+def is_valid_dir(d):
+    """检查代码包是否完整且能编译通过——避免把坏包放进来导致打不开"""
+    for f in REQUIRED:
+        p = os.path.join(d, f)
+        if not os.path.exists(p):
+            log("缺少文件 %s" % f)
+            return False
         try:
-            LabelBase.register(name="CN", fn_regular=_p)
-            FONT = "CN"
-            break
-        except Exception:
-            pass
-
-C_BG = (0.965, 0.957, 0.937, 1)      # 宣纸
-C_CARD = (1, 1, 1, 1)
-C_INK = (0.12, 0.14, 0.16, 1)
-C_INK2 = (0.29, 0.32, 0.38, 1)
-C_MUTED = (0.54, 0.57, 0.61, 1)
-C_ACCENT = (0.55, 0.18, 0.16, 1)     # 朱砂
-C_SOFT = (0.95, 0.91, 0.89, 1)
-C_LINE = (0.91, 0.89, 0.85, 1)
-C_OK = (0.18, 0.48, 0.36, 1)
-
-
-def lab(text, size=13, color=C_INK, bold=False, height=None, halign="left", markup=False):
-    w = Label(
-        text=text, font_name=FONT, font_size=sp(size), color=color,
-        bold=bold, halign=halign, valign="middle", markup=markup,
-        size_hint_y=None, height=dp(height if height else size * 1.9),
-    )
-    w.bind(width=lambda inst, v: setattr(inst, "text_size", (v, None)))
-    return w
-
-
-class Card(BoxLayout):
-    """白底圆角卡片（Kivy 用 canvas 画圆角矩形）"""
-
-    def __init__(self, **kw):
-        super(Card, self).__init__(**kw)
-        from kivy.graphics import Color, RoundedRectangle
-        with self.canvas.before:
-            Color(*C_CARD)
-            self._rect = RoundedRectangle(radius=[dp(10)], pos=self.pos, size=self.size)
-        self.bind(pos=self._sync, size=self._sync)
-
-    def _sync(self, *a):
-        self._rect.pos = self.pos
-        self._rect.size = self.size
-
-
-class KV(BoxLayout):
-    """一格数值：上方小标题，下方大数字"""
-
-    def __init__(self, key, **kw):
-        super(KV, self).__init__(orientation="vertical", padding=(dp(9), dp(5)),
-                                 spacing=0, **kw)
-        self.add_widget(lab(key, 9, C_MUTED, height=13))
-        self.val = lab("—", 14, C_INK, bold=True, height=20)
-        self.add_widget(self.val)
-
-    def set(self, v):
-        self.val.text = str(v)
-
-
-class PlayerLookup(App):
-    def build(self):
-        self.title = "玩家查询"
-        self.prof = None
-        self.busy = False
-
-        root = BoxLayout(orientation="vertical", padding=dp(10), spacing=dp(8))
-
-        # ---- 标题 ----
-        head = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(52))
-        head.add_widget(lab("江湖 · 玩家查询", 20, C_INK, bold=True, height=30))
-        head.add_widget(lab("输入游戏内 UID，自动识别分区", 10.5, C_MUTED, height=16))
-        root.add_widget(head)
-
-        # ---- 输入行 ----
-        row = BoxLayout(size_hint_y=None, height=dp(46), spacing=dp(8))
-        self.inp = TextInput(
-            text="", hint_text="例如 21079729670", font_name=FONT, font_size=sp(15),
-            multiline=False, input_type="number", padding=[dp(10), dp(12)],
-            background_color=(1, 1, 1, 1), foreground_color=C_INK, cursor_color=C_ACCENT,
-        )
-        self.inp.bind(on_text_validate=lambda *a: self.start())
-        row.add_widget(self.inp)
-
-        self.btn = Button(
-            text="查询", font_name=FONT, font_size=sp(14), bold=True,
-            size_hint_x=None, width=dp(84),
-            background_color=C_ACCENT, background_normal="", color=(1, 1, 1, 1),
-        )
-        self.btn.bind(on_release=lambda *a: self.start())
-        row.add_widget(self.btn)
-        root.add_widget(row)
-
-        # ---- 状态 ----
-        self.status = lab("就绪", 11, C_MUTED, height=18)
-        root.add_widget(self.status)
-
-        # ---- 结果区（可滚动）----
-        sv = ScrollView(size_hint=(1, 1), do_scroll_x=False)
-        self.body = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(8),
-                              padding=(0, 0, 0, dp(10)))
-        self.body.bind(minimum_height=self.body.setter("height"))
-        sv.add_widget(self.body)
-        root.add_widget(sv)
-
-        self._empty_hint()
-        return root
-
-    # ---------- 占位 ----------
-    def _empty_hint(self):
-        self.body.clear_widgets()
-        c = Card(orientation="vertical", size_hint_y=None, height=dp(120),
-                 padding=(dp(16), dp(18)), spacing=dp(6))
-        c.add_widget(lab("输入 UID 开始查询", 14, C_INK2, bold=True, height=22))
-        c.add_widget(lab("支持全部五个分区：苍松迎客 / 白鹤亮翅 / 丹凤朝阳 / 墨羽惊鸿 / 4399",
-                         11, C_MUTED, height=36))
-        c.add_widget(lab("UID 是游戏内显示的角色 ID（在个人信息页可看到），不是登录账号",
-                         11, C_MUTED, height=36))
-        self.body.add_widget(c)
-
-    # ---------- 查询 ----------
-    def start(self):
-        if self.busy:
-            return
-        raw = (self.inp.text or "").strip()
-        if not raw.isdigit():
-            self.set_status("请输入纯数字 UID", C_ACCENT)
-            return
-        self.busy = True
-        self.btn.disabled = True
-        self.btn.text = "查询中"
-        self.set_status("连接中…", C_ACCENT)
-        threading.Thread(target=self._worker, args=(int(raw),), daemon=True).start()
-
-    def _worker(self, uid):
-        try:
-            prof = L.lookup(uid, progress=lambda m: Clock.schedule_once(
-                lambda dt, msg=m: self.set_status(msg, C_ACCENT)))
-        except Exception:
-            err = traceback.format_exc()[-300:]
-            Clock.schedule_once(lambda dt: self._fail("查询异常\n" + err))
-            return
-        Clock.schedule_once(lambda dt: self._done(prof))
-
-    def _done(self, prof):
-        self.busy = False
-        self.btn.disabled = False
-        self.btn.text = "查询"
-        if not prof:
-            self._fail("五个分区都没有这个 UID\n确认是游戏内的角色 ID 吗？")
-            return
-        self.prof = prof
-        self.set_status("查询成功 · %s" % prof["serverName"], C_OK)
-        self._render(prof)
-
-    def _fail(self, msg):
-        self.busy = False
-        self.btn.disabled = False
-        self.btn.text = "查询"
-        self.set_status(msg.split("\n")[0], C_ACCENT)
-        self.body.clear_widgets()
-        c = Card(orientation="vertical", size_hint_y=None, height=dp(110),
-                 padding=(dp(16), dp(16)), spacing=dp(4))
-        c.add_widget(lab("没查到", 15, C_ACCENT, bold=True, height=24))
-        for line in msg.split("\n"):
-            c.add_widget(lab(line, 11, C_MUTED, height=20))
-        self.body.add_widget(c)
-
-    def set_status(self, text, color=C_MUTED):
-        self.status.text = text
-        self.status.color = color
-
-    # ---------- 渲染 ----------
-    def _render(self, p):
-        self.body.clear_widgets()
-
-        # 名片
-        c = Card(orientation="vertical", size_hint_y=None, height=dp(96),
-                 padding=(dp(14), dp(10)), spacing=dp(2))
-        c.add_widget(lab(p["name"], 20, C_INK, bold=True, height=28))
-        sub = " · ".join([x for x in [p["serverName"], p["menpai"],
-                                      (p["sex"] + " " if p["sex"] else "") +
-                                      (str(p["age"]) + " 岁" if p["age"] else "")] if x])
-        c.add_widget(lab(sub, 11.5, C_MUTED, height=18))
-        rk = ("榜上第 %s 名" % p["rank"]) if p.get("rank") else "未上榜"
-        c.add_widget(lab(rk, 11, C_INK2, height=18))
-        self.body.add_widget(c)
-
-        # 数值网格 2 列
-        grid = GridLayout(cols=2, size_hint_y=None, spacing=dp(6))
-        vals = [
-            ("等级", ("%s" % p["lv"]) + ("（估）" if p.get("lvEstimated") else "") if p["lv"] else "—"),
-            ("武学造诣", ("%.2f" % p["kongfu"]) if p.get("kongfu") is not None else "—"),
-            ("经验", L.fmt_big(p["exp"]) if hasattr(L, "fmt_big") else self._big(p["exp"])),
-            ("福缘", p["fuyuan"] if p.get("fuyuan") is not None else "—"),
-            ("气血", self._big(p.get("qiMax"))),
-            ("家产", self._big(p.get("jiaLi"))),
-            ("侠义", self._big(p.get("zhengqi"))),
-            ("转数", ("%s 转" % p["inheritCount"]) if p.get("inheritCount") else "—"),
-        ]
-        for k, v in vals:
-            cell = Card(orientation="vertical", size_hint_y=None, height=dp(56),
-                        padding=(dp(10), dp(6)), spacing=0)
-            cell.add_widget(lab(k, 9.5, C_MUTED, height=14))
-            cell.add_widget(lab(str(v), 15, C_INK, bold=True, height=24))
-            grid.add_widget(cell)
-        grid.height = dp(56) * 4 + dp(6) * 3
-        self.body.add_widget(grid)
-
-        # 准备位
-        if p["prepared"]:
-            self._section("准备位（%d）" % len(p["prepared"]))
-            c2 = Card(orientation="vertical", size_hint_y=None, spacing=dp(2),
-                      padding=(dp(12), dp(8)))
-            c2.height = dp(8) + dp(22) * len(p["prepared"]) + dp(8)
-            for slot, nm in p["prepared"].items():
-                row = BoxLayout(size_hint_y=None, height=dp(22))
-                row.add_widget(lab(slot, 11, C_MUTED, height=22))
-                row.add_widget(lab(nm, 11.5, C_INK2, height=22, halign="right"))
-                c2.add_widget(row)
-            self.body.add_widget(c2)
-
-        # 装备
-        if p["equips"]:
-            self._section("装备（%d）" % len(p["equips"]))
-            c3 = Card(orientation="vertical", size_hint_y=None, spacing=dp(2),
-                      padding=(dp(12), dp(8)))
-            c3.height = dp(8) + dp(22) * len(p["equips"]) + dp(8)
-            for e in p["equips"]:
-                row = BoxLayout(size_hint_y=None, height=dp(22))
-                row.add_widget(lab(e["slot"], 11, C_MUTED, height=22))
-                row.add_widget(lab(e["n"], 11.5, C_INK2, height=22, halign="right"))
-                c3.add_widget(row)
-            self.body.add_widget(c3)
-
-        # 传承
-        if p["history"]:
-            self._section("传承（%d 世）" % len(p["history"]))
-            c4 = Card(orientation="vertical", size_hint_y=None, spacing=dp(2),
-                      padding=(dp(12), dp(8)))
-            c4.height = dp(8) + dp(22) * len(p["history"]) + dp(8)
-            for h in p["history"]:
-                row = BoxLayout(size_hint_y=None, height=dp(22))
-                row.add_widget(lab("第 %d 世" % (p["history"].index(h) + 1), 10.5, C_MUTED, height=22))
-                row.add_widget(lab(h["n"] or "—", 11.5, C_INK2, height=22, halign="right"))
-                c4.add_widget(row)
-            self.body.add_widget(c4)
-
-        # 武学
-        skills = p["skills"]
-        if skills:
-            self._section("武学（%d 门）" % len(skills))
-            c5 = Card(orientation="vertical", size_hint_y=None, spacing=dp(1),
-                      padding=(dp(12), dp(8)))
-            show = skills[:60]
-            c5.height = dp(8) + dp(21) * len(show) + dp(8)
-            for i, s in enumerate(show, 1):
-                row = BoxLayout(size_hint_y=None, height=dp(21))
-                row.add_widget(lab(str(i), 9.5, C_MUTED, height=21))
-                row.add_widget(lab(s["n"], 11.5, C_INK2, height=21))
-                row.add_widget(lab(str(s["lv"]), 11, C_INK2, height=21, halign="right"))
-                c5.add_widget(row)
-            self.body.add_widget(c5)
-            if len(skills) > len(show):
-                self.body.add_widget(lab("仅显示前 %d 门，完整数据请用「保存数据」" % len(show),
-                                         10, C_MUTED, height=20, halign="center"))
-
-        # 保存按钮
-        self.btn_save = Button(
-            text="保存数据（JSON）", font_name=FONT, font_size=sp(13),
-            size_hint_y=None, height=dp(44),
-            background_color=C_SOFT, background_normal="", color=C_ACCENT,
-        )
-        self.btn_save.bind(on_release=lambda *a: self.save())
-        self.body.add_widget(self.btn_save)
-
-        self.footer = lab("数据时间：%s" % p.get("fetchedAt", ""), 10, C_MUTED,
-                          height=20, halign="center")
-        self.body.add_widget(self.footer)
-
-    def _section(self, title):
-        self.body.add_widget(lab(title, 12, C_INK2, bold=True, height=dp(24)))
-
-    def _big(self, n):
-        try:
-            n = float(n)
-        except (TypeError, ValueError):
-            return "—"
-        a = abs(n)
-        if a >= 1e8:
-            return "%.2f亿" % (n / 1e8)
-        if a >= 1e4:
-            return "%.1f万" % (n / 1e4)
-        return "%d" % round(n)
-
-    def save(self):
-        if not self.prof:
-            return
-        try:
-            d = App.get_running_app().user_data_dir
-            if not os.path.isdir(d):
-                os.makedirs(d)
-            fn = "%s_%s.json" % (self.prof["name"] or "player", self.prof["uid"])
-            path = os.path.join(d, fn)
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(json.dumps(self.prof, ensure_ascii=False, indent=2))
-            self.set_status("已保存：%s" % path, C_OK)
+            with io.open(p, encoding="utf-8") as fp:
+                compile(fp.read(), p, "exec")
         except Exception as e:
-            self.set_status("保存失败：%s" % e, C_ACCENT)
+            log("%s 语法检查失败：%s" % (f, e))
+            return False
+    return True
+
+
+def install(ver, md5):
+    log("发现新版本 v%s，开始下载" % ver)
+    blob = http_get(UPDATE_BASE + "code.zip", 20)
+    if md5:
+        got = hashlib.md5(blob).hexdigest()
+        if got != md5:
+            raise RuntimeError("md5 不匹配（本地 %s，期望 %s）" % (got, md5))
+
+    tmp = LIVE_DIR + ".new"
+    if os.path.isdir(tmp):
+        shutil.rmtree(tmp, ignore_errors=True)
+    os.makedirs(tmp)
+
+    with zipfile.ZipFile(io.BytesIO(blob)) as z:
+        root = os.path.normpath(tmp)
+        for n in z.namelist():
+            if n.endswith("/"):
+                continue
+            target = os.path.normpath(os.path.join(tmp, n))
+            if not target.startswith(root + os.sep):   # 防目录穿越
+                continue
+            parent = os.path.dirname(target)
+            if parent and not os.path.isdir(parent):
+                os.makedirs(parent)
+            with z.open(n) as src, open(target, "wb") as out:
+                out.write(src.read())
+
+    if not is_valid_dir(tmp):
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise RuntimeError("代码包校验不通过，已丢弃")
+
+    with io.open(os.path.join(tmp, "version.txt"), "w", encoding="utf-8") as f:
+        f.write(str(ver))
+
+    if os.path.isdir(LIVE_DIR):
+        shutil.rmtree(LIVE_DIR, ignore_errors=True)
+    os.rename(tmp, LIVE_DIR)
+    log("已切换到 v%s" % ver)
+
+
+def ensure_code():
+    """返回可用代码目录；None 表示用 APK 内置代码"""
+    remote_ver = 0
+    md5 = ""
+    try:
+        raw = http_get(UPDATE_BASE + "version.json", 5)
+        info = json.loads(raw.decode("utf-8"))
+        remote_ver = int(info.get("version") or 0)
+        md5 = info.get("md5") or ""
+    except Exception as e:
+        log("检查更新失败（忽略）：%s" % e)
+
+    if remote_ver and remote_ver > local_version():
+        try:
+            install(remote_ver, md5)
+        except Exception as e:
+            log("更新未完成，继续用现有版本：%s" % e)
+
+    if os.path.isdir(LIVE_DIR) and os.path.exists(os.path.join(LIVE_DIR, "app_ui.py")):
+        return LIVE_DIR
+    return None
+
+
+def main():
+    code_dir = ensure_code()
+    if code_dir:
+        sys.path.insert(0, code_dir)
+        log("加载更新包：%s" % code_dir)
+    else:
+        log("加载 APK 内置代码")
+
+    for m in ("app_ui", "lookup_core", "fetch", "aes_pure"):
+        sys.modules.pop(m, None)
+
+    import app_ui
+    app_ui.run()
 
 
 if __name__ == "__main__":
-    PlayerLookup().run()
+    try:
+        main()
+    except Exception:
+        log("启动失败，回退到内置代码\n" + traceback.format_exc())
+        if LIVE_DIR in sys.path:
+            sys.path.remove(LIVE_DIR)
+        for m in ("app_ui", "lookup_core", "fetch", "aes_pure"):
+            sys.modules.pop(m, None)
+        import app_ui as _fallback
+        _fallback.run()

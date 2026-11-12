@@ -8,6 +8,8 @@ on:
     branches: [main]
     paths:
       - 'apk/**'
+      # 只更新热更包时不重新构建 APK
+      - '!apk/update/**'
       - '.github/workflows/build-apk.yml'
 
 permissions:

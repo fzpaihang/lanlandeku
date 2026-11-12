@@ -16,12 +16,23 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 import fetch as F  # noqa: E402
 
-CONFIG_PATHS = [
-    os.path.join(BASE, "config.json"),
-    r"E:/workbuddy2/fzjh-rank/config.json",
-]
+# 更新包会解压到独立的 live/ 目录；config.json 和 names.json 仍随 APK 放在原目录，
+# 所以资源要按「当前目录 → APK 原始目录」的顺序找。
+_APP_PATH = os.environ.get("ANDROID_APP_PATH", "")
+_SEARCH_DIRS = [BASE] + ([_APP_PATH] if _APP_PATH and _APP_PATH != BASE else [])
+
+
+def _find(rel):
+    for d in _SEARCH_DIRS:
+        p = os.path.join(d, rel)
+        if os.path.exists(p):
+            return p
+    return os.path.join(BASE, rel)
+
+
+CONFIG_PATHS = [_find("config.json"), r"E:/workbuddy2/fzjh-rank/config.json"]
 CACHE_PATH = os.path.join(BASE, "lookup_cache.json")
-NAMES_PATH = os.path.join(BASE, "names.json")
+NAMES_PATH = _find("names.json")
 
 INDEX_URL = "https://fzpaihang.github.io/lanlandeku/data/servers/%s/gaoshoubang.json"
 
