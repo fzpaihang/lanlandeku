@@ -125,6 +125,7 @@
       return;
     }
     if (el.cards) el.cards.textContent = '';
+    el.tbody.textContent = '';   // 表格分支必须清空，否则每次排序都是追加而不是替换
 
     var frag = document.createDocumentFragment();
     list.forEach(function (r) {
