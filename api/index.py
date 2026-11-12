@@ -19,6 +19,7 @@
 import json
 import os
 import sys
+import threading
 import time
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -101,8 +102,28 @@ def _servers():
     return F.load_servers()
 
 
+def _hard_timeout(fn, seconds, default=None):
+    """线程级硬超时。urlopen 的 timeout 管不住 DNS 解析，
+    国内访问 github.io 时可能整段挂住，这里兜住总时长。"""
+    box = {}
+
+    def run():
+        try:
+            box["v"] = fn()
+        except Exception as e:
+            box["e"] = e
+
+    th = threading.Thread(target=run, daemon=True)
+    th.start()
+    th.join(seconds)
+    if th.is_alive():
+        return default
+    return box.get("v", default)
+
+
 def _board_short(key, cache=None, days=1):
-    """榜单只用来补 福缘/排名/门派：3 秒拿不到就算了，别拖慢查询。"""
+    """榜单只用来补 福缘/排名/门派。优先读部署包内置的 boards/<key>.json（零网络），
+    读不到才回落到站点拉取（线程硬超时 3 秒），绝不拖慢查询。"""
     now = time.time()
     rec = _BOARD.get(key)
     if rec:
@@ -110,46 +131,202 @@ def _board_short(key, cache=None, days=1):
         ttl = BOARD_TTL if rows else BOARD_FAIL_TTL
         if now - ts < ttl:
             return rows
-    try:
+
+    packed = os.path.join(BASE, "boards", key + ".json")
+    if os.path.isfile(packed):
+        try:
+            with open(packed, "r", encoding="utf-8") as f:
+                rows = json.load(f).get("rows") or []
+            _BOARD[key] = (now, rows)
+            return rows
+        except Exception:
+            pass
+
+    def _fetch():
         req = urllib.request.Request(L.INDEX_URL % key, headers={"User-Agent": "fzjh-api"})
-        ctx = getattr(F, "ctx", None)
-        with urllib.request.urlopen(req, timeout=3, context=ctx) as r:
-            rows = json.loads(r.read().decode("utf-8")).get("rows") or []
-        _BOARD[key] = (now, rows)
-        return rows
-    except Exception:
+        with urllib.request.urlopen(req, timeout=4, context=getattr(F, "ctx", None)) as r:
+            return json.loads(r.read().decode("utf-8")).get("rows") or []
+
+    rows = _hard_timeout(_fetch, 3.0, None)
+    if rows is None:                      # 超时或异常：记失败，10 分钟内不再试
         _BOARD[key] = (now, [])
         return []
+    _BOARD[key] = (now, rows)
+    return rows
 
 
 L.fetch_board = _board_short
+
+
+def _fast_single(uid, srv, cache, hotver, note):
+    """云函数版单区查询：重试压到 2 次、退避 0.8 秒，
+    版本号探测加 5 秒硬超时，保证整体落在 15 秒函数超时内。"""
+    for attempt in range(2):
+        data, ec = L.try_one(srv, uid, hotver)
+        if data:
+            return L._finish(uid, srv, data, cache, hotver, note)
+        if ec == 0:
+            return None                       # 服务端明确回「没有这个角色」
+        if ec in (20616, -1) and attempt == 0:
+            time.sleep(0.8)                   # 限流冷却后只重试一次
+            continue
+        break
+
+    hv = _hard_timeout(lambda: L._redetect_hotver(srv, hotver), 5.0, None)
+    if hv and hv != hotver:
+        cache["hotver"] = hv
+        data, _ec = L.try_one(dict(srv, hotver=hv), uid, hv)
+        if data:
+            return L._finish(uid, srv, data, cache, hv, note)
+    return None
+
+
+L._lookup_single = _fast_single
 
 
 def _noop(_msg):
     pass
 
 
-def _auto_lookup(uid, servers, cache, hotver):
-    """自动探测：先按 UID 位数猜分区（7 位→苍松、10 位→4399、11 位→丹凤/白鹤/墨羽），
-    猜不中再依次试。被限流（20616）的区只在最后集中退避重试一次，
-    避免把五个区一起打满。"""
-    order = L.order_servers(servers, uid)
-    limited = []
+def _auto_lookup(uid, servers, cache, hotver, deadline=None):
+    """自动探测：只按 UID 位数猜**前 2 个**候选区，不轮询五区。
+    五区全试（10+ 次请求）必然触发 20616 限流，导致全部失败——
+    宁可快速返回「没查到，换个分区」，也不要让用户等 15 秒后拿到同样的结果。"""
+    order = L.order_servers(servers, uid)[:2]
     for i, srv in enumerate(order):
+        if deadline and time.time() > deadline:
+            break
         data, ec = L.try_one(srv, uid, hotver)
         if data:
             return L._finish(uid, srv, data, cache, hotver, _noop)
-        if ec not in (0,):
-            limited.append(srv)
         if i < len(order) - 1:
-            time.sleep(0.4)
-
-    for srv in limited:
-        time.sleep(1.5)
-        data, _ec = L.try_one(srv, uid, hotver)
-        if data:
-            return L._finish(uid, srv, data, cache, hotver, _noop)
+            time.sleep(0.5)
     return None
+
+
+def _diag():
+    """分阶段网络诊断（?diag=1）：DNS / TCP / TLS / 握手 / 查询 各自耗时。
+    只返回耗时与 IP，不含任何凭据，可安全暴露。"""
+    import socket
+    import ssl
+
+    out = {"ok": True, "python": sys.version.split()[0], "steps": []}
+    host = urllib.parse.urlparse(F.DOMAIN).hostname
+    port = 443
+
+    def mark(name, t, extra=None):
+        rec = {"step": name, "ms": int((time.time() - t) * 1000)}
+        if extra is not None:
+            rec["info"] = extra
+        out["steps"].append(rec)
+
+    t = time.time()
+    try:
+        infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        ips = sorted({i[4][0] for i in infos})
+        mark("DNS 解析", t, ips)
+    except Exception as e:
+        mark("DNS 解析", t, "失败: %s: %s" % (type(e).__name__, e))
+        return out
+
+    t = time.time()
+    sk = None
+    try:
+        sk = socket.create_connection((host, port), timeout=8)
+        mark("TCP 连接", t, sk.getpeername())
+    except Exception as e:
+        mark("TCP 连接", t, "失败: %s: %s" % (type(e).__name__, e))
+        return out
+    finally:
+        if sk:
+            sk.close()
+
+    t = time.time()
+    try:
+        raw = socket.create_connection((host, port), timeout=8)
+        sctx = ssl.create_default_context()
+        sctx.check_hostname = False
+        sctx.verify_mode = ssl.CERT_NONE
+        with sctx.wrap_socket(raw, server_hostname=host) as ss:
+            mark("TLS 握手", t, ss.version())
+    except Exception as e:
+        mark("TLS 握手", t, "失败: %s: %s" % (type(e).__name__, e))
+
+    try:
+        t = time.time()
+        keys = F.handshake(F.server_cfg(dict(F.load_servers()[0], hotver=int(
+            os.environ.get("FZJH_HOTVER") or 18464))), time.time())
+        mark("exchange_publickey 握手", t, "keys=%s" % ",".join(sorted(keys.keys())))
+
+        srv = dict(F.load_servers()[0], hotver=int(os.environ.get("FZJH_HOTVER") or 18464))
+        t = time.time()
+        d = F.api_post(F.server_cfg(srv), "get_user_info", {"userid": 21079729670, "type": 0}, keys, time.time())
+        mark("get_user_info 查询", t, "errcode=%s" % d.get("errcode"))
+    except Exception as e:
+        mark("协议调用", t, "失败: %s: %s" % (type(e).__name__, e))
+
+    # 单个协议往返（丹凤区）：看是否触发 20616 限流
+    try:
+        srv3 = dict([s for s in F.load_servers() if s["key"] == "taptap_3"][0])
+        srv3["hotver"] = int(os.environ.get("FZJH_HOTVER") or 18464)
+        t = time.time()
+        data, ec = L.try_one(srv3, 21079729670, srv3["hotver"])
+        mark("try_one 丹凤（单次）", t, "errcode=%s%s" % (ec, "" if data else " ← 失败/限流"))
+    except Exception as e:
+        mark("try_one 丹凤（单次）", t, "异常: %s: %s" % (type(e).__name__, e))
+
+    # 榜单：内置文件 vs 网络
+    t = time.time()
+    p = os.path.join(BASE, "boards", "taptap_3.json")
+    if os.path.isfile(p):
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                rows = json.load(f).get("rows") or []
+            mark("榜单（内置文件）", t, "%d 行" % len(rows))
+        except Exception as e:
+            mark("榜单（内置文件）", t, "读取失败: %s" % e)
+    else:
+        mark("榜单（内置文件）", t, "未打包 boards/taptap_3.json")
+
+    t = time.time()
+    try:
+        req = urllib.request.Request(L.INDEX_URL % "taptap_3", headers={"User-Agent": "fzjh-api"})
+        with urllib.request.urlopen(req, timeout=4, context=getattr(F, "ctx", None)) as r:
+            rows = json.loads(r.read().decode("utf-8")).get("rows") or []
+        mark("榜单（网络 github.io）", t, "%d 行" % len(rows))
+    except Exception as e:
+        mark("榜单（网络 github.io）", t, "失败: %s: %s" % (type(e).__name__, str(e)[:80]))
+
+    # 完整 lookup（含重试与版本号校正），硬超时 8 秒，超时也能拿到结论
+    hv = int(os.environ.get("FZJH_HOTVER") or 18464)
+    try:
+        servers = F.load_servers()
+    except Exception as e:
+        mark("完整 lookup", time.time(), "配置读取失败: %s" % e)
+        return out
+
+    box = {}
+
+    def _run():
+        try:
+            box["v"] = L.lookup(21079729670, server="taptap_3",
+                                cfg={"servers": servers, "hotver": hv}, cache={"hotver": hv})
+        except Exception as e:
+            box["e"] = "%s: %s" % (type(e).__name__, e)
+
+    t = time.time()
+    th = threading.Thread(target=_run, daemon=True)
+    th.start()
+    th.join(8)
+    if th.is_alive():
+        mark("完整 lookup", t, "超过 8 秒仍在跑（这就是函数超时的原因）")
+    elif box.get("e"):
+        mark("完整 lookup", t, "异常: %s" % box["e"])
+    else:
+        p = box.get("v")
+        mark("完整 lookup", t, (p or {}).get("name") or "未查到")
+
+    return out
 
 
 def main_handler(event, context=None):
@@ -160,6 +337,8 @@ def main_handler(event, context=None):
         return _resp(event, 204, {})
 
     q = _query(event)
+    if str(q.get("diag") or "") == "1":
+        return _resp(event, 200, _diag())
     uid_raw = str(q.get("uid") or "").strip()
     server = str(q.get("server") or DEFAULT_SERVER).strip() or DEFAULT_SERVER
 
@@ -201,7 +380,7 @@ def main_handler(event, context=None):
     cache = {"hotver": _HOTVER}
     try:
         if server == L.AUTO_SERVER:
-            prof = _auto_lookup(uid, servers, cache, _HOTVER)
+            prof = _auto_lookup(uid, servers, cache, _HOTVER, deadline=t0 + 10)
         else:
             prof = L.lookup(uid, server=server, cfg={"servers": servers, "hotver": _HOTVER}, cache=cache)
     except Exception as e:
@@ -219,7 +398,8 @@ def main_handler(event, context=None):
         if server == L.AUTO_SERVER:
             payload = {
                 "ok": False, "code": "NOT_FOUND",
-                "message": "五个分区都没查到这个 UID，确认是游戏内的角色 ID 吗？",
+                "message": "自动模式按 UID 位数猜了最可能的 2 个分区，都没查到。"
+                           "点上方分区条指定一个区再试（或确认 UID 是否写错）。",
             }
         else:
             name = by_key.get(server, {}).get("name") or server

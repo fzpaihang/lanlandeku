@@ -15,6 +15,7 @@ import zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 API = os.path.join(ROOT, "api")
 APK = os.path.join(ROOT, "apk")
+DATA = os.path.join(ROOT, "data", "servers")
 BUILD = os.path.join(API, "build")
 STAGE = os.path.join(BUILD, "staging")
 ZIP_PATH = os.path.join(BUILD, "fzjh-lookup-api.zip")
@@ -40,10 +41,24 @@ def main():
             path = os.path.join(STAGE, name)
             if os.path.isfile(path):
                 os.remove(path)
+            elif os.path.isdir(path):
+                shutil.rmtree(path, ignore_errors=True)
     os.makedirs(STAGE, exist_ok=True)
 
     for src, name in COPIES:
         shutil.copy2(src, os.path.join(STAGE, name))
+
+    # 榜单打包：补排名/福缘/门派用，104 KB，避免云函数每次查都去连 github.io
+    boards_dir = os.path.join(STAGE, "boards")
+    os.makedirs(boards_dir, exist_ok=True)
+    n_boards = 0
+    if os.path.isdir(DATA):
+        for key in sorted(os.listdir(DATA)):
+            src = os.path.join(DATA, key, "gaoshoubang.json")
+            if os.path.isfile(src):
+                shutil.copy2(src, os.path.join(boards_dir, key + ".json"))
+                n_boards += 1
+    print("已打包榜单 %d 个分区" % n_boards)
 
     # 语法自检：包里的每个 .py 都要能编译
     for name in os.listdir(STAGE):
@@ -57,8 +72,11 @@ def main():
         return
 
     with zipfile.ZipFile(ZIP_PATH, "w", zipfile.ZIP_DEFLATED) as z:
-        for name in sorted(os.listdir(STAGE)):
-            z.write(os.path.join(STAGE, name), name)
+        for root_dir, _dirs, files in os.walk(STAGE):
+            for fname in sorted(files):
+                full = os.path.join(root_dir, fname)
+                arc = os.path.relpath(full, STAGE).replace(os.sep, "/")
+                z.write(full, arc)
 
     size = os.path.getsize(ZIP_PATH)
     print("部署包：%s（%.1f KB）" % (ZIP_PATH, size / 1024.0))

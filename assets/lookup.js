@@ -52,7 +52,7 @@
     paintSwitcher();
     if (!el.mode) return;
     if (state.server === 'auto') {
-      el.mode.textContent = '分区：自动（按 UID 位数先猜，猜不中再逐区试；也可点上方分区固定一个）';
+      el.mode.textContent = '分区：自动（按 UID 位数猜 2 个最可能的区；查不到就点上方分区指定）';
     } else {
       var name = (fz && fz.name) || state.server;
       el.mode.textContent = '分区：' + name + '（点上方分区可切换）';
@@ -236,8 +236,8 @@
   /* ---------- 启动 ---------- */
 
   function boot(fz) {
-    // 默认自动探测：先按 UID 位数猜分区（7 位→苍松、10 位→4399、11 位→丹凤/白鹤/墨羽），
-    // 猜不中再逐区试，比硬编码一个分区对新访客友好。地址带 ?s=xxx 时按指定的来。
+    // 默认自动：只按 UID 位数猜最可能的 2 个区（7 位→苍松、10 位→4399、11 位→丹凤→白鹤），
+    // 不轮询五区——云函数连打五区必被限流。查不到就引导用户点分区条指定。
     var pinned = new URLSearchParams(location.search).get('s');
     state.server = pinned || 'auto';
     if (!pinned) state.fallbackName = (fz && fz.name) || '';
