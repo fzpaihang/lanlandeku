@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-12 15:30:57",
- "updatedTs": 1794468657,
+ "updatedAt": "2026-11-12 17:02:42",
+ "updatedTs": 1794474162,
  "hasPrev": true,
  "total": 100,
  "rows": [
@@ -13,8 +13,8 @@
    "menpai": "昆仑派",
    "lv": 904,
    "kongfu": 902.83,
-   "exp": 74933806.359885,
-   "money": 5877603.5825097,
+   "exp": 75013071.236639,
+   "money": 5895358.202051,
    "yueli": 185505,
    "xiayi": 30366,
    "looks": 525,
@@ -23,8 +23,8 @@
    "sex": "男",
    "wuxing": 196,
    "inheritCount": 4,
-   "prevRank": 2,
-   "delta": 1
+   "prevRank": 1,
+   "delta": 0
   },
   {
    "rank": 2,
@@ -43,18 +43,18 @@
    "sex": "女",
    "wuxing": 192,
    "inheritCount": 4,
-   "prevRank": 1,
-   "delta": -1
+   "prevRank": 2,
+   "delta": 0
   },
   {
    "rank": 3,
    "userid": 22039031684,
    "name": "水上龙吟",
    "menpai": "少林派",
-   "lv": 892,
-   "kongfu": 889.39,
-   "exp": 72105576.385963,
-   "money": 3527566.3144541,
+   "lv": 893,
+   "kongfu": 889.78,
+   "exp": 72270848.37242,
+   "money": 3564064.3031007,
    "yueli": 83182,
    "xiayi": 18197,
    "looks": 433,
@@ -83,8 +83,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 3,
-   "prevRank": 5,
-   "delta": 1
+   "prevRank": 4,
+   "delta": 0
   },
   {
    "rank": 5,
@@ -103,18 +103,18 @@
    "sex": "男",
    "wuxing": 120,
    "inheritCount": 3,
-   "prevRank": 4,
-   "delta": -1
+   "prevRank": 5,
+   "delta": 0
   },
   {
    "rank": 6,
    "userid": 22039041087,
    "name": "赵玉臻",
    "menpai": "少林派",
-   "lv": 799,
-   "kongfu": 772.5,
-   "exp": 51796930.195323,
-   "money": 29580466,
+   "lv": 803,
+   "kongfu": 775.61,
+   "exp": 52638134.389116,
+   "money": 29811330.285705,
    "yueli": 236447,
    "xiayi": 6225,
    "looks": 463,
@@ -233,7 +233,7 @@
    "menpai": "昆仑派",
    "lv": 833,
    "kongfu": 803.11,
-   "exp": 58794062.324742,
+   "exp": 58794262.324742,
    "money": 5446227,
    "yueli": 85948,
    "xiayi": -1028,
@@ -243,8 +243,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 3,
-   "prevRank": 13,
-   "delta": 1
+   "prevRank": 12,
+   "delta": 0
   },
   {
    "rank": 13,
@@ -263,8 +263,8 @@
    "sex": "男",
    "wuxing": 178,
    "inheritCount": 4,
-   "prevRank": 12,
-   "delta": -1
+   "prevRank": 13,
+   "delta": 0
   },
   {
    "rank": 14,
@@ -272,9 +272,9 @@
    "name": "昔涟",
    "menpai": "虚渺宫",
    "lv": 685,
-   "kongfu": 690.78,
-   "exp": 32797756.867301,
-   "money": 565128.6572808,
+   "kongfu": 691.83,
+   "exp": 32836721.867301,
+   "money": 582240.6572808,
    "yueli": 131145,
    "xiayi": 674,
    "looks": 463,
@@ -303,8 +303,8 @@
    "sex": "女",
    "wuxing": 25,
    "inheritCount": 3,
-   "prevRank": 16,
-   "delta": 1
+   "prevRank": 15,
+   "delta": 0
   },
   {
    "rank": 16,
@@ -313,7 +313,7 @@
    "menpai": "昆仑派",
    "lv": 680,
    "kongfu": 670.67,
-   "exp": 32118617.590009,
+   "exp": 32118817.590009,
    "money": 2154200,
    "yueli": 128555,
    "xiayi": 656,
@@ -323,8 +323,8 @@
    "sex": "女",
    "wuxing": 201,
    "inheritCount": 4,
-   "prevRank": 17,
-   "delta": 1
+   "prevRank": 16,
+   "delta": 0
   },
   {
    "rank": 17,
@@ -343,18 +343,18 @@
    "sex": "男",
    "wuxing": 144,
    "inheritCount": 3,
-   "prevRank": 15,
-   "delta": -2
+   "prevRank": 17,
+   "delta": 0
   },
   {
    "rank": 18,
    "userid": 22039038675,
    "name": "烟雨行舟",
    "menpai": "财神帮",
-   "lv": 747,
-   "kongfu": 745.5,
-   "exp": 42505446.710107,
-   "money": 2249425,
+   "lv": 751,
+   "kongfu": 747.67,
+   "exp": 43115908.608791,
+   "money": 2374476,
    "yueli": 83247,
    "xiayi": 225,
    "looks": 422,
@@ -363,8 +363,8 @@
    "sex": "女",
    "wuxing": 140,
    "inheritCount": 3,
-   "prevRank": 20,
-   "delta": 2
+   "prevRank": 18,
+   "delta": 0
   },
   {
    "rank": 19,
@@ -383,8 +383,8 @@
    "sex": "男",
    "wuxing": 161,
    "inheritCount": 4,
-   "prevRank": 18,
-   "delta": -1
+   "prevRank": 19,
+   "delta": 0
   },
   {
    "rank": 20,
@@ -403,8 +403,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 3,
-   "prevRank": 30,
-   "delta": 10
+   "prevRank": 20,
+   "delta": 0
   },
   {
    "rank": 21,
@@ -423,8 +423,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 3,
-   "prevRank": 19,
-   "delta": -2
+   "prevRank": 21,
+   "delta": 0
   },
   {
    "rank": 22,
@@ -443,8 +443,8 @@
    "sex": "男",
    "wuxing": 19,
    "inheritCount": 3,
-   "prevRank": 47,
-   "delta": 25
+   "prevRank": 22,
+   "delta": 0
   },
   {
    "rank": 23,
@@ -463,8 +463,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 3,
-   "prevRank": 21,
-   "delta": -2
+   "prevRank": 23,
+   "delta": 0
   },
   {
    "rank": 24,
@@ -483,8 +483,8 @@
    "sex": "男",
    "wuxing": 196,
    "inheritCount": 4,
-   "prevRank": 25,
-   "delta": 1
+   "prevRank": 24,
+   "delta": 0
   },
   {
    "rank": 25,
@@ -503,8 +503,8 @@
    "sex": "男",
    "wuxing": 150,
    "inheritCount": 4,
-   "prevRank": 22,
-   "delta": -3
+   "prevRank": 25,
+   "delta": 0
   },
   {
    "rank": 26,
@@ -523,18 +523,18 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 3,
-   "prevRank": 23,
-   "delta": -3
+   "prevRank": 26,
+   "delta": 0
   },
   {
    "rank": 27,
    "userid": 22039052180,
    "name": "苏怜烟",
    "menpai": "昆仑派",
-   "lv": 615,
-   "kongfu": 641.17,
-   "exp": 23805661.589075,
-   "money": 8782817,
+   "lv": 616,
+   "kongfu": 641.5,
+   "exp": 23874161.589075,
+   "money": 8784615,
    "yueli": 116533,
    "xiayi": 598,
    "looks": 976,
@@ -543,8 +543,8 @@
    "sex": "女",
    "wuxing": 173,
    "inheritCount": 4,
-   "prevRank": 26,
-   "delta": -1
+   "prevRank": 27,
+   "delta": 0
   },
   {
    "rank": 28,
@@ -563,8 +563,8 @@
    "sex": "女",
    "wuxing": 140,
    "inheritCount": 3,
-   "prevRank": 31,
-   "delta": 3
+   "prevRank": 28,
+   "delta": 0
   },
   {
    "rank": 29,
@@ -603,8 +603,8 @@
    "sex": "男",
    "wuxing": 94,
    "inheritCount": 3,
-   "prevRank": 24,
-   "delta": -6
+   "prevRank": 30,
+   "delta": 0
   },
   {
    "rank": 31,
@@ -623,8 +623,8 @@
    "sex": "女",
    "wuxing": 134,
    "inheritCount": 3,
-   "prevRank": 49,
-   "delta": 18
+   "prevRank": 31,
+   "delta": 0
   },
   {
    "rank": 32,
@@ -643,8 +643,8 @@
    "sex": "女",
    "wuxing": 196,
    "inheritCount": 4,
-   "prevRank": 33,
-   "delta": 1
+   "prevRank": 32,
+   "delta": 0
   },
   {
    "rank": 33,
@@ -663,8 +663,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 3,
-   "prevRank": 27,
-   "delta": -6
+   "prevRank": 33,
+   "delta": 0
   },
   {
    "rank": 34,
@@ -683,8 +683,8 @@
    "sex": "女",
    "wuxing": 180,
    "inheritCount": 4,
-   "prevRank": 28,
-   "delta": -6
+   "prevRank": 34,
+   "delta": 0
   },
   {
    "rank": 35,
@@ -703,8 +703,8 @@
    "sex": "男",
    "wuxing": 182,
    "inheritCount": 4,
-   "prevRank": 32,
-   "delta": -3
+   "prevRank": 35,
+   "delta": 0
   },
   {
    "rank": 36,
@@ -723,8 +723,8 @@
    "sex": "男",
    "wuxing": 171,
    "inheritCount": 4,
-   "prevRank": 34,
-   "delta": -2
+   "prevRank": 36,
+   "delta": 0
   },
   {
    "rank": 37,
@@ -763,8 +763,8 @@
    "sex": "男",
    "wuxing": 170,
    "inheritCount": 4,
-   "prevRank": 35,
-   "delta": -3
+   "prevRank": 38,
+   "delta": 0
   },
   {
    "rank": 39,
@@ -783,8 +783,8 @@
    "sex": "男",
    "wuxing": 18,
    "inheritCount": 3,
-   "prevRank": 36,
-   "delta": -3
+   "prevRank": 39,
+   "delta": 0
   },
   {
    "rank": 40,
@@ -823,8 +823,8 @@
    "sex": "男",
    "wuxing": 135,
    "inheritCount": 3,
-   "prevRank": 38,
-   "delta": -3
+   "prevRank": 41,
+   "delta": 0
   },
   {
    "rank": 42,
@@ -843,8 +843,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 3,
-   "prevRank": 39,
-   "delta": -3
+   "prevRank": 42,
+   "delta": 0
   },
   {
    "rank": 43,
@@ -863,8 +863,8 @@
    "sex": "男",
    "wuxing": 160,
    "inheritCount": 4,
-   "prevRank": 41,
-   "delta": -2
+   "prevRank": 43,
+   "delta": 0
   },
   {
    "rank": 44,
@@ -883,8 +883,8 @@
    "sex": "男",
    "wuxing": 180,
    "inheritCount": 4,
-   "prevRank": 42,
-   "delta": -2
+   "prevRank": 44,
+   "delta": 0
   },
   {
    "rank": 45,
@@ -903,8 +903,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 3,
-   "prevRank": 43,
-   "delta": -2
+   "prevRank": 45,
+   "delta": 0
   },
   {
    "rank": 46,
@@ -923,8 +923,8 @@
    "sex": "男",
    "wuxing": 110,
    "inheritCount": 3,
-   "prevRank": 44,
-   "delta": -2
+   "prevRank": 46,
+   "delta": 0
   },
   {
    "rank": 47,
@@ -943,8 +943,8 @@
    "sex": "男",
    "wuxing": 18,
    "inheritCount": 3,
-   "prevRank": 46,
-   "delta": -1
+   "prevRank": 47,
+   "delta": 0
   },
   {
    "rank": 48,
@@ -983,8 +983,8 @@
    "sex": "男",
    "wuxing": 140,
    "inheritCount": 3,
-   "prevRank": 50,
-   "delta": 1
+   "prevRank": 49,
+   "delta": 0
   },
   {
    "rank": 50,
@@ -1003,8 +1003,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 2,
-   "prevRank": 51,
-   "delta": 1
+   "prevRank": 50,
+   "delta": 0
   },
   {
    "rank": 51,
@@ -1023,8 +1023,8 @@
    "sex": "女",
    "wuxing": 196,
    "inheritCount": 4,
-   "prevRank": 52,
-   "delta": 1
+   "prevRank": 51,
+   "delta": 0
   },
   {
    "rank": 52,
@@ -1043,8 +1043,8 @@
    "sex": "男",
    "wuxing": 90,
    "inheritCount": 2,
-   "prevRank": 53,
-   "delta": 1
+   "prevRank": 52,
+   "delta": 0
   },
   {
    "rank": 53,
@@ -1063,8 +1063,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 2,
-   "prevRank": 54,
-   "delta": 1
+   "prevRank": 53,
+   "delta": 0
   },
   {
    "rank": 54,
@@ -1083,18 +1083,18 @@
    "sex": "女",
    "wuxing": 45,
    "inheritCount": 2,
-   "prevRank": 55,
-   "delta": 1
+   "prevRank": 54,
+   "delta": 0
   },
   {
    "rank": 55,
    "userid": 22039045662,
    "name": "江怜月",
    "menpai": "昆仑派",
-   "lv": 632,
-   "kongfu": 634.72,
-   "exp": 25828978.283157,
-   "money": 4258200.73,
+   "lv": 635,
+   "kongfu": 636.44,
+   "exp": 26118891.424071,
+   "money": 4306350.2284319,
    "yueli": 62155,
    "xiayi": 7558,
    "looks": 280,
@@ -1103,8 +1103,8 @@
    "sex": "女",
    "wuxing": 25,
    "inheritCount": 3,
-   "prevRank": 57,
-   "delta": 2
+   "prevRank": 55,
+   "delta": 0
   },
   {
    "rank": 56,
@@ -1143,8 +1143,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 3,
-   "prevRank": 58,
-   "delta": 1
+   "prevRank": 57,
+   "delta": 0
   },
   {
    "rank": 58,
@@ -1163,8 +1163,8 @@
    "sex": "女",
    "wuxing": 19,
    "inheritCount": 3,
-   "prevRank": 59,
-   "delta": 1
+   "prevRank": 58,
+   "delta": 0
   },
   {
    "rank": 59,
@@ -1183,8 +1183,8 @@
    "sex": "男",
    "wuxing": 82,
    "inheritCount": 3,
-   "prevRank": 60,
-   "delta": 1
+   "prevRank": 59,
+   "delta": 0
   },
   {
    "rank": 60,
@@ -1203,8 +1203,8 @@
    "sex": "女",
    "wuxing": 120,
    "inheritCount": 3,
-   "prevRank": 61,
-   "delta": 1
+   "prevRank": 60,
+   "delta": 0
   },
   {
    "rank": 61,
@@ -1223,8 +1223,8 @@
    "sex": "女",
    "wuxing": 10,
    "inheritCount": 3,
-   "prevRank": 62,
-   "delta": 1
+   "prevRank": 61,
+   "delta": 0
   },
   {
    "rank": 62,
@@ -1243,8 +1243,8 @@
    "sex": "男",
    "wuxing": 13,
    "inheritCount": 2,
-   "prevRank": 63,
-   "delta": 1
+   "prevRank": 62,
+   "delta": 0
   },
   {
    "rank": 63,
@@ -1263,8 +1263,8 @@
    "sex": "女",
    "wuxing": 140,
    "inheritCount": 3,
-   "prevRank": 64,
-   "delta": 1
+   "prevRank": 63,
+   "delta": 0
   },
   {
    "rank": 64,
@@ -1283,8 +1283,8 @@
    "sex": "女",
    "wuxing": 10,
    "inheritCount": 2,
-   "prevRank": 65,
-   "delta": 1
+   "prevRank": 64,
+   "delta": 0
   },
   {
    "rank": 65,
@@ -1303,8 +1303,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 3,
-   "prevRank": 66,
-   "delta": 1
+   "prevRank": 65,
+   "delta": 0
   },
   {
    "rank": 66,
@@ -1323,8 +1323,8 @@
    "sex": "女",
    "wuxing": 10,
    "inheritCount": 3,
-   "prevRank": 67,
-   "delta": 1
+   "prevRank": 66,
+   "delta": 0
   },
   {
    "rank": 67,
@@ -1343,8 +1343,8 @@
    "sex": "男",
    "wuxing": 19,
    "inheritCount": 2,
-   "prevRank": 68,
-   "delta": 1
+   "prevRank": 67,
+   "delta": 0
   },
   {
    "rank": 68,
@@ -1363,8 +1363,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 2,
-   "prevRank": 69,
-   "delta": 1
+   "prevRank": 68,
+   "delta": 0
   },
   {
    "rank": 69,
@@ -1383,8 +1383,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 2,
-   "prevRank": 70,
-   "delta": 1
+   "prevRank": 69,
+   "delta": 0
   },
   {
    "rank": 70,
@@ -1403,8 +1403,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 3,
-   "prevRank": 71,
-   "delta": 1
+   "prevRank": 70,
+   "delta": 0
   },
   {
    "rank": 71,
@@ -1423,8 +1423,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 2,
-   "prevRank": 73,
-   "delta": 2
+   "prevRank": 71,
+   "delta": 0
   },
   {
    "rank": 72,
@@ -1451,10 +1451,10 @@
    "userid": 22039059019,
    "name": "萝卜丁",
    "menpai": "问情宫",
-   "lv": 520,
-   "kongfu": 570.39,
-   "exp": 14457139.50587,
-   "money": 8318125,
+   "lv": 521,
+   "kongfu": 570.72,
+   "exp": 14474639.50587,
+   "money": 8332625,
    "yueli": 53694,
    "xiayi": 42,
    "looks": 85,
@@ -1463,11 +1463,31 @@
    "sex": "女",
    "wuxing": 140,
    "inheritCount": 3,
-   "prevRank": 81,
-   "delta": 8
+   "prevRank": 73,
+   "delta": 0
   },
   {
    "rank": 74,
+   "userid": 22039058832,
+   "name": "哈污搞",
+   "menpai": "虚渺宫",
+   "lv": 461,
+   "kongfu": 506.56,
+   "exp": 10064700.501967,
+   "money": 9580606.341989,
+   "yueli": 105959,
+   "xiayi": 4284,
+   "looks": 453,
+   "fuyuan": 74,
+   "age": 14,
+   "sex": "男",
+   "wuxing": 10,
+   "inheritCount": 4,
+   "prevRank": 78,
+   "delta": 4
+  },
+  {
+   "rank": 75,
    "userid": 22039039528,
    "name": "放置咸鱼",
    "menpai": "海鲸帮",
@@ -1484,10 +1504,10 @@
    "wuxing": 19,
    "inheritCount": 3,
    "prevRank": 74,
-   "delta": 0
+   "delta": -1
   },
   {
-   "rank": 75,
+   "rank": 76,
    "userid": 22039026184,
    "name": "金",
    "menpai": "天狼教",
@@ -1504,10 +1524,10 @@
    "wuxing": 10,
    "inheritCount": 2,
    "prevRank": 75,
-   "delta": 0
+   "delta": -1
   },
   {
-   "rank": 76,
+   "rank": 77,
    "userid": 22039058879,
    "name": "陈陈",
    "menpai": "少林派",
@@ -1524,10 +1544,10 @@
    "wuxing": 150,
    "inheritCount": 4,
    "prevRank": 76,
-   "delta": 0
+   "delta": -1
   },
   {
-   "rank": 77,
+   "rank": 78,
    "userid": 22039045621,
    "name": "圣火",
    "menpai": "明教",
@@ -1543,28 +1563,8 @@
    "sex": "女",
    "wuxing": 18,
    "inheritCount": 3,
-   "prevRank": 80,
-   "delta": 3
-  },
-  {
-   "rank": 78,
-   "userid": 22039058832,
-   "name": "哈污搞",
-   "menpai": "虚渺宫",
-   "lv": 458,
-   "kongfu": 503.33,
-   "exp": 9865328.2371858,
-   "money": 9563534.3292963,
-   "yueli": 105929,
-   "xiayi": 4034,
-   "looks": 453,
-   "fuyuan": 74,
-   "age": 14,
-   "sex": "男",
-   "wuxing": 10,
-   "inheritCount": 4,
-   "prevRank": 83,
-   "delta": 5
+   "prevRank": 77,
+   "delta": -1
   },
   {
    "rank": 79,
@@ -1583,8 +1583,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 2,
-   "prevRank": 77,
-   "delta": -2
+   "prevRank": 79,
+   "delta": 0
   },
   {
    "rank": 80,
@@ -1603,8 +1603,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 3,
-   "prevRank": 78,
-   "delta": -2
+   "prevRank": 80,
+   "delta": 0
   },
   {
    "rank": 81,
@@ -1623,8 +1623,8 @@
    "sex": "女",
    "wuxing": 10,
    "inheritCount": 2,
-   "prevRank": 85,
-   "delta": 4
+   "prevRank": 81,
+   "delta": 0
   },
   {
    "rank": 82,
@@ -1643,8 +1643,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 2,
-   "prevRank": 79,
-   "delta": -3
+   "prevRank": 82,
+   "delta": 0
   },
   {
    "rank": 83,
@@ -1663,8 +1663,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 3,
-   "prevRank": 82,
-   "delta": -1
+   "prevRank": 83,
+   "delta": 0
   },
   {
    "rank": 84,
@@ -1683,31 +1683,11 @@
    "sex": "女",
    "wuxing": 30,
    "inheritCount": 2,
-   "prevRank": 89,
-   "delta": 5
+   "prevRank": 84,
+   "delta": 0
   },
   {
    "rank": 85,
-   "userid": 22039024001,
-   "name": "君如心",
-   "menpai": "峨眉派",
-   "lv": 809,
-   "kongfu": 661.33,
-   "exp": 53890884.510425,
-   "money": 1485751,
-   "yueli": 46503,
-   "xiayi": 5875,
-   "looks": 125,
-   "fuyuan": 36,
-   "age": 22,
-   "sex": "女",
-   "wuxing": 30,
-   "inheritCount": 2,
-   "prevRank": 86,
-   "delta": 1
-  },
-  {
-   "rank": 86,
    "userid": 22039048625,
    "name": "言不语",
    "menpai": "虚渺宫",
@@ -1723,11 +1703,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 3,
-   "prevRank": 84,
-   "delta": -2
+   "prevRank": 86,
+   "delta": 1
   },
   {
-   "rank": 87,
+   "rank": 86,
    "userid": 22039048584,
    "name": "九天谪仙",
    "menpai": "拜日教",
@@ -1743,11 +1723,11 @@
    "sex": "男",
    "wuxing": 115,
    "inheritCount": 3,
-   "prevRank": 90,
-   "delta": 3
+   "prevRank": 87,
+   "delta": 1
   },
   {
-   "rank": 88,
+   "rank": 87,
    "userid": 22039028414,
    "name": "秦可卿",
    "menpai": "拜日教",
@@ -1763,11 +1743,11 @@
    "sex": "女",
    "wuxing": 26,
    "inheritCount": 2,
-   "prevRank": 87,
-   "delta": -1
+   "prevRank": 88,
+   "delta": 1
   },
   {
-   "rank": 89,
+   "rank": 88,
    "userid": 22039003079,
    "name": "吴昦",
    "menpai": "少林派",
@@ -1783,11 +1763,11 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": 2,
-   "prevRank": 88,
-   "delta": -1
+   "prevRank": 89,
+   "delta": 1
   },
   {
-   "rank": 90,
+   "rank": 89,
    "userid": 22039048215,
    "name": "胡临涛",
    "menpai": "虚渺宫",
@@ -1803,11 +1783,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 3,
-   "prevRank": 93,
-   "delta": 3
+   "prevRank": 90,
+   "delta": 1
   },
   {
-   "rank": 91,
+   "rank": 90,
    "userid": 22039040434,
    "name": "宫彩彩",
    "menpai": "拜日教",
@@ -1823,11 +1803,11 @@
    "sex": "女",
    "wuxing": 10,
    "inheritCount": 2,
-   "prevRank": 94,
-   "delta": 3
+   "prevRank": 91,
+   "delta": 1
   },
   {
-   "rank": 92,
+   "rank": 91,
    "userid": 22039045757,
    "name": "叶未来身",
    "menpai": "昆仑派",
@@ -1843,11 +1823,11 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 3,
-   "prevRank": 97,
-   "delta": 5
+   "prevRank": 92,
+   "delta": 1
   },
   {
-   "rank": 93,
+   "rank": 92,
    "userid": 22039029800,
    "name": "咩咩子",
    "menpai": "昆仑派",
@@ -1863,11 +1843,11 @@
    "sex": "男",
    "wuxing": 19,
    "inheritCount": 2,
-   "prevRank": 91,
-   "delta": -2
+   "prevRank": 93,
+   "delta": 1
   },
   {
-   "rank": 94,
+   "rank": 93,
    "userid": 22039002682,
    "name": "月朔",
    "menpai": "少林派",
@@ -1883,11 +1863,11 @@
    "sex": "男",
    "wuxing": 11,
    "inheritCount": 2,
-   "prevRank": 92,
-   "delta": -2
+   "prevRank": 94,
+   "delta": 1
   },
   {
-   "rank": 95,
+   "rank": 94,
    "userid": 22039038957,
    "name": "罗瑶",
    "menpai": "崆峒派",
@@ -1903,11 +1883,11 @@
    "sex": "女",
    "wuxing": 10,
    "inheritCount": 2,
-   "prevRank": 98,
-   "delta": 3
+   "prevRank": 95,
+   "delta": 1
   },
   {
-   "rank": 96,
+   "rank": 95,
    "userid": 22039039979,
    "name": "久恒",
    "menpai": "拜日教",
@@ -1923,11 +1903,11 @@
    "sex": "男",
    "wuxing": 25,
    "inheritCount": 2,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 96,
+   "delta": 1
   },
   {
-   "rank": 97,
+   "rank": 96,
    "userid": 22039041987,
    "name": "疯象艾米",
    "menpai": "永夜楼",
@@ -1943,11 +1923,11 @@
    "sex": "女",
    "wuxing": 25,
    "inheritCount": 3,
-   "prevRank": 95,
-   "delta": -2
+   "prevRank": 97,
+   "delta": 1
   },
   {
-   "rank": 98,
+   "rank": 97,
    "userid": 22039044297,
    "name": "云北辰",
    "menpai": "天狼教",
@@ -1963,11 +1943,11 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": 3,
-   "prevRank": 96,
-   "delta": -2
+   "prevRank": 98,
+   "delta": 1
   },
   {
-   "rank": 99,
+   "rank": 98,
    "userid": 22039035325,
    "name": "林沫泠",
    "menpai": "昆仑派",
@@ -1984,10 +1964,10 @@
    "wuxing": 10,
    "inheritCount": 2,
    "prevRank": 99,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 100,
+   "rank": 99,
    "userid": 22039042504,
    "name": "昆仑老道",
    "menpai": "昆仑派",
@@ -2004,7 +1984,27 @@
    "wuxing": 20,
    "inheritCount": 3,
    "prevRank": 100,
-   "delta": 0
+   "delta": 1
+  },
+  {
+   "rank": 100,
+   "userid": 22039026462,
+   "name": "混沌毁灭",
+   "menpai": "天狼教",
+   "lv": 773,
+   "kongfu": 633.89,
+   "exp": 47011848.668466,
+   "money": 1734833.3764943,
+   "yueli": 37509,
+   "xiayi": -37201,
+   "looks": 65,
+   "fuyuan": 28,
+   "age": 22,
+   "sex": "女",
+   "wuxing": 10,
+   "inheritCount": 2,
+   "prevRank": null,
+   "delta": null
   }
  ]
 }

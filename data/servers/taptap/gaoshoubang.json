@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-12 06:44:27",
- "updatedTs": 1794437067,
+ "updatedAt": "2026-11-12 16:59:23",
+ "updatedTs": 1794473963,
  "hasPrev": true,
  "total": 98,
  "rows": [
@@ -73,10 +73,10 @@
    "menpai": "燕氏皇族",
    "lv": 3897,
    "kongfu": 2032.33,
-   "exp": 5937182320.1905,
-   "money": 243016519.07325,
-   "yueli": 1649706,
-   "xiayi": 204682.8,
+   "exp": 5939529451.3242,
+   "money": 243707211,
+   "yueli": 1649815,
+   "xiayi": 204642.8,
    "looks": 5120,
    "fuyuan": 235,
    "age": 424,
@@ -93,11 +93,11 @@
    "menpai": "财神帮",
    "lv": 3866,
    "kongfu": 2022,
-   "exp": 5796403706.4826,
-   "money": 89661414.752141,
-   "yueli": 1068048.25,
+   "exp": 5799218714.3431,
+   "money": 93182776,
+   "yueli": 1068393.25,
    "xiayi": -1105246,
-   "looks": 12698,
+   "looks": 12708,
    "fuyuan": 288,
    "age": 424,
    "sex": "女",
@@ -131,13 +131,13 @@
    "userid": 7359829,
    "name": "幽溟岚神",
    "menpai": "幽冥教",
-   "lv": 3840,
-   "kongfu": 2013.33,
-   "exp": 5682453577.3637,
-   "money": 292564106,
-   "yueli": 1414141,
-   "xiayi": -1441182,
-   "looks": 11782,
+   "lv": 3841,
+   "kongfu": 2013.67,
+   "exp": 5684796573.9454,
+   "money": 293223161,
+   "yueli": 1414565,
+   "xiayi": -1442222,
+   "looks": 11773,
    "fuyuan": 256,
    "age": 424,
    "sex": "女",
@@ -571,15 +571,15 @@
    "userid": 5289704,
    "name": "楚玟姬",
    "menpai": "昆仑派",
-   "lv": 3556,
-   "kongfu": 1918.67,
-   "exp": 4514113038.4511,
-   "money": 347208907.52,
-   "yueli": 859175.5,
-   "xiayi": 614477.3,
+   "lv": 3557,
+   "kongfu": 1919,
+   "exp": 4516486287.7302,
+   "money": 347639510.2,
+   "yueli": 859346.5,
+   "xiayi": 614437.3,
    "looks": 6727,
    "fuyuan": 237,
-   "age": 348,
+   "age": 349,
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
@@ -633,12 +633,12 @@
    "menpai": "官府",
    "lv": 3520,
    "kongfu": 1906.67,
-   "exp": 4377156223.5007,
-   "money": 729355719,
-   "yueli": 986485,
-   "xiayi": 160294.7,
-   "looks": 5256,
-   "fuyuan": 257,
+   "exp": 4379663179.1115,
+   "money": 730046557,
+   "yueli": 987131,
+   "xiayi": 160254.7,
+   "looks": 5264,
+   "fuyuan": 259,
    "age": 410,
    "sex": "女",
    "wuxing": 15,
@@ -708,35 +708,15 @@
   },
   {
    "rank": 36,
-   "userid": 3342568,
-   "name": "云小缨",
-   "menpai": "官府",
-   "lv": 3473,
-   "kongfu": 1891,
-   "exp": 4204867935.6138,
-   "money": 103637151,
-   "yueli": 727175.75,
-   "xiayi": 99045.2,
-   "looks": 2177,
-   "fuyuan": 180,
-   "age": 424,
-   "sex": "男",
-   "wuxing": 20,
-   "inheritCount": 5,
-   "prevRank": 36,
-   "delta": 0
-  },
-  {
-   "rank": 37,
    "userid": 4203239,
    "name": "无瑕玉",
    "menpai": "财神帮",
    "lv": 3471,
    "kongfu": 1890.33,
-   "exp": 4196919188.1051,
-   "money": 290005842.72,
-   "yueli": 693144,
-   "xiayi": 848969.5,
+   "exp": 4199062875.8107,
+   "money": 290011019,
+   "yueli": 693420,
+   "xiayi": 850229.5,
    "looks": 8904,
    "fuyuan": 292,
    "age": 391,
@@ -744,10 +724,10 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 37,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 38,
+   "rank": 37,
    "userid": 8016600,
    "name": "樱重八",
    "menpai": "虚渺宫",
@@ -764,10 +744,10 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 38,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 39,
+   "rank": 38,
    "userid": 8183775,
    "name": "刑天影",
    "menpai": "问情宫",
@@ -784,19 +764,19 @@
    "wuxing": 10,
    "inheritCount": 5,
    "prevRank": 39,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 40,
+   "rank": 39,
    "userid": 4005646,
    "name": "末央摸鱼",
    "menpai": "万灵谷",
-   "lv": 3449,
-   "kongfu": 1883,
-   "exp": 4119907371.6487,
-   "money": 260318828,
-   "yueli": 827348.1,
-   "xiayi": -537453,
+   "lv": 3450,
+   "kongfu": 1883.33,
+   "exp": 4122411750.4182,
+   "money": 260867426,
+   "yueli": 828182.1,
+   "xiayi": -537493,
    "looks": 5233,
    "fuyuan": 241,
    "age": 389,
@@ -804,10 +784,10 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 40,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 41,
+   "rank": 40,
    "userid": 4594018,
    "name": "何缸酒",
    "menpai": "少林派",
@@ -824,10 +804,10 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 41,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 42,
+   "rank": 41,
    "userid": 5408835,
    "name": "殷成机",
    "menpai": "丐帮",
@@ -844,10 +824,10 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 42,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 43,
+   "rank": 42,
    "userid": 8518197,
    "name": "肥肥乄",
    "menpai": "万灵谷",
@@ -864,10 +844,10 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 43,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 44,
+   "rank": 43,
    "userid": 9406225,
    "name": "无名氏",
    "menpai": "问情宫",
@@ -884,10 +864,10 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 44,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 45,
+   "rank": 44,
    "userid": 5613861,
    "name": "白练飞踪",
    "menpai": "蓬莱岛",
@@ -904,10 +884,10 @@
    "wuxing": 200,
    "inheritCount": 5,
    "prevRank": 45,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 46,
+   "rank": 45,
    "userid": 5110176,
    "name": "天羽龙翔",
    "menpai": "幽冥教",
@@ -924,10 +904,10 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 46,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 47,
+   "rank": 46,
    "userid": 9218256,
    "name": "天若有情",
    "menpai": "官府",
@@ -944,10 +924,10 @@
    "wuxing": 235,
    "inheritCount": 5,
    "prevRank": 47,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 48,
+   "rank": 47,
    "userid": 7900825,
    "name": "滋水王八",
    "menpai": "武当派",
@@ -964,10 +944,10 @@
    "wuxing": 20,
    "inheritCount": 5,
    "prevRank": 48,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 49,
+   "rank": 48,
    "userid": 4786504,
    "name": "谢淮阴",
    "menpai": "官府",
@@ -984,10 +964,10 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 49,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 50,
+   "rank": 49,
    "userid": 5457499,
    "name": "孟小昕",
    "menpai": "明教",
@@ -1004,19 +984,19 @@
    "wuxing": 20,
    "inheritCount": 5,
    "prevRank": 50,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 51,
+   "rank": 50,
    "userid": 9671400,
    "name": "一只云巧",
    "menpai": "武当派",
-   "lv": 3322,
-   "kongfu": 1840.67,
-   "exp": 3681577111.4993,
-   "money": 669971902,
-   "yueli": 821947,
-   "xiayi": 1298034.5,
+   "lv": 3323,
+   "kongfu": 1841,
+   "exp": 3683548186.3008,
+   "money": 670529077,
+   "yueli": 821995,
+   "xiayi": 1298294.5,
    "looks": 7888,
    "fuyuan": 197,
    "age": 307,
@@ -1024,10 +1004,10 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 51,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 52,
+   "rank": 51,
    "userid": 7635873,
    "name": "盛字传",
    "menpai": "虚渺宫",
@@ -1044,10 +1024,10 @@
    "wuxing": 10,
    "inheritCount": 5,
    "prevRank": 52,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 53,
+   "rank": 52,
    "userid": 5810723,
    "name": "帝凌霄",
    "menpai": "昆仑派",
@@ -1064,10 +1044,10 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 53,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 54,
+   "rank": 53,
    "userid": 4852934,
    "name": "诸葛小花",
    "menpai": "天狼教",
@@ -1084,10 +1064,10 @@
    "wuxing": 250,
    "inheritCount": 5,
    "prevRank": 54,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 55,
+   "rank": 54,
    "userid": 8050891,
    "name": "魂羽",
    "menpai": "幽冥教",
@@ -1104,10 +1084,10 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 55,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 56,
+   "rank": 55,
    "userid": 9681266,
    "name": "渣筱娆",
    "menpai": "虚渺宫",
@@ -1124,10 +1104,10 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 56,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 57,
+   "rank": 56,
    "userid": 8582533,
    "name": "贾任",
    "menpai": "武当派",
@@ -1144,30 +1124,30 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 57,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 58,
+   "rank": 57,
    "userid": 7043715,
    "name": "酸素欠缺",
    "menpai": "华山",
    "lv": 3304,
-   "kongfu": 1827.11,
-   "exp": 3621371444.744,
-   "money": 193858340.78292,
-   "yueli": 811724,
-   "xiayi": 8372,
-   "looks": 596,
+   "kongfu": 1827.56,
+   "exp": 3622759421.6337,
+   "money": 194150566.75531,
+   "yueli": 811965,
+   "xiayi": 8332,
+   "looks": 597,
    "fuyuan": 32,
    "age": 424,
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
    "prevRank": 58,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 59,
+   "rank": 58,
    "userid": 8037210,
    "name": "昆仑战神",
    "menpai": "虚渺宫",
@@ -1184,10 +1164,10 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 59,
-   "delta": 0
+   "delta": 1
   },
   {
-   "rank": 60,
+   "rank": 59,
    "userid": 8452242,
    "name": "剑小玖",
    "menpai": "峨眉派",
@@ -1204,7 +1184,27 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 60,
-   "delta": 0
+   "delta": 1
+  },
+  {
+   "rank": 60,
+   "userid": 3342568,
+   "name": "云小缨",
+   "menpai": "官府",
+   "lv": 3473,
+   "kongfu": 1822.78,
+   "exp": 4205492397.6138,
+   "money": 85210737,
+   "yueli": 727805.75,
+   "xiayi": 99045.2,
+   "looks": 2177,
+   "fuyuan": 180,
+   "age": 424,
+   "sex": "男",
+   "wuxing": 20,
+   "inheritCount": 5,
+   "prevRank": 36,
+   "delta": -24
   },
   {
    "rank": 61,
@@ -1383,8 +1383,8 @@
    "sex": "男",
    "wuxing": 17,
    "inheritCount": 5,
-   "prevRank": 70,
-   "delta": 1
+   "prevRank": 69,
+   "delta": 0
   },
   {
    "rank": 70,
@@ -1403,8 +1403,8 @@
    "sex": "男",
    "wuxing": 228,
    "inheritCount": 5,
-   "prevRank": 69,
-   "delta": -1
+   "prevRank": 70,
+   "delta": 0
   },
   {
    "rank": 71,
@@ -1753,10 +1753,10 @@
    "menpai": "虚渺宫",
    "lv": 3057,
    "kongfu": 1752.33,
-   "exp": 2868511276.7259,
-   "money": 362345483.29786,
-   "yueli": 740092,
-   "xiayi": 31220.6,
+   "exp": 2870504763.6116,
+   "money": 362741001.30293,
+   "yueli": 740988,
+   "xiayi": 31180.6,
    "looks": 941,
    "fuyuan": 124,
    "age": 305,
@@ -1873,8 +1873,8 @@
    "menpai": "昆仑派",
    "lv": 3042,
    "kongfu": 1747.33,
-   "exp": 2827488657.3856,
-   "money": 3338699,
+   "exp": 2827612855.3856,
+   "money": 3522265,
    "yueli": 640135,
    "xiayi": 1067103.5,
    "looks": 5670,
