@@ -37,8 +37,12 @@ def _find(rel):
 
 
 CONFIG_PATHS = [_find("config.json"), r"E:/workbuddy2/fzjh-rank/config.json"]
-CACHE_PATH = os.path.join(BASE, "lookup_cache.json")
+# 缓存必须放在应用数据目录，不能跟代码放一起：
+# 启动器热更时会整个删掉 live/，放那里的话「分区记忆 / 最近查询」每次更新都会丢。
+DATA_DIR = os.environ.get("ANDROID_PRIVATE") or BASE
+CACHE_PATH = os.path.join(DATA_DIR, "lookup_cache.json")
 NAMES_PATH = _find("names.json")
+RECENT_MAX = 3
 
 INDEX_URL = "https://fzpaihang.github.io/lanlandeku/data/servers/%s/gaoshoubang.json"
 
@@ -146,6 +150,34 @@ def save_cache(c):
     try:
         with io.open(CACHE_PATH, "w", encoding="utf-8") as f:
             f.write(json.dumps(c, ensure_ascii=False, indent=2))
+    except Exception:
+        pass
+
+
+def recent_queries():
+    """最近成功的查询，最多 RECENT_MAX 条；失败不抛异常。"""
+    try:
+        items = load_cache().get("recentQueries") or []
+        return [x for x in items if isinstance(x, dict) and x.get("uid")][:RECENT_MAX]
+    except Exception:
+        return []
+
+
+def add_recent(prof):
+    """把一次成功查询写进历史：同一 UID 去重后置顶。"""
+    try:
+        c = load_cache()
+        items = [x for x in (c.get("recentQueries") or []) if isinstance(x, dict)]
+        items = [x for x in items if str(x.get("uid")) != str(prof.get("uid"))]
+        items.insert(0, {
+            "uid": prof.get("uid"),
+            "name": prof.get("name") or "",
+            "server": prof.get("server"),
+            "serverName": prof.get("serverName") or "",
+            "at": time.strftime("%Y-%m-%d %H:%M"),
+        })
+        c["recentQueries"] = items[:RECENT_MAX]
+        save_cache(c)
     except Exception:
         pass
 
@@ -387,8 +419,8 @@ def lookup(uid, progress=None, cfg=None, cache=None, server=None):
     clean_miss = True   # 所有分区都明确回「没有这个角色」（errcode=0 但 data 空）
 
     # 第一轮：用缓存的热更版本号快速试
-    for srv in order:
-        note("检测 %s …" % srv["name"])
+    for i, srv in enumerate(order, 1):
+        note("正在尝试 %d/%d · %s …" % (i, len(order), srv["name"]))
         data, ec = try_one(srv, uid, hotver)
         if data:
             hit = (srv, data)
