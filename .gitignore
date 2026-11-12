@@ -1,5 +1,6 @@
 # 仅本地使用，不要提交（里面有设备 uuid 和账号 id，等同凭据）
 config.json
+apk/config.json
 
 # 运行时产物
 data/logs/

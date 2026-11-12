@@ -1,0 +1,99 @@
+name: 构建 APK
+
+# 手机端「玩家查询」工具：buildozer 打包成 debug APK，产物在 Actions 页面下载。
+# 首次构建需下载 Android SDK/NDK（约 2–3 GB），约 40–60 分钟；命中缓存后约 15–20 分钟。
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apk/**'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装系统依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git zip unzip autoconf libtool pkg-config zlib1g-dev \
+            libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
+
+      - name: 安装 buildozer
+        run: |
+          python -m pip install --upgrade pip
+          pip install buildozer "cython<3"
+
+      - name: 缓存 Android SDK / NDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            apk/.buildozer
+          key: buildozer-${{ runner.os }}-${{ hashFiles('apk/buildozer.spec', 'apk/main.py') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
+
+      - name: 注入分区凭据
+        working-directory: apk
+        env:
+          SERVERS_JSON: ${{ secrets.FZJH_SERVERS }}
+        run: |
+          if [ -z "$SERVERS_JSON" ]; then
+            echo "缺少 Secret FZJH_SERVERS，无法打包" >&2
+            exit 1
+          fi
+          printf '%s' "$SERVERS_JSON" > config.json
+          python - <<'PY'
+          import json, io
+          d = json.load(io.open('config.json', encoding='utf-8'))
+          keys = [s['key'] for s in d.get('servers', [])]
+          print('已注入 %d 个分区: %s' % (len(keys), ', '.join(keys)))
+          PY
+
+      - name: 打包 APK
+        working-directory: apk
+        run: |
+          export BUILDOZER_WARN_ON_ROOT=0
+          buildozer -v android debug 2>&1 | tail -120
+
+      - name: 列出产物
+        run: |
+          echo "### APK 产物" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh apk/bin/ || true
+          for f in apk/bin/*.apk; do
+            [ -f "$f" ] && echo "- \`$(basename "$f")\` — $(du -h "$f" | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: fzjh-lookup-apk
+          path: apk/bin/*.apk
+          if-no-files-found: error
+          retention-days: 30
