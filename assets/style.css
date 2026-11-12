@@ -499,3 +499,60 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
   .pf-life b{font-size:13px}
 }
 
+
+/* ---------- 玩家查询页 ---------- */
+.lk{margin:0 0 20px}
+.lk-row{display:flex;gap:10px;align-items:stretch}
+.lk-input{
+  flex:1 1 auto;min-width:0;height:48px;padding:0 14px;
+  font-size:16px;color:var(--ink);background:var(--card);
+  border:1px solid var(--line);border-radius:12px;
+  font-variant-numeric:tabular-nums;
+  transition:border-color .15s,box-shadow .15s;
+}
+.lk-input::placeholder{color:var(--muted)}
+.lk-input:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px rgba(140,47,40,.08)}
+.lk-btn{
+  flex:0 0 auto;min-width:108px;height:48px;padding:0 22px;
+  border:0;border-radius:12px;background:var(--accent);color:#fff;
+  font-size:15px;font-weight:600;letter-spacing:.5px;cursor:pointer;
+  transition:background .15s;
+}
+.lk-btn:hover{background:#7a271f}
+.lk-btn:disabled{opacity:.55;cursor:default}
+.lk-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lk-hint{margin:10px 0 0;color:var(--muted);font-size:12.5px;line-height:1.6}
+.lk-result{
+  margin:0 0 20px;padding:16px 16px 18px;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);
+}
+.lk-head{
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  margin:0 0 14px;padding-bottom:12px;border-bottom:1px solid var(--line-2);
+}
+.lk-head h2{
+  margin:0;font-family:var(--serif);font-weight:700;
+  font-size:22px;letter-spacing:.5px;color:var(--ink);
+}
+.lk-head .lk-sub{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.lk-tag{
+  margin-left:auto;font-size:11.5px;font-weight:600;padding:2px 9px;
+  border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap;
+}
+.lk-empty{margin:0 0 18px}
+.lk-empty p{margin:0 0 9px;color:var(--muted);font-size:12.5px;letter-spacing:.3px}
+.lk-recent{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.lk-chip{
+  border:1px solid var(--line);background:var(--card);color:var(--ink-2);
+  border-radius:999px;padding:7px 13px;font-size:13px;cursor:pointer;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.lk-chip:hover{color:var(--accent);border-color:#dcc9c4;background:#fffdfa}
+.lk-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:560px){
+  .lk-row{flex-wrap:wrap}
+  .lk-btn{width:100%}
+  .lk-head h2{font-size:19px}
+  .lk-result{padding:14px 13px 16px}
+}

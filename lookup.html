@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="description" content="放置江湖 玩家查询：输入游戏内 UID，实时拉取该角色的等级、门派、武学、准备位与装备。" />
+<meta name="theme-color" content="#8c2f28" />
+<meta name="robots" content="noindex, nofollow" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="玩家查询 · 放置江湖高手榜" />
+<meta property="og:description" content="输入 UID 实时查询角色档案，不用装客户端。" />
+<meta property="og:url" content="https://fzpaihang.github.io/lanlandeku/lookup.html" />
+<meta name="twitter:card" content="summary" />
+<link rel="canonical" href="https://fzpaihang.github.io/lanlandeku/lookup.html" />
+<title>玩家查询 · 放置江湖高手榜</title>
+<link rel="stylesheet" href="./assets/style.css?v=7d5bb0ae" />
+</head>
+<body>
+
+<a class="skip" href="#main">跳到查询表单</a>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">
+      <span class="seal">查<br>询</span>
+      <div class="brand-txt">
+        <h1>玩家查询</h1>
+        <p class="sub">放置江湖 · 输入 UID 查实时档案</p>
+      </div>
+    </div>
+    <div id="server-switch" class="srv-switch" hidden></div>
+    <div class="meta">
+      <span id="state" class="pill ghost">待查询</span>
+      <a class="navbtn" href="./index.html">高手榜 ›</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+
+  <p id="notice" class="banner" role="status" hidden></p>
+
+  <section class="lk" aria-label="按 UID 查询">
+    <div class="lk-row">
+      <input id="uid" class="lk-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12"
+             placeholder="输入游戏内 UID" aria-label="游戏内 UID"
+             autocomplete="off" enterkeyhint="search" />
+      <button id="go" class="lk-btn" type="button">查询</button>
+    </div>
+    <p class="lk-hint" id="mode"></p>
+    <p class="lk-hint">UID 是游戏「个人信息」页里的角色 ID（5–12 位纯数字），不是登录账号。查询走游戏接口实时拉取，通常 3–5 秒。</p>
+  </section>
+
+  <section id="result" class="lk-result" aria-live="polite" hidden></section>
+
+  <div id="tips" class="lk-empty">
+    <p>查过的角色</p>
+    <div id="recent" class="lk-recent"></div>
+  </div>
+
+  <p class="foot">
+    只在点击「查询」时才请求游戏接口，不做后台采集；同一角色 60 秒内复用结果，避免把接口打限流。<br />
+    档案是<b>实时</b>数据，和排行榜的快照可能有出入（排行榜只在玩家活跃时刷新）。
+  </p>
+</main>
+
+<script>
+  /* 腾讯云函数地址；部署完把 URL 填进来（留空则用同源 /api/query，便于本地联调） */
+  window.FZJH_API_BASE = '';
+</script>
+<script src="./assets/servers.js?v=160621b8"></script>
+<script src="./assets/profile.js?v=2bfa3a8a"></script>
+<script src="./assets/lookup.js?v=338db67f"></script>
+</body>
+</html>

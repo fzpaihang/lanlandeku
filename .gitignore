@@ -6,3 +6,6 @@ apk/config.json
 data/logs/
 *.tmp
 __pycache__/
+
+# 腾讯云函数打包产物（本地生成、手动上传，不进仓库）
+api/build/

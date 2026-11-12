@@ -24,17 +24,32 @@
 
 > 排行榜数据只在玩家本人活跃时才刷新，长期不上线的号经验会一直冻着、一上线整块跳变。这是游戏机制，不是抓取 bug。
 
+**玩家查询（`lookup.html`）**
+
+- 输入任意 UID，实时拉这个角色的完整档案（等级、门派、气血、加力、传承与装备）
+- 默认「自动」分区：先按 UID 位数猜（7 位→苍松、10 位→4399、11 位→丹凤/白鹤/墨羽），猜不中再逐区试，也可点分区固定
+- 查过的角色记在本地（最多 3 个），点一下就能重查；支持 `lookup.html?uid=xxxx` 直接打开
+- 复用高手榜同一套档案样式，两处看起来完全一致
+
+> 排行榜点侠名看的是**快照档案**（随定时任务更新），查询页走的是**实时接口**，两者数字可能不同。
+
 ## 目录
 
 ```
 fzjh-rank/
 ├─ index.html                 高手榜
 ├─ exp.html                   经验变化
+├─ lookup.html                玩家查询（输入 UID 查实时档案）
 ├─ assets/
 │  ├─ style.css               全部样式（含 ≤560px / 561–900px 断点）
 │  ├─ servers.js              分区解析、切换器、跨页链接参数
+│  ├─ profile.js              玩家档案渲染（详情弹窗 与 查询页共用）
 │  ├─ app.js                  高手榜渲染、搜索、排序、详情弹窗
-│  └─ exp.js                  经验页渲染
+│  ├─ exp.js                  经验页渲染
+│  └─ lookup.js               查询页：调云函数、状态与最近查询
+├─ api/
+│  ├─ index.py                腾讯云函数入口（main_handler）
+│  └─ build/                  打包产物（gitignored，本地生成）
 ├─ data/
 │  ├─ names.json              技能 / 装备 id → 中文名（一次性生成）
 │  ├─ hidden.json             隐私名单：这些 uid 不出榜、不进快照、不生成档案
@@ -45,10 +60,12 @@ fzjh-rank/
 │  ├─ fetch.py                抓榜单 + 记经验快照
 │  ├─ fetch_profiles.py       抓玩家档案（含「近期新增武学」比对）
 │  ├─ build_names.py          生成中文名映射（换游戏版本后重跑）
+│  ├─ build_api_zip.py        打包云函数部署包（api/build/*.zip）
 │  ├─ stamp_assets.py         把 html 里的 ?v= 刷成资源内容哈希
 │  ├─ summary.py              输出刷新摘要（CI 用）
-│  └─ serve.py                本地预览（正式站不需要）
-├─ apk/                       「输入 UID 查档案」安卓 App 源码 + 热更包
+│  ├─ serve.py                本地预览（正式站不需要）
+│  └─ serve_api.py            本地联调：静态站 + /api/query
+├─ apk/                       「输入 UID 查档案」安卓 App 源码 + 热更包（已停更）
 ├─ .github/workflows/
 │  ├─ refresh.yml             五分区定时抓取
 │  └─ build-apk.yml           APK 构建（仅 apk/ 改动时触发）
@@ -137,6 +154,53 @@ python scripts\stamp_assets.py
 ```
 
 内容没变时不会改文件，可以放心重复执行。刷新线上后如果还看到旧样式，Ctrl+F5 强刷一次。
+
+## 玩家查询是怎么工作的（腾讯云函数）
+
+纯静态站调不了游戏接口：接口不返回 CORS 头，浏览器预检直接被拒；而且 `uuid` / `account` 一旦写进前端 JS 就等于公开凭据。所以查询页走一层「薄转发」——腾讯云函数，凭据只放在函数的环境变量里。
+
+```
+lookup.html  →  云函数 /query?uid=&server=  →  游戏接口（握手 + get_user_info，2 次请求）  →  档案 JSON
+```
+
+- `api/index.py` 只做三件事：读环境变量、参数校验与 CORS、调 `apk/` 里那套已经跑通的协议核心
+- 打包：`python scripts/build_api_zip.py` → `api/build/fzjh-lookup-api.zip`（约 46 KB，零第三方依赖，用纯 Python AES）
+
+### 部署（约 5 分钟）
+
+1. 打开 <https://console.cloud.tencent.com/scf> → **函数服务 → 新建 → 从头开始**
+   - 函数名 `fzjh-lookup`，运行环境 **Python 3.9**，地域选广州或上海
+2. **函数代码** → 提交方式「本地上传 zip」→ 上传 `api/build/fzjh-lookup-api.zip`
+   - 执行方法填 `index.main_handler`
+3. **高级配置**：超时时间改成 **15 秒**（默认 3 秒撑不住一次握手 + 查询），内存 128 MB 足够
+4. **环境变量**：
+
+   | 名称 | 值 |
+   |---|---|
+   | `FZJH_SERVERS` | 和 GitHub Secret 里那个同名值**一模一样**（JSON 数组，含五区 uuid/account/channel） |
+   | `FZJH_HOTVER` | 如 `18464`，游戏更新后往上调 |
+   | `FZJH_ORIGIN` | `https://fzpaihang.github.io` |
+
+5. **触发管理 → 创建触发器 → 函数 URL → 免鉴权**，复制生成的地址（没有函数 URL 选项就用 API 网关触发，同样免鉴权）
+6. 把地址填进 `lookup.html` 的 `window.FZJH_API_BASE`，跑一次 `python scripts/stamp_assets.py` 再提交
+
+**自检**：浏览器打开 `<函数地址>?uid=21079729670&server=auto`，应返回 `{"ok":true,...}`。
+
+### 成本与限制
+
+- 免费额度每月 100 万次调用，正常用不完；单次查询只打 2 次游戏接口
+- 同一 UID 60 秒内复用结果；「查无此人」只压 15 秒，避免一次限流把用户挡一分钟
+- 自动模式先按 UID 位数猜分区，只对报 `20616` 的区退避重试一次，不会把五个区一起打满
+- 云函数出口在腾讯云机房，拉不到 GitHub Pages 时只是少「福缘 / 排名」两项，不影响主体
+- `hotver` 变了改环境变量即可，不用重新部署代码
+
+### 本地联调（不部署也能验）
+
+```powershell
+python scripts\build_api_zip.py --stage-only     # 准备 api/build/staging
+python scripts\serve_api.py 8788                 # 静态站 + /api/query 直连 handler
+# 打开 http://127.0.0.1:8788/lookup.html?uid=21079729670
+```
 
 ## 每天自动刷新（GitHub Actions）
 

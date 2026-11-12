@@ -12,7 +12,7 @@ import os
 import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index.html", "exp.html"]
+PAGES = ["index.html", "exp.html", "lookup.html"]
 REF = re.compile(r'(href|src)="(\./assets/[^"?]+\.(?:css|js))(?:\?v=[^"]*)?"')
 
 
