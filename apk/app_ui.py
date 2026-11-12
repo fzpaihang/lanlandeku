@@ -183,7 +183,7 @@ class PlayerLookup(App):
         head.add_widget(lab("按分区查角色档案与榜单信息", 12, C_MUTED, height=20))
         root.add_widget(head)
 
-        # ---- 分区：label + 下拉 + ▾，让「可点」看得见 ----
+        # ---- 分区：label + 下拉 + 中文「切换」提示，让「可点」看得见 ----
         self.servers = self._servers()
         names = [n for _k, n in self.servers] + [self.AUTO_LABEL]
         row_srv = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
@@ -191,7 +191,9 @@ class PlayerLookup(App):
         lbl.size_hint_x = None
         lbl.width = dp(44)
         row_srv.add_widget(lbl)
-        picker = BoxLayout(spacing=0)
+        # 用中文「切换」代替下拉三角符号：安卓中文字体不含该符号，会渲染成缺字方框
+        picker = FieldCard(orientation="horizontal", spacing=0,
+                           size_hint_y=None, height=dp(48), padding=(dp(1), dp(1)))
         self.spin = Spinner(
             text=self._name_of(self._picked_key()) or names[0], values=names,
             font_name=FONT, font_size=sp(14), color=C_INK,
@@ -199,9 +201,9 @@ class PlayerLookup(App):
             option_cls=CnSpinnerOption,
         )
         picker.add_widget(self.spin)
-        arrow = lab("▾", 15, C_ACCENT, bold=True, height=48, halign="center")
+        arrow = lab("切换", 12, C_ACCENT, bold=True, height=46, halign="center")
         arrow.size_hint_x = None
-        arrow.width = dp(30)
+        arrow.width = dp(48)
         picker.add_widget(arrow)
         row_srv.add_widget(picker)
         self.spin.bind(text=lambda inst, v: self._save_pick(v))
