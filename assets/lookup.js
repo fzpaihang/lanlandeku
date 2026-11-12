@@ -219,7 +219,7 @@
           return;
         }
         var msg = d.message || '查询失败';
-        setState(d.code === 'NOT_FOUND' ? '没查到' : '查询失败', 'warn');
+        setState(d.code === 'NOT_FOUND' ? '没查到' : (d.code === 'BUSY' ? '接口繁忙' : '查询失败'), 'warn');
         showFail(msg);
       })
       .catch(function (e) {

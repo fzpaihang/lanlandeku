@@ -157,27 +157,77 @@ def _board_short(key, cache=None, days=1):
 
 L.fetch_board = _board_short
 
+# 会话密钥按分区复用：一次查询从「握手+查询」2 个请求降到 1 个，限流压力减半
+_KEYS = {}
+KEYS_TTL = 180
+
+
+def _fast_try_one(srv, uid, hotver):
+    """与 L.try_one 等价，但复用握手会话，并加硬超时——
+    服务端限流时会静默挂住连接（不返回 20616），必须自己掐断。"""
+    srv = dict(srv)
+    srv["hotver"] = hotver
+    cfg = F.server_cfg(srv)
+    key = srv["key"]
+
+    def _do():
+        rec = _KEYS.get(key)
+        if rec and time.time() - rec[0] < KEYS_TTL:
+            keys = rec[1]
+        else:
+            keys = F.handshake(cfg, time.time())
+            _KEYS[key] = (time.time(), keys)
+        return F.api_post(cfg, "get_user_info", {"userid": uid, "type": 0}, keys, time.time())
+
+    try:
+        d = _hard_timeout(_do, 6.0, None)
+    except Exception:
+        d = None
+    if d is None:
+        _KEYS.pop(key, None)      # 会话可能已失效，下次重新握手
+        return None, -1
+    data = d.get("data")
+    ec = d.get("errcode")
+    if ec == 0 and isinstance(data, dict) and data.get("name"):
+        return data, 0
+    if ec == 20616:
+        _KEYS.pop(key, None)
+    return None, ec
+
+
+L.try_one = _fast_try_one
+
+# 全局节流：多实例各自计数，不精确，但足以避免把自己打到限流
+_RATE = {"window": 0, "count": 0}
+RATE_LIMIT = 30      # 每实例每分钟最多 30 次真实查询
+
+
+def _rate_ok():
+    win = int(time.time() // 60)
+    if _RATE["window"] != win:
+        _RATE["window"] = win
+        _RATE["count"] = 0
+    if _RATE["count"] >= RATE_LIMIT:
+        return False
+    _RATE["count"] += 1
+    return True
+
 
 def _fast_single(uid, srv, cache, hotver, note):
-    """云函数版单区查询：重试压到 2 次、退避 0.8 秒，
-    版本号探测加 5 秒硬超时，保证整体落在 15 秒函数超时内。"""
+    """云函数版单区查询：最多试 2 次、退避 1.5 秒。
+    限流时尽快失败并给出明确提示，而不是反复重试把窗口拖长。"""
     for attempt in range(2):
         data, ec = L.try_one(srv, uid, hotver)
         if data:
             return L._finish(uid, srv, data, cache, hotver, note)
         if ec == 0:
             return None                       # 服务端明确回「没有这个角色」
-        if ec in (20616, -1) and attempt == 0:
-            time.sleep(0.8)                   # 限流冷却后只重试一次
-            continue
+        if ec in (20616, -1):
+            cache["_limited"] = ec            # 让上层区分「限流」和「真没这人」
+            if attempt == 0:
+                time.sleep(1.5)
+                continue
         break
-
-    hv = _hard_timeout(lambda: L._redetect_hotver(srv, hotver), 5.0, None)
-    if hv and hv != hotver:
-        cache["hotver"] = hv
-        data, _ec = L.try_one(dict(srv, hotver=hv), uid, hv)
-        if data:
-            return L._finish(uid, srv, data, cache, hv, note)
     return None
 
 
@@ -199,6 +249,8 @@ def _auto_lookup(uid, servers, cache, hotver, deadline=None):
         data, ec = L.try_one(srv, uid, hotver)
         if data:
             return L._finish(uid, srv, data, cache, hotver, _noop)
+        if ec in (20616, -1):
+            cache["_limited"] = ec
         if i < len(order) - 1:
             time.sleep(0.5)
     return None
@@ -377,6 +429,12 @@ def main_handler(event, context=None):
     if _HOTVER is None:
         _HOTVER = int(os.environ.get("FZJH_HOTVER") or servers[0]["hotver"] or 18464)
 
+    if not _rate_ok():
+        return _resp(event, 429, {
+            "ok": False, "code": "BUSY",
+            "message": "查询太频繁了，请等 30 秒再试（游戏接口有频率限制）。",
+        })
+
     cache = {"hotver": _HOTVER}
     try:
         if server == L.AUTO_SERVER:
@@ -395,6 +453,12 @@ def main_handler(event, context=None):
         pass
 
     if not prof:
+        if cache.get("_limited"):
+            payload = {
+                "ok": False, "code": "BUSY",
+                "message": "游戏接口正在限流（查询太密集），请等 30 秒后再试。",
+            }
+            return _resp(event, 429, payload)
         if server == L.AUTO_SERVER:
             payload = {
                 "ok": False, "code": "NOT_FOUND",
