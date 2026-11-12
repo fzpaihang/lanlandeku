@@ -22,6 +22,14 @@
   var mqMobile = window.matchMedia('(max-width: 560px)');
   var isMobile = function () { return mqMobile.matches; };
 
+  // 跳回高手榜并直接打开档案：分区和高亮（me）都不能丢
+  function linkFor(uid) {
+    var q = ['uid=' + encodeURIComponent(uid)];
+    if (window.FZJH && FZJH.key) q.push('s=' + encodeURIComponent(FZJH.key));
+    if (state.me) q.push('me=' + encodeURIComponent(state.me));
+    return './index.html?' + q.join('&');
+  }
+
   function fmtBig(n) {
     if (n === null || n === undefined || n === '') return '—';
     n = Number(n);
@@ -37,14 +45,6 @@
     if (cls) n.className = cls;
     if (text !== undefined && text !== null) n.textContent = text;
     return n;
-  }
-
-  function updateScrollHint() {
-    var box = document.querySelector('.scroll');
-    var hint = document.getElementById('scroll-hint');
-    if (!box || !hint) return;
-    var overflow = box.scrollWidth - box.clientWidth > 4;
-    hint.setAttribute('data-show', overflow ? '1' : '0');
   }
 
   function sorted(list) {
@@ -77,8 +77,7 @@
       var top = h('div', 'pc-top');
       var a = document.createElement('a');
       a.className = 'nm-link';
-      a.href = './index.html?uid=' + encodeURIComponent(r.userid) +
-        ((window.FZJH && FZJH.key) ? '&s=' + encodeURIComponent(FZJH.key) : '');
+      a.href = linkFor(r.userid);
       a.textContent = r.name || '—';
       top.appendChild(a);
       if (isMe) top.appendChild(h('span', 'badge-me', '我'));
@@ -144,7 +143,7 @@
       var nm = h('span', 'nm');
       var a = document.createElement('a');
       a.className = 'nm-link';
-      a.href = './index.html?uid=' + encodeURIComponent(r.userid) + ((window.FZJH && FZJH.key) ? '&s=' + encodeURIComponent(FZJH.key) : '');
+      a.href = linkFor(r.userid);
       a.textContent = r.name || '—';
       nm.appendChild(a);
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
@@ -172,8 +171,6 @@
     });
     el.tbody.appendChild(frag);
 
-    updateScrollHint();
-
     Array.prototype.forEach.call(el.tbl.querySelectorAll('th[data-key]'), function (th) {
       if (th.dataset.key === state.sortKey) {
         th.setAttribute('aria-sort', state.sortDir === 'asc' ? 'ascending' : 'descending');
@@ -191,83 +188,83 @@
   }
 
   function boot() {
-  Promise.all([
-    fetch(boardUrl(), { cache: 'no-cache' }).then(function (r) {
-      if (!r.ok) throw new Error('榜单 HTTP ' + r.status);
-      return r.json();
-    }),
-    fetch(histUrl(), { cache: 'no-cache' }).then(function (r) {
-      if (!r.ok) throw new Error('快照 HTTP ' + r.status);
-      return r.json();
-    })
-  ]).then(function (res) {
-    var board = res[0], hist = res[1];
-    var snaps = (hist.snapshots || []).slice().sort(function (a, b) { return a.ts - b.ts; });
+    Promise.all([
+      fetch(boardUrl(), { cache: 'no-cache' }).then(function (r) {
+        if (!r.ok) throw new Error('榜单 HTTP ' + r.status);
+        return r.json();
+      }),
+      fetch(histUrl(), { cache: 'no-cache' }).then(function (r) {
+        if (!r.ok) throw new Error('快照 HTTP ' + r.status);
+        return r.json();
+      })
+    ]).then(function (res) {
+      var board = res[0], hist = res[1];
+      var snaps = (hist.snapshots || []).slice().sort(function (a, b) { return a.ts - b.ts; });
 
-    if (snaps.length < 2) {
-      el.banner.hidden = false;
-      el.banner.textContent = '目前只记录了 1 次快照（' + (snaps[0] ? snaps[0].date + ' ' + snaps[0].time : '—') +
-        '）。经验要玩家领取后才变动，不是实时数值，攒到第二天再来这里看才有意义。';
-    }
-
-    var latest = snaps[snaps.length - 1] || null;
-    var base = null, days = 0;
-
-    if (latest) {
-      var cutoff = latest.ts - WINDOW_DAYS * 86400;
-      for (var i = snaps.length - 1; i >= 0; i--) {
-        if (snaps[i].ts <= cutoff) { base = snaps[i]; break; }
-      }
-      if (!base) base = snaps[0];
-      if (base.ts === latest.ts) base = null;
-    }
-
-    if (base && latest) {
-      days = (latest.ts - base.ts) / 86400;
-      var span = days >= 1 ? days.toFixed(1) + ' 天' : Math.max(1, Math.round(days * 24)) + ' 小时';
-      el.spanInfo.textContent = base.date.slice(5) + ' ' + base.time + ' → ' + latest.date.slice(5) + ' ' + latest.time + ' · ' + span;
-
-      // 经验不是实时值：玩家领取后才跳一次，短区间对比多半全是 0
-      if (days < WINDOW_DAYS && snaps.length >= 2) {
+      if (snaps.length < 2) {
         el.banner.hidden = false;
-        el.banner.textContent = '当前对比区间只有 ' + span + '，累计不足 ' + WINDOW_DAYS +
-          ' 天，日均暂不显示。经验要玩家领取后才变动，短区间看不出趋势——攒满 ' + WINDOW_DAYS +
-          ' 天后会自动出现日均（区间增长 ÷ ' + WINDOW_DAYS + '）。';
-      }
-    } else {
-      el.spanInfo.textContent = '暂无对比数据';
-    }
-
-    state.rows = (board.rows || []).map(function (r) {
-      var uid = String(r.userid);
-      var curExp = r.exp;
-      var baseExp = base && base.exp ? base.exp[uid] : undefined;
-      var grow = null, perDay = null, pct = null;
-
-      if (base && curExp != null && baseExp != null) {
-        grow = curExp - baseExp;
-        // 日均按固定 3 天窗口归一（区间增长 ÷ 3）；不足 3 天不显示，避免短区间线性外推夸大
-        perDay = days >= WINDOW_DAYS ? grow / WINDOW_DAYS : null;
-        pct = baseExp > 0 ? (grow / baseExp) * 100 : null;
+        el.banner.textContent = '目前只记录了 1 次快照（' + (snaps[0] ? snaps[0].date + ' ' + snaps[0].time : '—') +
+          '）。经验要玩家领取后才变动，不是实时数值，攒到第二天再来这里看才有意义。';
       }
 
-      return {
-        userid: r.userid, rank: r.rank, name: r.name, menpai: r.menpai,
-        expN: curExp == null ? null : Math.round(curExp),
-        grow: grow, perDay: perDay, pct: pct
-      };
+      var latest = snaps[snaps.length - 1] || null;
+      var baseSnap = null, days = 0;
+
+      // 取 3 天前最近的那条快照当基准；不够 3 天就退回最早一条
+      if (latest) {
+        var cutoff = latest.ts - WINDOW_DAYS * 86400;
+        for (var i = snaps.length - 1; i >= 0; i--) {
+          if (snaps[i].ts <= cutoff) { baseSnap = snaps[i]; break; }
+        }
+        if (!baseSnap) baseSnap = snaps[0];
+        if (baseSnap.ts === latest.ts) baseSnap = null;
+      }
+
+      if (baseSnap && latest) {
+        days = (latest.ts - baseSnap.ts) / 86400;
+        var span = days >= 1 ? days.toFixed(1) + ' 天' : Math.max(1, Math.round(days * 24)) + ' 小时';
+        el.spanInfo.textContent = baseSnap.date.slice(5) + ' ' + baseSnap.time + ' → ' +
+          latest.date.slice(5) + ' ' + latest.time + ' · ' + span;
+
+        // 经验不是实时值：玩家领取后才跳一次，短区间对比多半全是 0
+        if (days < WINDOW_DAYS && snaps.length >= 2) {
+          el.banner.hidden = false;
+          el.banner.textContent = '当前对比区间只有 ' + span + '，累计不足 ' + WINDOW_DAYS +
+            ' 天，日均暂不显示。经验要玩家领取后才变动，短区间看不出趋势——攒满 ' + WINDOW_DAYS +
+            ' 天后会自动出现日均（区间增长 ÷ ' + WINDOW_DAYS + '）。';
+        }
+      } else {
+        el.spanInfo.textContent = '暂无对比数据';
+      }
+
+      state.rows = (board.rows || []).map(function (r) {
+        var uid = String(r.userid);
+        var curExp = r.exp;
+        var baseExp = baseSnap && baseSnap.exp ? baseSnap.exp[uid] : undefined;
+        var grow = null, perDay = null, pct = null;
+
+        if (baseSnap && curExp != null && baseExp != null) {
+          grow = curExp - baseExp;
+          // 日均按固定 3 天窗口归一（区间增长 ÷ 3）；不足 3 天不显示，避免短区间线性外推夸大
+          perDay = days >= WINDOW_DAYS ? grow / WINDOW_DAYS : null;
+          pct = baseExp > 0 ? (grow / baseExp) * 100 : null;
+        }
+
+        return {
+          userid: r.userid, rank: r.rank, name: r.name, menpai: r.menpai,
+          expN: curExp == null ? null : Math.round(curExp),
+          grow: grow, perDay: perDay, pct: pct
+        };
+      });
+
+      render();
+    }).catch(function (e) {
+      fail('读取失败：' + e.message);
     });
-
-    render();
-  }).catch(function (e) {
-    fail('读取失败：' + e.message);
-  });
   }
 
   if (window.FZJH && FZJH.init) FZJH.init(boot);
   else boot();
-
-  window.addEventListener('resize', updateScrollHint);
 
   // 跨过 560px 断点时切换「表格 / 卡片」两套渲染
   var onMQ = function () { render(); };

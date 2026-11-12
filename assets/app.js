@@ -2,8 +2,6 @@
 (function () {
   'use strict';
 
-  var hiddenSet = {};   // 隐私名单：这些 uid 不展示详情
-
   function dataUrl(){ return (window.FZJH && FZJH.base ? FZJH.base : './data/servers/taptap/') + 'gaoshoubang.json'; }
   var state = {
     rows: [],
@@ -71,20 +69,14 @@
     return t.m + '月' + t.day + '日 ' + pad2(t.hh) + ':' + pad2(t.mm) + ' 更新';
   }
 
-  /* 窄屏横向滑动提示：表格溢出且未滑动时显示 */
-  function updateScrollHint() {
-    var box = document.querySelector('.scroll');
-    var hint = document.getElementById('scroll-hint');
-    if (!box || !hint) return;
-    var overflow = box.scrollWidth - box.clientWidth > 4;
-    hint.setAttribute('data-show', overflow ? '1' : '0');
-  }
+  /* 表格是 table-layout:fixed + width:100%，不会横向溢出，
+     所以早先的「左右滑动查看更多」提示已删除（它永远不会显示）。 */
 
-  // 时间戳 → 两位年份-月份（如 18-02）
+  // 时间戳 → 两位年份-月份（如 24-02），按北京时间取，避免海外访客差出一个月
   function fmtYM(ts) {
     if (!ts) return '';
-    var d = new Date(ts * 1000);
-    return String(d.getFullYear()).slice(2) + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+    var d = bjParts(ts);
+    return String(d.y).slice(2) + '-' + pad2(d.m);
   }
 
   // 「2026-11-10」→ 今天 / 昨天 / 3 天前 / 11-01
@@ -146,7 +138,6 @@
     var frag = document.createDocumentFragment();
 
     list.forEach(function (r) {
-      var hid = !!hiddenSet[String(r.userid)];
       var isMe = state.me && String(r.userid) === String(state.me);
       var cls = 'pcard' + (r.rank <= 3 ? ' rk' + r.rank : '') + (isMe ? ' me' : '');
       var card = h('article', cls);
@@ -166,18 +157,13 @@
 
       // 主行：侠名 + 我 + 转数
       var top = h('div', 'pc-top');
-      if (hid) {
-        top.appendChild(h('span', 'nm-plain', r.name || '—'));
-        top.appendChild(h('span', 'badge-hidden', '已隐藏'));
-      } else {
-        var btn = h('button', 'nm-btn');
-        btn.type = 'button';
-        btn.setAttribute('aria-label', '查看 ' + (r.name || '该玩家') + ' 的详细信息');
-        btn.appendChild(h('span', null, r.name || '—'));
-        btn.appendChild(h('span', 'arw', '›'));
-        btn.addEventListener('click', function () { openProfile(r); });
-        top.appendChild(btn);
-      }
+      var btn = h('button', 'nm-btn');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', '查看 ' + (r.name || '该玩家') + ' 的详细信息');
+      btn.appendChild(h('span', null, r.name || '—'));
+      btn.appendChild(h('span', 'arw', '›'));
+      btn.addEventListener('click', function () { openProfile(r); });
+      top.appendChild(btn);
       if (isMe) top.appendChild(h('span', 'badge-me', '我'));
       if (r.inheritCount !== null && r.inheritCount !== undefined) {
         var z = Number(r.inheritCount) || 0;
@@ -188,13 +174,9 @@
       // 次行：门派 · 等级 · 经验 · 福缘
       var sub = h('div', 'pc-sub');
       if (r.menpai) sub.appendChild(h('span', 'school', r.menpai));
-      if (hid) {
-        sub.appendChild(h('span', 'pc-kv', '数值已隐藏'));
-      } else {
-        if (r.lv != null) sub.appendChild(kv('等级', String(r.lv)));
-        sub.appendChild(kv('经验', fmtBig(r.exp)));
-        if (r.fuyuan != null) sub.appendChild(kv('福缘', String(r.fuyuan)));
-      }
+      if (r.lv != null) sub.appendChild(kv('等级', String(r.lv)));
+      sub.appendChild(kv('经验', fmtBig(r.exp)));
+      if (r.fuyuan != null) sub.appendChild(kv('福缘', String(r.fuyuan)));
       body.appendChild(sub);
 
       card.appendChild(body);
@@ -215,6 +197,7 @@
     var list = sorted(state.rows.filter(matches));
     el.empty.hidden = list.length > 0;
     el.count.textContent = list.length + ' / ' + state.rows.length + ' 人';
+    syncSortState();
 
     // 窄屏：表格整体不参与渲染，直接出卡片
     if (isMobile()) {
@@ -249,19 +232,13 @@
       var tdName = h('td', 'c-name');
       var wrap = h('div', 'name');
       var nm = h('span', 'nm');
-      if (hiddenSet[String(r.userid)]) {
-        // 隐私名单内的玩家：不给详情入口
-        nm.appendChild(h('span', 'nm-plain', r.name || '—'));
-        nm.appendChild(h('span', 'badge-hidden', '已隐藏'));
-      } else {
-        var btn = h('button', 'nm-btn');
-        btn.type = 'button';
-        btn.setAttribute('aria-label', '查看 ' + (r.name || '该玩家') + ' 的详细信息');
-        btn.appendChild(h('span', null, r.name || '—'));
-        btn.appendChild(h('span', 'arw', '›'));
-        btn.addEventListener('click', function () { openProfile(r); });
-        nm.appendChild(btn);
-      }
+      var btn = h('button', 'nm-btn');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', '查看 ' + (r.name || '该玩家') + ' 的详细信息');
+      btn.appendChild(h('span', null, r.name || '—'));
+      btn.appendChild(h('span', 'arw', '›'));
+      btn.addEventListener('click', function () { openProfile(r); });
+      nm.appendChild(btn);
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
       if (r.menpai) nm.appendChild(h('span', 'school-inline', r.menpai));
       wrap.appendChild(nm);
@@ -280,10 +257,9 @@
       tdS.appendChild(h('span', 'school', r.menpai || '—'));
       tr.appendChild(tdS);
 
-      // 数值列：隐私名单内的玩家一律显示「已隐藏」
-      var hid = !!hiddenSet[String(r.userid)];
+      // 数值列
       function numCell(cls, text) {
-        tr.appendChild(h('td', cls + (hid ? ' masked' : ''), hid ? '已隐藏' : text));
+        tr.appendChild(h('td', cls, text));
       }
 
       numCell('c-lv num', r.lv != null ? String(r.lv) : '—');
@@ -295,11 +271,10 @@
       frag.appendChild(tr);
     });
     el.tbody.appendChild(frag);
+  }
 
-    el.count.textContent = list.length + ' / ' + state.rows.length + ' 人';
-
-    updateScrollHint();
-
+  /* 表头 aria-sort 跟随当前排序（卡片态也保持一致） */
+  function syncSortState() {
     Array.prototype.forEach.call(el.tbl.querySelectorAll('th[data-key]'), function (th) {
       if (th.dataset.key === state.sortKey) {
         th.setAttribute('aria-sort', state.sortDir === 'asc' ? 'ascending' : 'descending');
@@ -418,7 +393,7 @@
     return s;
   }
 
-  function renderProfile(p, row) {
+  function renderProfile(p) {
     pfBody.textContent = '';
 
     // 概览
@@ -454,10 +429,10 @@
 
       hist.forEach(function (x, i) {
         chain.appendChild(h('span', 'pf-arrow', '→'));
-        var cell = h('span', 'pf-life' + (i === hist.length - 1 ? ' cur' : ''));
-        cell.appendChild(h('b', null, x.n || '—'));
-        if (x.t) cell.appendChild(h('span', 'when', fmtYM(x.t)));
-        chain.appendChild(cell);
+        var life = h('span', 'pf-life' + (i === hist.length - 1 ? ' cur' : ''));
+        life.appendChild(h('b', null, x.n || '—'));
+        if (x.t) life.appendChild(h('span', 'when', fmtYM(x.t)));
+        chain.appendChild(life);
       });
 
       sH.appendChild(chain);
@@ -610,7 +585,6 @@
   }
 
   function openProfile(row) {
-    if (hiddenSet[String(row.userid)]) return;
     pfName.textContent = row.name || '—';
     pfSub.textContent = '第 ' + row.rank + ' 名 · ' + (row.menpai || '—') + ' · UID ' + row.userid;
     pfBody.textContent = '';
@@ -630,7 +604,7 @@
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       })
-      .then(function (p) { renderProfile(p, row); })
+      .then(function (p) { renderProfile(p); })
       .catch(function (e) {
         pfBody.textContent = '';
         pfBody.appendChild(h('p', 'pf-err', '读取失败：' + e.message + '。该玩家可能未抓到详情，或详情文件还没生成。'));
@@ -659,58 +633,52 @@
 
   /* ---------- 启动 ---------- */
 
+  // 隐私名单（data/hidden.json）已由数据层在生成榜单 / 快照 / 档案时剔除，
+  // 前端不再重复过滤，省掉一次请求和一套死分支。
   function boot() {
-  fetch('./data/hidden.json', { cache: 'no-cache' })
-    .then(function (r) { return r.ok ? r.json() : { players: [] }; })
-    .catch(function () { return { players: [] }; })
-    .then(function (h) {
-      (h.players || []).forEach(function (x) {
-        if (!x.server || x.server === (window.FZJH && FZJH.key)) hiddenSet[String(x.uid)] = true;
-      });
-      loadBoard();
-    });
+    loadBoard();
   }
 
   function loadBoard() {
-  fetch(dataUrl(), { cache: 'no-cache' })
-    .then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
-    .then(function (d) {
-      state.rows = (d.rows || []).slice();
-      state.hasPrev = !!d.hasPrev;
-      state.rows.forEach(function (r) { r.rank = r.rank || 0; });
-      el.updated.textContent = fmtUpdated(d.updatedTs, d.updatedAt);
-      el.updated.title = '数据时间：' + (d.updatedAt || '未知');
-      buildChips();
-      render();
+    fetch(dataUrl(), { cache: 'no-cache' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        state.rows = (d.rows || []).slice();
+        state.hasPrev = !!d.hasPrev;
+        state.rows.forEach(function (r) { r.rank = r.rank || 0; });
+        el.updated.textContent = fmtUpdated(d.updatedTs, d.updatedAt);
+        el.updated.title = '数据时间：' + (d.updatedAt || '未知');
+        buildChips();
+        render();
 
-      // 窗口尺寸或滚动位置变化时，更新「左右滑动」提示
-      window.addEventListener('resize', updateScrollHint);
+        // 跨过 560px 断点时切换「表格 / 卡片」两套渲染
+        // 门派 chips 的展开策略也要跟着变（桌面露 8 个 / 手机只留展开）
+        var onMQ = function () { buildChips(); render(); };
+        if (mqMobile.addEventListener) mqMobile.addEventListener('change', onMQ);
+        else if (mqMobile.addListener) mqMobile.addListener(onMQ);
 
-      // 跨过 560px 断点时切换「表格 / 卡片」两套渲染
-      // 跨断点时除了重渲染列表，门派 chips 的展开策略也要跟着变（桌面露 8 个 / 手机只留展开）
-      var onMQ = function () { buildChips(); render(); };
-      if (mqMobile.addEventListener) mqMobile.addEventListener('change', onMQ);
-      else if (mqMobile.addListener) mqMobile.addListener(onMQ);
-
-      // 支持 ?uid=123 直接打开某人档案
-      var uidParam = new URLSearchParams(location.search).get('uid');
-      if (uidParam) {
-        var target = null;
-        for (var i = 0; i < state.rows.length; i++) {
-          if (String(state.rows[i].userid) === uidParam) { target = state.rows[i]; break; }
+        // 支持 ?uid=123 直接打开某人档案
+        var uidParam = new URLSearchParams(location.search).get('uid');
+        if (uidParam) {
+          var target = null;
+          for (var i = 0; i < state.rows.length; i++) {
+            if (String(state.rows[i].userid) === uidParam) { target = state.rows[i]; break; }
+          }
+          if (target) openProfile(target);
+          else if (window.FZJH && FZJH.notice) {
+            FZJH.notice('当前分区「' + (FZJH.name || FZJH.key) + '」的排行榜里没有 UID ' + uidParam + '，换一个分区再看看。');
+          }
         }
-        if (target) openProfile(target);
-      }
-    })
-    .catch(function (e) {
-      el.updated.textContent = '数据加载失败';
-      el.count.hidden = true;
-      el.empty.hidden = false;
-      el.empty.textContent = '数据读取失败（' + e.message + '）。若是本地打开，请用本地服务器访问，不要直接双击 html。';
-    });
+      })
+      .catch(function (e) {
+        el.updated.textContent = '数据加载失败';
+        el.count.hidden = true;
+        el.empty.hidden = false;
+        el.empty.textContent = '数据读取失败（' + e.message + '）。若是本地打开，请用本地服务器访问，不要直接双击 html。';
+      });
   }
 
   if (window.FZJH && FZJH.init) FZJH.init(boot);

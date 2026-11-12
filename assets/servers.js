@@ -5,16 +5,37 @@
   var FZJH = window.FZJH = window.FZJH || {};
   var INDEX_URL = './data/servers/index.json';
 
+  function params() { return new URLSearchParams(location.search); }
+
+  /** 站内跳转要保留的参数：分区、高亮自己、要打开的档案 */
+  function keepParams() {
+    var q = params();
+    var out = [];
+    if (FZJH.key) out.push('s=' + encodeURIComponent(FZJH.key));
+    ['me', 'uid'].forEach(function (k) {
+      var v = q.get(k);
+      if (v) out.push(k + '=' + encodeURIComponent(v));
+    });
+    return out;
+  }
+
   FZJH.init = function (cb) {
-    var params = new URLSearchParams(location.search);
-    var want = params.get('s') || FZJH.lastServer();
+    var want = params().get('s') || FZJH.lastServer();
 
     fetch(INDEX_URL, { cache: 'no-cache' })
-      .then(function (r) { return r.ok ? r.json() : { servers: [] }; })
-      .catch(function () { return { servers: [] }; })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .catch(function (e) {
+        // 不能静默回退：分区错了整页数据都是别人的区，必须让人看见
+        FZJH.listError = '分区列表读取失败（' + e.message + '），当前按默认分区显示，数据可能不是你要看的区。';
+        return { servers: [] };
+      })
       .then(function (d) {
         var list = (d && d.servers) || [];
         if (!list.length) {
+          if (!FZJH.listError) FZJH.listError = '分区列表为空，当前按默认分区显示，数据可能不是你要看的区。';
           list = [{ key: 'taptap', name: '默认分区', default: true }];
         }
 
@@ -35,18 +56,28 @@
 
         FZJH.renderSwitcher();
         FZJH.syncLinks();
+        if (FZJH.listError) FZJH.notice(FZJH.listError);
         cb(FZJH);
       });
+  };
+
+  /** 页面顶部的提示条（各页共用 #notice），msg 为空则收起 */
+  FZJH.notice = function (msg) {
+    var n = document.getElementById('notice');
+    if (!n) return;
+    if (!msg) { n.hidden = true; n.textContent = ''; return; }
+    n.textContent = msg;
+    n.hidden = false;
   };
 
   // 站内跳转（高手榜 ⇄ 经验变化）不能把分区丢掉，否则换人打开就是另一个区
   FZJH.syncLinks = function () {
     if (!FZJH.key) return;
-    var extra = 's=' + encodeURIComponent(FZJH.key);
+    var extra = keepParams().join('&');
     Array.prototype.forEach.call(document.querySelectorAll('a.navbtn'), function (a) {
       var href = a.getAttribute('href') || '';
-      if (href.indexOf('s=') >= 0) return;
-      a.setAttribute('href', href + (href.indexOf('?') >= 0 ? '&' : '?') + extra);
+      if (href.indexOf('?') >= 0 || !extra) return;   // 已带参数则不重复拼
+      a.setAttribute('href', href + '?' + extra);
     });
   };
 
@@ -64,12 +95,14 @@
     label.textContent = '分区';
     host.appendChild(label);
 
-    var me = new URLSearchParams(location.search).get('me');
+    // 切区时把 me / uid 一起带上：否则切完高亮和已打开的档案都会丢
+    var tail = keepParams().filter(function (x) { return x.indexOf('s=') !== 0; });
+    var suffix = tail.length ? '&' + tail.join('&') : '';
 
     list.forEach(function (s) {
       var a = document.createElement('a');
       a.className = 'srv' + (s.key === FZJH.key ? ' active' : '');
-      a.href = '?s=' + encodeURIComponent(s.key) + (me ? '&me=' + encodeURIComponent(me) : '');
+      a.href = '?s=' + encodeURIComponent(s.key) + suffix;
       a.textContent = s.name || s.key;
       if (s.key === FZJH.key) a.setAttribute('aria-current', 'page');
       a.addEventListener('click', function () {
