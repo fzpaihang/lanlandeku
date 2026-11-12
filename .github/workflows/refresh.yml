@@ -149,7 +149,24 @@ jobs:
             exit 0
           fi
           git commit -m "数据刷新 $LABEL $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')"
-          git push
+          # 抓取期间远端可能已被其它提交推进（例如热更包通过 API 提交），
+          # 先 rebase 到最新 main 再推，避免 non-fast-forward 导致整批数据丢失。
+          for i in 1 2 3; do
+            git fetch origin main
+            if ! git rebase FETCH_HEAD; then
+              git rebase --abort 2>/dev/null || true
+              echo "rebase 冲突，放弃本次提交（data/ 已由 artifact 保留）"
+              exit 1
+            fi
+            if git push; then
+              echo "数据已推送"
+              exit 0
+            fi
+            echo "第 $i 次推送失败，5 秒后重试…"
+            sleep 5
+          done
+          echo "推送连续失败"
+          exit 1
 
       - name: 结果摘要
         if: always()
