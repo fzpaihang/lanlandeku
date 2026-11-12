@@ -389,6 +389,7 @@ class PlayerLookup(App):
             b = txt_button("%s  ·  %s" % (r.get("uid"), r.get("name") or r.get("serverName") or ""),
                            color=C_INK2, height=48, size=13)
             b.halign = "left"
+            b.bind(width=lambda inst, v: setattr(inst, "text_size", (v, None)))
             b.bind(on_release=lambda inst, u=r.get("uid"), k=r.get("server"): self._fill(u, k))
             box.add_widget(b)
             box.add_widget(HLine())

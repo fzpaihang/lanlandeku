@@ -345,6 +345,9 @@ def _finish(uid, srv, data, cache, hotver, note):
             row = r
             break
     prof = parse_profile(data, row)
+    # 接口档案里的 userid 字段并不稳定（实测常为空），以本次查询输入的 UID 为准。
+    # 摘要条 / 复制 UID / 保存文件名 / 最近查询都依赖它。
+    prof["uid"] = uid
     prof["server"] = srv["key"]
     prof["serverName"] = srv["name"]
     prof["fetchedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
