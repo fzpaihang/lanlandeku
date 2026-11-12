@@ -227,10 +227,11 @@
       el.spanInfo.textContent = base.date.slice(5) + ' ' + base.time + ' → ' + latest.date.slice(5) + ' ' + latest.time + ' · ' + span;
 
       // 经验不是实时值：玩家领取后才跳一次，短区间对比多半全是 0
-      if (days < 0.5 && snaps.length >= 2) {
+      if (days < WINDOW_DAYS && snaps.length >= 2) {
         el.banner.hidden = false;
-        el.banner.textContent = '当前对比区间只有 ' + Math.max(1, Math.round(days * 24)) +
-          ' 小时。游戏经验要玩家领取后才变动，短时间的差值基本是 0，属于正常现象——建议以天为单位看（攒满 1 天以上才准）。';
+        el.banner.textContent = '当前对比区间只有 ' + span + '，累计不足 ' + WINDOW_DAYS +
+          ' 天，日均暂不显示。经验要玩家领取后才变动，短区间看不出趋势——攒满 ' + WINDOW_DAYS +
+          ' 天后会自动出现日均（区间增长 ÷ ' + WINDOW_DAYS + '）。';
       }
     } else {
       el.spanInfo.textContent = '暂无对比数据';
@@ -244,8 +245,8 @@
 
       if (base && curExp != null && baseExp != null) {
         grow = curExp - baseExp;
-        // 经验要玩家领取才跳，日均至少要按天算才有意义
-        perDay = days >= 1 ? grow / days : null;
+        // 日均按固定 3 天窗口归一（区间增长 ÷ 3）；不足 3 天不显示，避免短区间线性外推夸大
+        perDay = days >= WINDOW_DAYS ? grow / WINDOW_DAYS : null;
         pct = baseExp > 0 ? (grow / baseExp) * 100 : null;
       }
 
