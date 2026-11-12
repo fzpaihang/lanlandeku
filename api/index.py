@@ -63,7 +63,7 @@ def _allowed_origin(event):
 def _cors(event):
     return {
         "Access-Control-Allow-Origin": _allowed_origin(event),
-        "Access-Control-Allow-Methods": "GET,OPTIONS",
+        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Max-Age": "86400",
         "Content-Type": "application/json; charset=utf-8",
