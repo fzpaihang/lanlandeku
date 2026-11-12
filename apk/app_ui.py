@@ -5,8 +5,10 @@
 默认只查选中的分区；「自动探测」逐区尝试，仅作兜底保留。
 界面用 Kivy 构建；网络与解析逻辑在 lookup_core.py。
 """
+import io
 import json
 import os
+import sys
 import threading
 import traceback
 
@@ -51,6 +53,21 @@ C_ACCENT = (0.55, 0.18, 0.16, 1)     # 朱砂
 C_SOFT = (0.95, 0.91, 0.89, 1)
 C_LINE = (0.91, 0.89, 0.85, 1)
 C_OK = (0.18, 0.48, 0.36, 1)
+
+
+def code_version():
+    """显示当前跑的是热更包还是 APK 内置代码，方便一眼确认更新是否生效。"""
+    for d in sys.path[:3]:
+        try:
+            p = os.path.join(d, "version.txt")
+            if os.path.isfile(p):
+                with io.open(p, encoding="utf-8") as f:
+                    v = (f.read() or "").strip()
+                if v:
+                    return "v" + v
+        except Exception:
+            pass
+    return "内置版"
 
 
 def lab(text, size=13, color=C_INK, bold=False, height=None, halign="left", markup=False):
@@ -157,7 +174,7 @@ class PlayerLookup(App):
         root.add_widget(row)
 
         # ---- 状态 ----
-        self.status = lab("就绪", 11, C_MUTED, height=18)
+        self.status = lab("就绪 · " + code_version(), 11, C_MUTED, height=18)
         root.add_widget(self.status)
 
         # ---- 结果区（可滚动）----

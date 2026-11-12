@@ -14,6 +14,7 @@ import io
 import json
 import os
 import shutil
+import ssl
 import sys
 import traceback
 import zipfile
@@ -22,6 +23,7 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UPDATE_BASE = "https://fzpaihang.github.io/lanlandeku/apk/update/"
+UPDATE_MIRROR = "https://cdn.jsdelivr.net/gh/fzpaihang/lanlandeku@main/apk/update/"
 # 安卓上 ANDROID_PRIVATE 是应用可写目录；桌面调试时退回脚本目录
 DATA_DIR = os.environ.get("ANDROID_PRIVATE") or HERE
 LIVE_DIR = os.path.join(DATA_DIR, "live")
@@ -37,10 +39,31 @@ def log(msg):
         pass
 
 
+# p4a 打包的 Python 不带 Android 系统根证书，urlopen 默认校验会报
+# CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate，
+# 导致每次都静默回退到 APK 内置代码。这里与 fetch.py 保持一致：
+# 只拉公开静态文件，不做证书校验。
+SSL_CTX = ssl.create_default_context()
+SSL_CTX.check_hostname = False
+SSL_CTX.verify_mode = ssl.CERT_NONE
+
+
 def http_get(url, timeout):
     req = urllib.request.Request(url, headers={"User-Agent": "fzjh-lookup"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with urllib.request.urlopen(req, timeout=timeout, context=SSL_CTX) as r:
         return r.read()
+
+
+def fetch_update(name, timeout):
+    """主源失败自动切 jsDelivr 镜像；两个都失败才抛错。"""
+    last = None
+    for base in (UPDATE_BASE, UPDATE_MIRROR):
+        try:
+            return http_get(base + name, timeout)
+        except Exception as e:
+            last = e
+            log("更新源 %s 失败：%s" % (base.split("/")[2], e))
+    raise last
 
 
 def local_version():
@@ -69,7 +92,7 @@ def is_valid_dir(d):
 
 def install(ver, md5):
     log("发现新版本 v%s，开始下载" % ver)
-    blob = http_get(UPDATE_BASE + "code.zip", 20)
+    blob = fetch_update("code.zip", 25)
     if md5:
         got = hashlib.md5(blob).hexdigest()
         if got != md5:
@@ -112,7 +135,7 @@ def ensure_code():
     remote_ver = 0
     md5 = ""
     try:
-        raw = http_get(UPDATE_BASE + "version.json", 5)
+        raw = fetch_update("version.json", 8)
         info = json.loads(raw.decode("utf-8"))
         remote_ver = int(info.get("version") or 0)
         md5 = info.get("md5") or ""
