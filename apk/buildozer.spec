@@ -14,6 +14,10 @@ version = 1.0
 # 依赖：只用标准库 + Kivy（AES 已改为纯 Python 实现，无需 pycryptodome）
 requirements = python3,kivy
 
+# 固定 p4a 版本：master 已升到 Python 3.14，Kivy 2.3 在其上编译失败（config.pxi 缺失）
+# 2024.01.21 是 Python 3.11.5 + pyjnius 1.6.1，官方验证过的稳定组合
+p4a.branch = v2024.01.21
+
 orientation = portrait
 fullscreen = 0
 
