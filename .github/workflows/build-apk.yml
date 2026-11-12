@@ -19,7 +19,8 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 不用 ubuntu-latest：新镜像（ubuntu26）上 buildozer 的 ant 工具链常出问题
+    runs-on: ubuntu-22.04
     timeout-minutes: 120
 
     steps:
@@ -80,15 +81,34 @@ jobs:
         working-directory: apk
         run: |
           export BUILDOZER_WARN_ON_ROOT=0
-          buildozer -v android debug 2>&1 | tail -120
+          set -o pipefail
+          # 不用 | tail（会把 buildozer 的退出码吃掉），改成 tee 后单独截取
+          buildozer -v android debug 2>&1 | tee build.log
+          echo "=== 最后 80 行 ==="
+          tail -80 build.log
+
+      - name: 上传构建日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: apk/build.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: 列出产物
+        if: always()
         run: |
           echo "### APK 产物" >> "$GITHUB_STEP_SUMMARY"
-          ls -lh apk/bin/ || true
-          for f in apk/bin/*.apk; do
-            [ -f "$f" ] && echo "- \`$(basename "$f")\` — $(du -h "$f" | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
-          done
+          if compgen -G "apk/bin/*.apk" > /dev/null; then
+            ls -lh apk/bin/*.apk
+            for f in apk/bin/*.apk; do
+              echo "- \`$(basename "$f")\` — $(du -h "$f" | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+            done
+          else
+            echo "**没有生成 APK**，请查看 build-log artifact" >> "$GITHUB_STEP_SUMMARY"
+            ls -lh apk/bin/ 2>/dev/null || echo "bin 目录不存在"
+          fi
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4
