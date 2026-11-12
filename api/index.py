@@ -36,7 +36,7 @@ L.CACHE_PATH = "/tmp/fzjh_lookup_cache.json"
 
 DEFAULT_ORIGIN = os.environ.get("FZJH_ORIGIN") or "https://fzpaihang.github.io"
 DEFAULT_SERVER = "taptap_3"
-CACHE_TTL = 60          # 成功结果复用 60 秒，挡住连点与重复刷新
+CACHE_TTL = 600         # 成功结果复用 10 分钟：游戏接口限流很紧，重复查同一个人不该再发请求
 NOT_FOUND_TTL = 15      # 「查无此人」只压 15 秒，避免一次限流把用户挡一分钟
 BOARD_TTL = 6 * 3600    # 榜单（补福缘/排名）成功缓存
 BOARD_FAIL_TTL = 600    # 榜单拿不到时，10 分钟内不再重试，避免每次查询都等超时

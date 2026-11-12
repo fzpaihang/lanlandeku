@@ -47,6 +47,35 @@
     el.go.textContent = on ? '查询中…' : '查询';
   }
 
+  /* 两次查询之间强制 30 秒间隔：游戏接口按请求总量限流，且冷却恢复很慢 */
+  var COOLDOWN_SEC = 30;
+  var cdEnd = 0;
+  var cdTimer = null;
+
+  function cooldownLeft() {
+    return Math.max(0, Math.ceil((cdEnd - Date.now()) / 1000));
+  }
+
+  function startCooldown() {
+    cdEnd = Date.now() + COOLDOWN_SEC * 1000;
+    if (cdTimer) clearInterval(cdTimer);
+    cdTimer = setInterval(function () {
+      var left = cooldownLeft();
+      if (left <= 0) {
+        clearInterval(cdTimer);
+        cdTimer = null;
+        el.go.disabled = false;
+        el.go.textContent = '查询';
+      } else {
+        el.go.disabled = true;
+        el.go.textContent = '等 ' + left + 's';
+      }
+    }, 250);
+    var left = cooldownLeft();
+    el.go.disabled = true;
+    el.go.textContent = '等 ' + left + 's';
+  }
+
   /* 当前分区模式说明：自动 / 指定某区 */
   function renderMode(fz) {
     paintSwitcher();
@@ -174,6 +203,13 @@
   function query() {
     if (state.busy) return;
 
+    var wait = cooldownLeft();
+    if (wait > 0) {
+      setState('请稍候', 'warn');
+      notice('为避开游戏接口限流，两次查询至少间隔 ' + COOLDOWN_SEC + ' 秒，还要等 ' + wait + ' 秒。');
+      return;
+    }
+
     var raw = el.uid.value.replace(/\D/g, '');
     if (raw !== el.uid.value) el.uid.value = raw;
     if (!/^[0-9]{5,12}$/.test(raw)) {
@@ -215,6 +251,7 @@
       .then(function (d) {
         if (timer) clearTimeout(timer);
         busy(false);
+        startCooldown();
         if (d.ok && d.data) {
           var ms = d.elapsedMs || (Date.now() - t0);
           setState(d.cached ? '已完成 · 缓存' : '已完成 · ' + (ms / 1000).toFixed(1) + ' 秒', 'ok');
@@ -229,6 +266,7 @@
       .catch(function (e) {
         if (timer) clearTimeout(timer);
         busy(false);
+        startCooldown();
         setState('查询失败', 'warn');
         var msg = (e && e.name === 'AbortError')
           ? '等了 ' + (TIMEOUT_MS / 1000) + ' 秒还没回来，接口可能被限流，过一会儿再试。'
