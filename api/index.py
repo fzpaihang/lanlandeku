@@ -85,6 +85,8 @@ def _query(event):
         return out
     if isinstance(event.get("queryStringParameters"), dict):
         return event["queryStringParameters"]
+    if isinstance(event.get("queryParameters"), dict):      # 阿里云 FC 3.0
+        return event["queryParameters"]
     return {}
 
 
@@ -257,14 +259,14 @@ def _auto_lookup(uid, servers, cache, hotver, deadline=None):
 
 
 def _diag():
-    """分阶段网络诊断（?diag=1）：DNS / TCP / TLS / 握手 / 查询 各自耗时。
-    只返回耗时与 IP，不含任何凭据，可安全暴露。"""
+    """分阶段网络诊断（?diag=1）。每一步都有硬超时 + 总预算，
+    保证自身绝不超过函数超时。只返回耗时/状态，不含凭据。"""
     import socket
     import ssl
 
     out = {"ok": True, "python": sys.version.split()[0], "steps": []}
-    host = urllib.parse.urlparse(F.DOMAIN).hostname
-    port = 443
+    deadline = time.time() + 15
+    MARK = object()
 
     def mark(name, t, extra=None):
         rec = {"step": name, "ms": int((time.time() - t) * 1000)}
@@ -272,67 +274,73 @@ def _diag():
             rec["info"] = extra
         out["steps"].append(rec)
 
-    t = time.time()
+    def probe(name, fn, limit=6.0):
+        left = deadline - time.time()
+        if left < 0.8:
+            mark(name, time.time(), "跳过（诊断预算用尽）")
+            return MARK
+        t = time.time()
+        v = _hard_timeout(fn, min(limit, left), MARK)
+        if v is MARK:
+            mark(name, t, "超过 %.0f 秒无响应（连接被静默丢弃）" % min(limit, left))
+        else:
+            mark(name, t, v)
+        return v
+
+    host = urllib.parse.urlparse(F.DOMAIN).hostname
+    hv = int(os.environ.get("FZJH_HOTVER") or 18464)
+
+    # 0) 对照：函数能不能访问普通公网站点
+    def _baidu():
+        req = urllib.request.Request("https://www.baidu.com/", headers={"User-Agent": "fzjh-api"})
+        with urllib.request.urlopen(req, timeout=4, context=getattr(F, "ctx", None)) as r:
+            return "HTTP %s" % r.status
+    probe("公网对照 baidu.com", _baidu, 5.0)
+
+    def _dns():
+        return socket.getaddrinfo(host, 443, socket.AF_INET, socket.SOCK_STREAM)[0][4][0]
+    probe("DNS 解析", _dns, 5.0)
+
+    def _tcp():
+        sk = socket.create_connection((host, 443), timeout=5)
+        peer = sk.getpeername()[0]
+        sk.close()
+        return peer
+    probe("TCP 连接", _tcp, 6.0)
+
+    def _tls():
+        raw = socket.create_connection((host, 443), timeout=5)
+        c = ssl.create_default_context()
+        c.check_hostname = False
+        c.verify_mode = ssl.CERT_NONE
+        with c.wrap_socket(raw, server_hostname=host) as ss:
+            return ss.version()
+    probe("TLS 握手", _tls, 6.0)
+
     try:
-        infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
-        ips = sorted({i[4][0] for i in infos})
-        mark("DNS 解析", t, ips)
-    except Exception as e:
-        mark("DNS 解析", t, "失败: %s: %s" % (type(e).__name__, e))
+        servers = F.load_servers()
+        srv0 = dict(servers[0], hotver=hv)
+    except BaseException as e:
+        # load_servers 用 SystemExit 报配置错误，它不是 Exception 子类，必须抓 BaseException
+        mark("读取分区配置", time.time(), "失败: %s: %s" % (type(e).__name__, e))
         return out
 
-    t = time.time()
-    sk = None
-    try:
-        sk = socket.create_connection((host, port), timeout=8)
-        mark("TCP 连接", t, sk.getpeername())
-    except Exception as e:
-        mark("TCP 连接", t, "失败: %s: %s" % (type(e).__name__, e))
-        return out
-    finally:
-        if sk:
-            sk.close()
+    def _hs():
+        keys = F.handshake(F.server_cfg(dict(srv0)), time.time())
+        return "keys=%s" % ",".join(sorted(keys.keys()))
+    probe("exchange_publickey 握手", _hs, 8.0)
+
+    def _one():
+        srv = [s for s in servers if s["key"] == "taptap_3"][0]
+        data, ec = L.try_one(dict(srv), 21079729670, hv)
+        return "errcode=%s%s" % (ec, " → " + (data or {}).get("name", "") if data else "")
+    probe("try_one 丹凤（线上实现）", _one, 10.0)
 
     t = time.time()
-    try:
-        raw = socket.create_connection((host, port), timeout=8)
-        sctx = ssl.create_default_context()
-        sctx.check_hostname = False
-        sctx.verify_mode = ssl.CERT_NONE
-        with sctx.wrap_socket(raw, server_hostname=host) as ss:
-            mark("TLS 握手", t, ss.version())
-    except Exception as e:
-        mark("TLS 握手", t, "失败: %s: %s" % (type(e).__name__, e))
-
-    try:
-        t = time.time()
-        keys = F.handshake(F.server_cfg(dict(F.load_servers()[0], hotver=int(
-            os.environ.get("FZJH_HOTVER") or 18464))), time.time())
-        mark("exchange_publickey 握手", t, "keys=%s" % ",".join(sorted(keys.keys())))
-
-        srv = dict(F.load_servers()[0], hotver=int(os.environ.get("FZJH_HOTVER") or 18464))
-        t = time.time()
-        d = F.api_post(F.server_cfg(srv), "get_user_info", {"userid": 21079729670, "type": 0}, keys, time.time())
-        mark("get_user_info 查询", t, "errcode=%s" % d.get("errcode"))
-    except Exception as e:
-        mark("协议调用", t, "失败: %s: %s" % (type(e).__name__, e))
-
-    # 单个协议往返（丹凤区）：看是否触发 20616 限流
-    try:
-        srv3 = dict([s for s in F.load_servers() if s["key"] == "taptap_3"][0])
-        srv3["hotver"] = int(os.environ.get("FZJH_HOTVER") or 18464)
-        t = time.time()
-        data, ec = L.try_one(srv3, 21079729670, srv3["hotver"])
-        mark("try_one 丹凤（单次）", t, "errcode=%s%s" % (ec, "" if data else " ← 失败/限流"))
-    except Exception as e:
-        mark("try_one 丹凤（单次）", t, "异常: %s: %s" % (type(e).__name__, e))
-
-    # 榜单：内置文件 vs 网络
-    t = time.time()
-    p = os.path.join(BASE, "boards", "taptap_3.json")
-    if os.path.isfile(p):
+    pth = os.path.join(BASE, "boards", "taptap_3.json")
+    if os.path.isfile(pth):
         try:
-            with open(p, "r", encoding="utf-8") as f:
+            with open(pth, "r", encoding="utf-8") as f:
                 rows = json.load(f).get("rows") or []
             mark("榜单（内置文件）", t, "%d 行" % len(rows))
         except Exception as e:
@@ -340,43 +348,16 @@ def _diag():
     else:
         mark("榜单（内置文件）", t, "未打包 boards/taptap_3.json")
 
+    def _full():
+        return L.lookup(21079729670, server="taptap_3",
+                        cfg={"servers": servers, "hotver": hv}, cache={"hotver": hv})
+    left = max(2.0, deadline - time.time())
     t = time.time()
-    try:
-        req = urllib.request.Request(L.INDEX_URL % "taptap_3", headers={"User-Agent": "fzjh-api"})
-        with urllib.request.urlopen(req, timeout=4, context=getattr(F, "ctx", None)) as r:
-            rows = json.loads(r.read().decode("utf-8")).get("rows") or []
-        mark("榜单（网络 github.io）", t, "%d 行" % len(rows))
-    except Exception as e:
-        mark("榜单（网络 github.io）", t, "失败: %s: %s" % (type(e).__name__, str(e)[:80]))
-
-    # 完整 lookup（含重试与版本号校正），硬超时 8 秒，超时也能拿到结论
-    hv = int(os.environ.get("FZJH_HOTVER") or 18464)
-    try:
-        servers = F.load_servers()
-    except Exception as e:
-        mark("完整 lookup", time.time(), "配置读取失败: %s" % e)
-        return out
-
-    box = {}
-
-    def _run():
-        try:
-            box["v"] = L.lookup(21079729670, server="taptap_3",
-                                cfg={"servers": servers, "hotver": hv}, cache={"hotver": hv})
-        except Exception as e:
-            box["e"] = "%s: %s" % (type(e).__name__, e)
-
-    t = time.time()
-    th = threading.Thread(target=_run, daemon=True)
-    th.start()
-    th.join(8)
-    if th.is_alive():
-        mark("完整 lookup", t, "超过 8 秒仍在跑（这就是函数超时的原因）")
-    elif box.get("e"):
-        mark("完整 lookup", t, "异常: %s" % box["e"])
+    v = _hard_timeout(_full, min(10.0, left), MARK)
+    if v is MARK:
+        mark("完整 lookup", t, "超时未返回")
     else:
-        p = box.get("v")
-        mark("完整 lookup", t, (p or {}).get("name") or "未查到")
+        mark("完整 lookup", t, (v or {}).get("name") or "未查到")
 
     return out
 
@@ -385,7 +366,10 @@ def main_handler(event, context=None):
     global _HOTVER
     t0 = time.time()
 
-    if (event.get("httpMethod") or "").upper() == "OPTIONS":
+    method = (event.get("httpMethod")
+              or (event.get("requestContext") or {}).get("http", {}).get("method")
+              or "").upper()
+    if method == "OPTIONS":
         return _resp(event, 204, {})
 
     q = _query(event)
@@ -478,3 +462,6 @@ def main_handler(event, context=None):
     payload = {"ok": True, "data": prof, "elapsedMs": int((time.time() - t0) * 1000)}
     _CACHE[ck] = (time.time(), payload)
     return _resp(event, 200, payload)
+
+# 阿里云 FC 的「请求处理程序」填 index.handler（腾讯云填 index.main_handler）
+handler = main_handler
