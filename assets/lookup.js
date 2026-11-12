@@ -187,7 +187,7 @@
 
     var ctrl = null;
     var timer = null;
-    var opts = { cache: 'no-store' };
+    var opts = { cache: 'no-store', method: 'POST' };
     if (typeof AbortController === 'function') {
       ctrl = new AbortController();
       opts.signal = ctrl.signal;
@@ -198,8 +198,12 @@
     setState('查询中…', 'warn');
     el.result.hidden = true;
 
+    // 用 POST + text/plain 传参：阿里云函数只能从 body 读到参数（GET 的 query 会被丢），
+    // text/plain 属于 CORS 简单请求，不会触发 OPTIONS 预检。
     var t0 = Date.now();
-    fetch(ENDPOINT + '?uid=' + encodeURIComponent(raw) + '&server=' + encodeURIComponent(state.server), opts)
+    opts.headers = { 'Content-Type': 'text/plain;charset=UTF-8' };
+    opts.body = JSON.stringify({ uid: raw, server: state.server });
+    fetch(ENDPOINT, opts)
       .then(function (r) {
         return r.text().then(function (txt) {
           var body = null;

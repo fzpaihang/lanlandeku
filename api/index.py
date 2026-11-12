@@ -48,7 +48,7 @@ _BOARD = {}
 
 def _allowed_origin(event):
     """只放行自己的站点和本地调试，避免别人白嫖接口额度。"""
-    hdrs = event.get("headers") or {}
+    hdrs = _normalize_event(event).get("headers") or {}
     origin = ""
     for k, v in hdrs.items():
         if str(k).lower() == "origin":
@@ -71,22 +71,68 @@ def _cors(event):
     }
 
 
+def _normalize_event(event):
+    """把各家云的 event 统一成 dict。
+
+    腾讯云 SCF : dict（含 queryString / body / httpMethod）
+    阿里云 FC  : bytes（原始请求体，GET 时为空）
+    控制台测试 : str
+    """
+    if isinstance(event, (bytes, bytearray)):
+        try:
+            event = bytes(event).decode("utf-8", "replace")
+        except Exception:
+            return {}
+    if isinstance(event, str):
+        txt = event.strip()
+        if not txt:
+            return {}
+        try:
+            obj = json.loads(txt)
+        except Exception:
+            return {}
+        return obj if isinstance(obj, dict) else {}
+    return event if isinstance(event, dict) else {}
+
+
 def _query(event):
-    """兼容 SCF 函数 URL / API 网关 v1、v2 三种 event 结构。"""
-    q = event.get("queryString")
-    if isinstance(q, dict):
-        return q
+    """从各种 event 结构里挖出参数：query 参数、JSON body、扁平 dict 都支持。"""
+    ev = _normalize_event(event)
+
+    # 阿里云 POST 时 event 解析出来就是参数字典本身
+    if isinstance(ev.get("uid"), str) or isinstance(ev.get("server"), str) or ev.get("diag"):
+        return ev
+
+    for k in ("queryParameters", "queryStringParameters"):
+        v = ev.get(k)
+        if isinstance(v, dict):
+            return v
+
+    q = ev.get("queryString")
     if isinstance(q, str) and q:
         out = {}
         for pair in q.split("&"):
             if "=" in pair:
-                k, v = pair.split("=", 1)
-                out[k] = urllib.parse.unquote(v)
+                a, b = pair.split("=", 1)
+                out[a] = urllib.parse.unquote(b)
         return out
-    if isinstance(event.get("queryStringParameters"), dict):
-        return event["queryStringParameters"]
-    if isinstance(event.get("queryParameters"), dict):      # 阿里云 FC 3.0
-        return event["queryParameters"]
+
+    body = ev.get("body")
+    if isinstance(body, str) and body.strip():
+        txt = body.strip()
+        try:
+            obj = json.loads(txt)
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            pass
+        if "=" in txt:                      # 兼容表单 / query 风格 body
+            out = {}
+            for pair in txt.split("&"):
+                if "=" in pair:
+                    a, b = pair.split("=", 1)
+                    out[a] = urllib.parse.unquote(b)
+            return out
     return {}
 
 
@@ -366,9 +412,10 @@ def main_handler(event, context=None):
     global _HOTVER
     t0 = time.time()
 
-    method = (event.get("httpMethod")
-              or (event.get("requestContext") or {}).get("http", {}).get("method")
-              or "").upper()
+    ev = _normalize_event(event)
+    method = (ev.get("httpMethod")
+              or (ev.get("requestContext") or {}).get("http", {}).get("method")
+              or "GET").upper()
     if method == "OPTIONS":
         return _resp(event, 204, {})
 
@@ -378,6 +425,12 @@ def main_handler(event, context=None):
     uid_raw = str(q.get("uid") or "").strip()
     server = str(q.get("server") or DEFAULT_SERVER).strip() or DEFAULT_SERVER
 
+    if not uid_raw:
+        return _resp(event, 200, {
+            "ok": True, "service": "fzjh-lookup",
+            "message": "POST 一个 JSON：{\"uid\":\"21079729670\",\"server\":\"taptap_3\"}；"
+                       "或 GET ?uid=...&server=...",
+        })
     if not uid_raw.isdigit() or not (5 <= len(uid_raw) <= 12):
         return _resp(event, 400, {
             "ok": False, "code": "BAD_UID",

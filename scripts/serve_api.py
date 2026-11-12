@@ -74,6 +74,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         return super().do_GET()
 
+    def do_POST(self):
+        p = urllib.parse.urlparse(self.path)
+        if p.path.rstrip("/") not in ("/api/query", "/api"):
+            self.send_error(404)
+            return
+        n = int(self.headers.get("Content-Length") or 0)
+        raw = self.rfile.read(n) if n else b""
+        ev = self._event(dict(urllib.parse.parse_qsl(p.query)))
+        ev["body"] = raw.decode("utf-8", "replace")      # 和腾讯云 SCF 的结构保持一致
+        r = API.main_handler(ev, None)
+        self._send(r["statusCode"], r["headers"], r["body"].encode("utf-8"))
+
     def log_message(self, fmt, *args):
         sys.stderr.write("[serve_api] " + (fmt % args) + "\n")
 
