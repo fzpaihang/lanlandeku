@@ -322,8 +322,10 @@
     var keys = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; });
     var total = keys.length;
 
-    // 默认折叠；已选中的门派即使不在前 8 也要显示出来，否则收起后看不到当前筛选
-    var show = state.chipsAll ? keys : keys.slice(0, CHIP_LIMIT);
+    // 收起时显示几个门派：
+    //   桌面 → 前 8 个；手机 → 只留「展开全部」（门派本来就不超过 8 个时直接全显示）
+    var limit = isMobile() ? (total > CHIP_LIMIT ? 0 : total) : CHIP_LIMIT;
+    var show = state.chipsAll ? keys : keys.slice(0, limit);
     if (!state.chipsAll && state.school && show.indexOf(state.school) < 0) {
       show = show.concat([state.school]);
     }
@@ -688,7 +690,8 @@
       window.addEventListener('resize', updateScrollHint);
 
       // 跨过 560px 断点时切换「表格 / 卡片」两套渲染
-      var onMQ = function () { render(); };
+      // 跨断点时除了重渲染列表，门派 chips 的展开策略也要跟着变（桌面露 8 个 / 手机只留展开）
+      var onMQ = function () { buildChips(); render(); };
       if (mqMobile.addEventListener) mqMobile.addEventListener('change', onMQ);
       else if (mqMobile.addListener) mqMobile.addListener(onMQ);
 
