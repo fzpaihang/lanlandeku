@@ -105,7 +105,7 @@ def _query(event):
 
     for k in ("queryParameters", "queryStringParameters"):
         v = ev.get(k)
-        if isinstance(v, dict):
+        if isinstance(v, dict) and v:       # 空 {} 要继续往 body 找，阿里云就是这种情况
             return v
 
     q = ev.get("queryString")
@@ -426,10 +426,20 @@ def main_handler(event, context=None):
     server = str(q.get("server") or DEFAULT_SERVER).strip() or DEFAULT_SERVER
 
     if not uid_raw:
+        # 无参数时回显 event 结构，用于排查各云厂商的入参差异（不含任何凭据）
+        try:
+            raw_repr = repr(event)[:400]
+        except Exception:
+            raw_repr = "<unrepr>"
         return _resp(event, 200, {
             "ok": True, "service": "fzjh-lookup",
             "message": "POST 一个 JSON：{\"uid\":\"21079729670\",\"server\":\"taptap_3\"}；"
                        "或 GET ?uid=...&server=...",
+            "debug": {
+                "event_type": type(event).__name__,
+                "event_repr": raw_repr,
+                "normalized_keys": sorted(_normalize_event(event).keys()),
+            },
         })
     if not uid_raw.isdigit() or not (5 <= len(uid_raw) <= 12):
         return _resp(event, 400, {
