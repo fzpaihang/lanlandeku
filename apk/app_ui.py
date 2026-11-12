@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """放置江湖 · 玩家查询（Android / 桌面均可运行）
 
-输入 UID → 自动识别分区 → 拉取并展示该玩家完整档案。
+选定分区 → 输入 UID → 拉取并展示该玩家完整档案。
+默认只查选中的分区；「自动探测」逐区尝试，仅作兜底保留。
 界面用 Kivy 构建；网络与解析逻辑在 lookup_core.py。
 """
 import json
@@ -18,6 +19,7 @@ from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
+from kivy.uix.spinner import Spinner, SpinnerOption
 from kivy.uix.textinput import TextInput
 
 import lookup_core as L
@@ -91,7 +93,19 @@ class KV(BoxLayout):
         self.val.text = str(v)
 
 
+class CnSpinnerOption(SpinnerOption):
+    """下拉项也用中文字体，避免选项变方块"""
+
+    def __init__(self, **kw):
+        kw.setdefault("font_name", FONT)
+        kw.setdefault("font_size", sp(13))
+        kw.setdefault("color", C_INK)
+        super(CnSpinnerOption, self).__init__(**kw)
+
+
 class PlayerLookup(App):
+    AUTO_LABEL = "自动探测（不推荐）"
+
     def build(self):
         self.title = "玩家查询"
         self.prof = None
@@ -102,8 +116,26 @@ class PlayerLookup(App):
         # ---- 标题 ----
         head = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(52))
         head.add_widget(lab("江湖 · 玩家查询", 20, C_INK, bold=True, height=30))
-        head.add_widget(lab("输入游戏内 UID，自动识别分区", 10.5, C_MUTED, height=16))
+        head.add_widget(lab("选定分区，输入 UID 查询", 10.5, C_MUTED, height=16))
         root.add_widget(head)
+
+        # ---- 分区选择 ----
+        self.servers = self._servers()
+        names = [n for _k, n in self.servers] + [self.AUTO_LABEL]
+        row_srv = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(8))
+        lbl = lab("分区", 12, C_INK2, height=42)
+        lbl.size_hint_x = None
+        lbl.width = dp(44)
+        row_srv.add_widget(lbl)
+        self.spin = Spinner(
+            text=self._name_of(self._picked_key()) or names[0], values=names,
+            font_name=FONT, font_size=sp(13), color=C_INK,
+            background_color=C_SOFT, background_normal="",
+            option_cls=CnSpinnerOption,
+        )
+        row_srv.add_widget(self.spin)
+        self.spin.bind(text=lambda inst, v: self._save_pick(v))
+        root.add_widget(row_srv)
 
         # ---- 输入行 ----
         row = BoxLayout(size_hint_y=None, height=dp(46), spacing=dp(8))
@@ -139,15 +171,63 @@ class PlayerLookup(App):
         self._empty_hint()
         return root
 
+    # ---------- 分区选择 ----------
+    @staticmethod
+    def _servers():
+        try:
+            cfg = L.load_config()
+            out = [(str(s["key"]), str(s["name"]))
+                   for s in (cfg.get("servers") or []) if s.get("key")]
+            if out:
+                return out
+        except Exception:
+            pass
+        return [("taptap", "苍松迎客"), ("taptap_2", "白鹤亮翅"),
+                ("taptap_3", "丹凤朝阳"), ("taptap_4", "墨羽惊鸿"),
+                ("4399", "4399")]
+
+    def _picked_key(self):
+        """记住上次选的区；首次默认丹凤朝阳。自动探测永不做默认值。"""
+        try:
+            c = L.load_cache()
+        except Exception:
+            c = {}
+        key = c.get("pickedServer") or c.get("lastServer")
+        if key in dict(self.servers):
+            return key
+        return "taptap_3" if "taptap_3" in dict(self.servers) else self.servers[0][0]
+
+    def _name_of(self, key):
+        return dict(self.servers).get(key)
+
+    def key_of(self, name):
+        if name == self.AUTO_LABEL:
+            return "auto"
+        for k, n in self.servers:
+            if n == name:
+                return k
+        return "auto"
+
+    def _save_pick(self, name):
+        key = self.key_of(name)
+        if key == "auto":
+            return
+        try:
+            c = L.load_cache()
+            c["pickedServer"] = key
+            L.save_cache(c)
+        except Exception:
+            pass
+
     # ---------- 占位 ----------
     def _empty_hint(self):
         self.body.clear_widgets()
         c = Card(orientation="vertical", size_hint_y=None, height=dp(120),
                  padding=(dp(16), dp(18)), spacing=dp(6))
-        c.add_widget(lab("输入 UID 开始查询", 14, C_INK2, bold=True, height=22))
-        c.add_widget(lab("支持全部五个分区：苍松迎客 / 白鹤亮翅 / 丹凤朝阳 / 墨羽惊鸿 / 4399",
+        c.add_widget(lab("选好分区，输入 UID 开始查询", 14, C_INK2, bold=True, height=22))
+        c.add_widget(lab("默认只查选中的分区：请求少、速度快，也不容易被服务器限流；选择会被记住",
                          11, C_MUTED, height=36))
-        c.add_widget(lab("UID 是游戏内显示的角色 ID（在个人信息页可看到），不是登录账号",
+        c.add_widget(lab("不确定在哪个区时，才用列表最后的「自动探测」逐区尝试；UID 是角色 ID，不是登录账号",
                          11, C_MUTED, height=36))
         self.body.add_widget(c)
 
@@ -163,24 +243,29 @@ class PlayerLookup(App):
         self.btn.disabled = True
         self.btn.text = "查询中"
         self.set_status("连接中…", C_ACCENT)
-        threading.Thread(target=self._worker, args=(int(raw),), daemon=True).start()
+        key = self.key_of(self.spin.text)
+        threading.Thread(target=self._worker, args=(int(raw), key), daemon=True).start()
 
-    def _worker(self, uid):
+    def _worker(self, uid, server):
         try:
-            prof = L.lookup(uid, progress=lambda m: Clock.schedule_once(
+            prof = L.lookup(uid, server=server, progress=lambda m: Clock.schedule_once(
                 lambda dt, msg=m: self.set_status(msg, C_ACCENT)))
         except Exception:
             err = traceback.format_exc()[-300:]
             Clock.schedule_once(lambda dt: self._fail("查询异常\n" + err))
             return
-        Clock.schedule_once(lambda dt: self._done(prof))
+        Clock.schedule_once(lambda dt: self._done(prof, server))
 
-    def _done(self, prof):
+    def _done(self, prof, server="auto"):
         self.busy = False
         self.btn.disabled = False
         self.btn.text = "查询"
         if not prof:
-            self._fail("五个分区都没有这个 UID\n确认是游戏内的角色 ID 吗？")
+            if server == "auto":
+                self._fail("五个分区都没有这个 UID\n确认是游戏内的角色 ID 吗？")
+            else:
+                self._fail("在「%s」没查到这个 UID\n分区选对了吗？请求繁忙时请稍后重试"
+                           % (self._name_of(server) or server))
             return
         self.prof = prof
         self.set_status("查询成功 · %s" % prof["serverName"], C_OK)

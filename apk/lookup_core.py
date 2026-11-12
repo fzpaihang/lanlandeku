@@ -16,14 +16,20 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 import fetch as F  # noqa: E402
 
-# 更新包会解压到独立的 live/ 目录；config.json 和 names.json 仍随 APK 放在原目录，
-# 所以资源要按「当前目录 → APK 原始目录」的顺序找。
-_APP_PATH = os.environ.get("ANDROID_APP_PATH", "")
-_SEARCH_DIRS = [BASE] + ([_APP_PATH] if _APP_PATH and _APP_PATH != BASE else [])
-
-
+# 更新包会解压到独立的 live/ 目录；config.json 和 names.json 仍随 APK 放在原目录。
+# 所以资源按「当前目录 → sys.path 里的其它目录 → ANDROID_APP_PATH」依次找。
 def _find(rel):
-    for d in _SEARCH_DIRS:
+    tried = set()
+    cands = [BASE]
+    cands += [p for p in sys.path if p and os.path.isdir(p)]
+    ap = os.environ.get("ANDROID_APP_PATH")
+    if ap:
+        cands.append(ap)
+    for d in cands:
+        d = os.path.normpath(d)
+        if d in tried:
+            continue
+        tried.add(d)
         p = os.path.join(d, rel)
         if os.path.exists(p):
             return p
@@ -292,8 +298,73 @@ def parse_profile(data, board_row=None):
     }
 
 
-def lookup(uid, progress=None, cfg=None, cache=None):
-    """查询并解析。返回 dict（含 server/serverName）或 None。"""
+AUTO_SERVER = "auto"
+
+
+def _finish(uid, srv, data, cache, hotver, note):
+    """命中后：写缓存 → 用榜单补门派/福缘/排名 → 组装展示结构。"""
+    cache["lastServer"] = srv["key"]
+    cache["hotver"] = hotver
+    save_cache(cache)
+    note("读取榜单补充信息…")
+    row = None
+    for r in fetch_board(srv["key"], cache):
+        if str(r.get("userid")) == str(uid):
+            row = r
+            break
+    prof = parse_profile(data, row)
+    prof["server"] = srv["key"]
+    prof["serverName"] = srv["name"]
+    prof["fetchedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    return prof
+
+
+def _redetect_hotver(srv, hotver):
+    """服务端报「版本过低」时探测新版本号；探测失败返回 None。"""
+    c = dict(srv)
+    c["hotver"] = hotver
+    try:
+        t = time.time()
+        keys = F.handshake(F.server_cfg(c), t)
+        hv, _ = F.detect_hotver(F.server_cfg(c), keys, t)
+        return hv
+    except Exception:
+        return None
+
+
+def _lookup_single(uid, srv, cache, hotver, note):
+    """只查指定分区。20616 限流 / 网络异常做退避重试，必要时校正版本号。"""
+    for attempt in range(3):
+        note("查询 %s …" % srv["name"] if attempt == 0
+             else "请求繁忙，重试 %d/3 …" % (attempt + 1))
+        data, ec = try_one(srv, uid, hotver)
+        if data:
+            return _finish(uid, srv, data, cache, hotver, note)
+        if ec == 0:
+            return None                      # 服务端明确回「没有这个角色」
+        if ec in (20616, -1) and attempt < 2:
+            time.sleep(1.2 * (attempt + 1))  # 限流冷却，避免继续撞墙
+            continue
+        break
+
+    hv = _redetect_hotver(srv, hotver)
+    if hv and hv != hotver:
+        hotver = hv
+        cache["hotver"] = hv
+        save_cache(cache)
+        note("版本号校正为 %s，重试…" % hv)
+        data, _ec = try_one(srv, uid, hv)
+        if data:
+            return _finish(uid, srv, data, cache, hotver, note)
+    return None
+
+
+def lookup(uid, progress=None, cfg=None, cache=None, server=None):
+    """查询并解析。返回 dict（含 server/serverName）或 None。
+
+    server=None / "auto" → 五区轮询（兼容旧行为，慢且易触发限流）
+    server=<分区 key>     → 只查该区，推荐用法
+    """
     cfg = cfg or load_config()
     cache = cache if cache is not None else load_cache()
     servers = cfg.get("servers") or []
@@ -304,12 +375,14 @@ def lookup(uid, progress=None, cfg=None, cache=None):
         if progress:
             progress(msg)
 
+    if server and server != AUTO_SERVER:
+        by_key = {x["key"]: x for x in servers}
+        srv = by_key.get(server)
+        if not srv:
+            return None
+        return _lookup_single(uid, srv, cache, hotver, note)
+
     order = order_servers(servers, uid, cache.get("lastServer"))
-
-    def note(msg):
-        if progress:
-            progress(msg)
-
     hit = None
     clean_miss = True   # 所有分区都明确回「没有这个角色」（errcode=0 但 data 空）
 
@@ -331,15 +404,7 @@ def lookup(uid, progress=None, cfg=None, cache=None):
     if not hit:
         note("版本号可能过期，重新探测…")
         for srv in order:
-            c2 = dict(srv)
-            c2["hotver"] = hotver
-            c2 = F.server_cfg(c2)
-            try:
-                t = time.time()
-                keys = F.handshake(c2, t)
-                hv, _ = F.detect_hotver(c2, keys, t)
-            except Exception:
-                continue
+            hv = _redetect_hotver(srv, hotver)
             if hv and hv != hotver:
                 hotver = hv
                 cache["hotver"] = hv
@@ -352,33 +417,17 @@ def lookup(uid, progress=None, cfg=None, cache=None):
 
     if not hit:
         return None
-
     srv, data = hit
-    cache["lastServer"] = srv["key"]
-    cache["hotver"] = hotver
-    save_cache(cache)
-
-    note("读取榜单补充信息…")
-    board = fetch_board(srv["key"], cache)
-    row = None
-    for r in board:
-        if str(r.get("userid")) == str(uid):
-            row = r
-            break
-
-    prof = parse_profile(data, row)
-    prof["server"] = srv["key"]
-    prof["serverName"] = srv["name"]
-    prof["fetchedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
-    return prof
+    return _finish(uid, srv, data, cache, hotver, note)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("用法: python lookup_core.py <uid>")
+        print("用法: python lookup_core.py <uid> [分区key|auto]")
         raise SystemExit(1)
+    srv_arg = sys.argv[2] if len(sys.argv) > 2 else None
     t0 = time.time()
-    r = lookup(int(sys.argv[1]), progress=lambda m: print("  " + m))
+    r = lookup(int(sys.argv[1]), progress=lambda m: print("  " + m), server=srv_arg)
     if not r:
         print("未查到（五个分区都没有这个 UID）")
         raise SystemExit(2)

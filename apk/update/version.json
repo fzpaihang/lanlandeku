@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "md5": "0b60ac26b422da1bb8040ed81f261715",
-  "size": 21173,
-  "notes": "修复热更后资源路径：按 sys.path 查找 names.json/config.json"
+  "version": 3,
+  "md5": "fc8e3b4548b33a06f4d7dd148d1e9a07",
+  "size": 22650,
+  "notes": "新增手动选区：默认只查选中分区，自动探测保留但不推荐"
 }
