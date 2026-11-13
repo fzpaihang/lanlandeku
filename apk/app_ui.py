@@ -102,28 +102,91 @@ def hp():
 # 安卓返回键的两种 keycode：老版本 SDL 给 27(ESC)，新版本给 AC_BACK
 _BACK_KEYS = (27, 1073742094)
 
-# 中文字体：**必须优先「单体 + 含拉丁」的文件，别碰 .ttc，也别碰 NotoSansSC-*.otf**。
+# 中文字体。**首选打进 APK 的 NotoSansSC 子集**（scripts/build_font_subset.py 生成），
+# 这样任何 ROM 上字形都一致；系统字体只在老 APK（热更包不带 .ttf）上兜底。
+#
+# 系统字体为什么不可靠：
 # - .ttc 是字体集合，Kivy/FreeType 只能取第 0 个 face，NotoSansCJK-Regular.ttc 的
 #   第 0 个 face 是日文，中文会按日文字形渲染（连简体「门」都没有，直接变豆腐块）。
 # - NotoSansSC-*.otf 是纯 CJK 子集，不含拉丁，UID / 数字 / "/" / "·" 会全变方块。
-# NotoSansCJKsc-Regular.ttf 是完整族（拉丁 + 简体），单体，最稳。
-_CN_PAIRS = [
+# - NotoSansCJKsc-Regular.ttf 只有部分 ROM 有；DroidSansFallback 在 Android 9 后已移除。
+# 三条全落空时 FONT 会退回 Roboto（不含中文）→ 全屏豆腐块。MuMu 是 AOSP，一定有
+# 第一个文件，所以这个故障在模拟器上永远复现不出来。
+def _local_font():
+    """定位打包进 APK 的字体：__file__ 目录（热更时是 live/）→ ANDROID_APP_PATH → sys.path。"""
+    rel = os.path.join("fonts", "NotoSansSC-Regular.ttf")
+    cands = [os.path.dirname(os.path.abspath(__file__))]
+    ap = os.environ.get("ANDROID_APP_PATH")
+    if ap:
+        cands.append(ap)
+    cands += [p for p in sys.path if p and os.path.isdir(p)]
+    seen = set()
+    for d in cands:
+        d = os.path.normpath(d)
+        if d in seen:
+            continue
+        seen.add(d)
+        p = os.path.join(d, rel)
+        if os.path.isfile(p):
+            return p
+    return ""
+
+
+# 厂商 ROM 的中文字体（各家路径不同，命中就用）。M 系列不在此列：MiSansLatin 不含中文。
+_VENDOR_FONTS = [
+    "/system/fonts/MiSans-Regular.ttf",
+    "/system/fonts/MiSans-Normal.ttf",
+    "/system/fonts/HarmonyOS_Sans_SC_Regular.ttf",
+    "/system/fonts/HarmonyOS_Sans_SC.ttf",
+    "/system/fonts/OPPOSans-Regular.ttf",
+    "/system/fonts/OPPO_Sans_Regular.ttf",
+    "/system/fonts/vivoSans-Regular.ttf",
+    "/system/fonts/SourceHanSansSC-Regular.otf",
+]
+
+FONT = "Roboto"
+FONT_SRC = "内置 Roboto（无中文）"
+_lp = _local_font()
+_CN_PAIRS = [(_lp, None)] if _lp else []
+_CN_PAIRS += [
     ("/system/fonts/NotoSansCJKsc-Regular.ttf", None),
     ("/system/fonts/DroidSansFallback.ttf", None),
+] + [(p, None) for p in _VENDOR_FONTS] + [
     ("/system/fonts/NotoSansCJK-Regular.ttc", None),   # 最后兜底，可能是日文字形
 ]
-FONT = "Roboto"
+
 for _reg, _bold in _CN_PAIRS:
-    if os.path.exists(_reg):
+    if _reg and os.path.exists(_reg):
         try:
             LabelBase.register(
                 name="CN", fn_regular=_reg,
                 fn_bold=_bold if (_bold and os.path.exists(_bold)) else None,
             )
             FONT = "CN"
+            FONT_SRC = "打包子集" if _reg == _lp else os.path.basename(_reg)
             break
         except Exception:
             pass
+
+# 最后一档：扫 /system/fonts 里名字像中文字体的单体文件。注册失败也不影响（只是回到 Roboto）。
+if FONT == "Roboto":
+    try:
+        for _fn in sorted(os.listdir("/system/fonts")):
+            _low = _fn.lower()
+            if not _low.endswith((".ttf", ".otf")):
+                continue
+            if not any(k in _low for k in ("cjk", "han", "hei", "song", "sc", "chinese")):
+                continue
+            if "latin" in _low:
+                continue
+            try:
+                LabelBase.register(name="CN", fn_regular="/system/fonts/" + _fn)
+                FONT, FONT_SRC = "CN", _fn
+                break
+            except Exception:
+                continue
+    except Exception:
+        pass
 
 # 标题的衬线体：只在存在「单体简体宋体」时才启用。
 # NotoSerifCJK-Regular.ttc 同样是集合、默认日文字形，宁可退回黑体也不要用它。
@@ -158,7 +221,7 @@ for _p in _SEAL_CANDIDATES:
         except Exception:
             pass
 
-print("[font] FONT=%s SERIF=%s SEAL=%s" % (FONT, SERIF, SEAL))
+print("[font] FONT=%s(%s) SERIF=%s SEAL=%s" % (FONT, FONT_SRC, SERIF, SEAL))
 
 # 色板：以「高手榜」那页为基准统一（暖米底 + 深绛红），三页共用同一套。
 # 原先主色 #8C2F28 偏橙、详情页顶栏又是另一种红，两个红放在一起就散了。
@@ -375,11 +438,11 @@ class AppBar(BoxLayout):
         kw.setdefault("spacing", dp(10))
         super(AppBar, self).__init__(orientation="horizontal", **kw)
         from kivy.graphics import Color, Rectangle
+        # 顶栏和页面同色，且不画分隔线：那条 1px 横线在手机上很抢眼，
+        # 像给页面横切了一刀。头部靠印章和字号自己立住，不靠线。
         with self.canvas.before:
             Color(*C_BG)
             self._bg = Rectangle(pos=self.pos, size=self.size)
-            Color(*C_LINE)
-            self._ln = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._sync, size=self._sync)
 
         # 返回键常驻，通过宽度/透明度切显隐，避免反复增删控件
@@ -438,8 +501,6 @@ class AppBar(BoxLayout):
     def _sync(self, *a):
         self._bg.pos = self.pos
         self._bg.size = self.size
-        self._ln.pos = (self.x, self.y)
-        self._ln.size = (self.width, dp(1))
 
     def _seal_sync(self, *a):
         self._seal_bg.pos = self.seal.pos
@@ -803,14 +864,20 @@ class PlayerLookup(App):
         self.appbar = AppBar()
         self.appbar.bind_right(lambda *a: self._open_web())
         self.appbar.bind_back(lambda *a: self.show_query())
-        root.add_widget(self.appbar)
 
         sv = ScrollView(size_hint=(1, 1), do_scroll_x=False)
         self.body = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(12),
                               padding=(dp(16), dp(14), dp(16), dp(18)))
         self.body.bind(minimum_height=self.body.setter("height"))
         self.body.bind(pos=self._body_sync, size=self._body_sync)
-        sv.add_widget(self.body)
+
+        # 顶栏不固定：以前钉在窗口顶部，滚动时印章和正文像两块脱开的贴纸，
+        # 内容从下面穿过去。放进 ScrollView 后它就是页面自己的头部，随内容一起走。
+        self.inner = BoxLayout(orientation="vertical", size_hint_y=None, spacing=0)
+        self.inner.bind(minimum_height=self.inner.setter("height"))
+        self.inner.add_widget(self.appbar)
+        self.inner.add_widget(self.body)
+        sv.add_widget(self.inner)
         self.sv = sv
         root.add_widget(sv)
 
