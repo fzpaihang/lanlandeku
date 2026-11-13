@@ -56,14 +56,35 @@ for _p in _CN_CANDIDATES:
         except Exception:
             pass
 
-C_BG = (0.980, 0.969, 0.941, 1)          # #FAF7F0
+# 网页的标题用宋体（--serif），安卓上优先找系统自带的衬线中文字体，没有就退回黑体
+_SERIF_CANDIDATES = [
+    "/system/fonts/NotoSerifCJK-Regular.ttc",
+    "/system/fonts/NotoSerifSC-Regular.otf",
+    "/system/fonts/SourceHanSerifSC-Regular.otf",
+    "/system/fonts/DroidSerif-Regular.ttf",
+]
+SERIF = FONT
+for _p in _SERIF_CANDIDATES:
+    if os.path.exists(_p):
+        try:
+            LabelBase.register(name="CNSerif", fn_regular=_p)
+            SERIF = "CNSerif"
+            break
+        except Exception:
+            pass
+
+C_BG = (0.965, 0.957, 0.937, 1)          # #F6F4EF 页面底色，与网页 --bg 一致
+C_CARD = (1.0, 1.0, 1.0, 1)              # #FFFFFF 卡片
 C_SOFT = (0.945, 0.937, 0.910, 1)        # #F1EFE8
-C_ACCENT_SOFT = (0.980, 0.925, 0.906, 1)  # #FAECE7
-C_INK = (0.173, 0.165, 0.149, 1)         # #2C2A26
-C_INK2 = (0.420, 0.396, 0.357, 1)        # #6B655B
-C_MUTED = (0.533, 0.529, 0.502, 1)       # #888780
-C_ACCENT = (0.659, 0.204, 0.184, 1)      # #A8342F
-C_LINE = (0.910, 0.886, 0.839, 1)        # #E8E2D6
+C_ACCENT_SOFT = (0.953, 0.906, 0.894, 1)  # #F3E7E4，与网页 --accent-soft 一致
+C_INK = (0.122, 0.137, 0.157, 1)         # #1F2328
+C_INK2 = (0.290, 0.322, 0.376, 1)        # #4A5260
+C_MUTED = (0.541, 0.569, 0.612, 1)       # #8A919C
+C_ACCENT = (0.549, 0.184, 0.157, 1)      # #8C2F28
+C_ACCENT_DK = (0.478, 0.153, 0.122, 1)   # #7A271F 按钮按下
+C_LINE = (0.906, 0.890, 0.855, 1)        # #E7E3DA
+C_LINE2 = (0.941, 0.925, 0.890, 1)       # #F0ECE3
+
 
 
 def hex_of(c):
@@ -100,9 +121,10 @@ def split_num(v):
     return m.group(1), m.group(2) or ""
 
 
-def lab(text, size=13, color=C_INK, bold=False, height=None, halign="left", markup=False):
+def lab(text, size=13, color=C_INK, bold=False, height=None, halign="left",
+        markup=False, serif=False):
     w = Label(
-        text=text, font_name=FONT, font_size=sp(size), color=color,
+        text=text, font_name=(SERIF if serif else FONT), font_size=sp(size), color=color,
         bold=bold, halign=halign, valign="middle", markup=markup,
         size_hint_y=None, height=dp(height if height is not None else size * 1.9),
     )
@@ -153,6 +175,127 @@ class HLine(BoxLayout):
 
     def set_color(self, color):
         self._c.rgba = color
+
+
+class Seal(BoxLayout):
+    """网页左上角那个红印章：44×44、圆角 10、白字竖排。"""
+
+    def __init__(self, text="查\n询", side=44, radius=10, **kw):
+        kw.setdefault("size_hint", (None, None))
+        kw.setdefault("size", (dp(side), dp(side)))
+        kw.setdefault("pos_hint", {"center_y": 0.5})
+        super(Seal, self).__init__(**kw)
+        from kivy.graphics import Color, RoundedRectangle
+        with self.canvas.before:
+            Color(*C_ACCENT)
+            self._bg = RoundedRectangle(radius=[dp(radius)], pos=self.pos, size=self.size)
+        self.bind(pos=self._sync, size=self._sync)
+        self.add_widget(lab(text, 12, (1, 1, 1, 1), bold=True, height=side,
+                            halign="center", serif=True))
+
+    def _sync(self, *a):
+        self._bg.pos = self.pos
+        self._bg.size = self.size
+
+
+class Card(BoxLayout):
+    """白底圆角卡片：结果区、查询区都用它，对应网页 .lk-result。"""
+
+    def __init__(self, radius=14, pad=16, bg=None, border=None, spacing=10, **kw):
+        kw.setdefault("orientation", "vertical")
+        kw.setdefault("size_hint_y", None)
+        kw.setdefault("padding", (dp(pad), dp(pad), dp(pad), dp(pad)))
+        kw.setdefault("spacing", dp(spacing))
+        super(Card, self).__init__(**kw)
+        from kivy.graphics import Color, RoundedRectangle, Line
+        self._r = dp(radius)
+        with self.canvas.before:
+            Color(*(bg or C_CARD))
+            self._bg = RoundedRectangle(radius=[self._r], pos=self.pos, size=self.size)
+            Color(*(border or C_LINE))
+            self._ln = Line(rounded_rectangle=(self.x, self.y, self.width, self.height,
+                                               self._r), width=1)
+        self.bind(pos=self._sync, size=self._sync)
+        self.bind(minimum_height=self.setter("height"))
+
+    def _sync(self, *a):
+        self._bg.pos = self.pos
+        self._bg.size = self.size
+        self._ln.rounded_rectangle = (self.x, self.y, self.width, self.height, self._r)
+
+
+class RoundInput(TextInput):
+    """白底圆角输入框：对应网页 .lk-input（48 高、圆角 12、聚焦变强调色）。"""
+
+    def __init__(self, radius=12, **kw):
+        kw.setdefault("background_color", (0, 0, 0, 0))
+        kw.setdefault("background_normal", "")
+        kw.setdefault("background_active", "")
+        kw.setdefault("padding", [dp(14), dp(13)])
+        super(RoundInput, self).__init__(**kw)
+        from kivy.graphics import Color, RoundedRectangle, Line
+        self._r = dp(radius)
+        with self.canvas.before:
+            Color(*C_CARD)
+            self._bg = RoundedRectangle(radius=[self._r], pos=self.pos, size=self.size)
+            self._lnc = Color(*C_LINE)
+            self._ln = Line(rounded_rectangle=(self.x, self.y, self.width, self.height,
+                                               self._r), width=1)
+        self.bind(pos=self._sync, size=self._sync, focus=self._on_focus)
+
+    def _sync(self, *a):
+        self._bg.pos = self.pos
+        self._bg.size = self.size
+        self._ln.rounded_rectangle = (self.x, self.y, self.width, self.height, self._r)
+
+    def _on_focus(self, _inst, value):
+        self._ln.width = 1.6 if value else 1
+        self._lnc.rgba = C_ACCENT if value else C_LINE
+
+
+class PrimaryButton(Button):
+    """实心强调色圆角按钮：对应网页 .lk-btn（48 高、圆角 12、按下变深）。"""
+
+    def __init__(self, radius=12, **kw):
+        kw.setdefault("background_color", (0, 0, 0, 0))
+        kw.setdefault("background_normal", "")
+        kw.setdefault("color", (1, 1, 1, 1))
+        super(PrimaryButton, self).__init__(**kw)
+        from kivy.graphics import Color, RoundedRectangle
+        with self.canvas.before:
+            self._c = Color(*C_ACCENT)
+            self._bg = RoundedRectangle(radius=[dp(radius)], pos=self.pos, size=self.size)
+        self.bind(pos=self._sync, size=self._sync, state=self._on_state)
+
+    def _sync(self, *a):
+        self._bg.pos = self.pos
+        self._bg.size = self.size
+
+    def _on_state(self, _inst, value):
+        self._c.rgba = C_ACCENT_DK if value == "down" else C_ACCENT
+
+
+class RoundSpinner(Spinner):
+    """白底圆角分区选择器：对应网页 .lk-select。"""
+
+    def __init__(self, radius=12, **kw):
+        kw.setdefault("background_color", (0, 0, 0, 0))
+        kw.setdefault("background_normal", "")
+        super(RoundSpinner, self).__init__(**kw)
+        from kivy.graphics import Color, RoundedRectangle, Line
+        self._r = dp(radius)
+        with self.canvas.before:
+            Color(*C_CARD)
+            self._bg = RoundedRectangle(radius=[self._r], pos=self.pos, size=self.size)
+            Color(*C_LINE)
+            self._ln = Line(rounded_rectangle=(self.x, self.y, self.width, self.height,
+                                               self._r), width=1)
+        self.bind(pos=self._sync, size=self._sync)
+
+    def _sync(self, *a):
+        self._bg.pos = self.pos
+        self._bg.size = self.size
+        self._ln.rounded_rectangle = (self.x, self.y, self.width, self.height, self._r)
 
 
 class Chip(BoxLayout):
@@ -244,6 +387,7 @@ class PlayerLookup(App):
         self.body = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(12),
                               padding=(0, 0, 0, dp(12)))
         self.body.bind(minimum_height=self.body.setter("height"))
+        self.body.bind(pos=self._body_sync, size=self._body_sync)
         sv.add_widget(self.body)
         root.add_widget(sv)
 
@@ -268,66 +412,73 @@ class PlayerLookup(App):
             self._do_search(self.inp.text)
 
     def _build_query_widgets(self):
-        head = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(56), spacing=dp(2))
-        head.add_widget(lab("江湖 · 玩家查询", 20, C_INK, bold=True, height=30))
-        head.add_widget(lab("按分区查角色档案与榜单信息", 12, C_MUTED, height=20))
+        # 顶部：印章 + 标题 + 副标题（对应网页 .hero 里的 .brand）
+        head = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(48),
+                         spacing=dp(13))
+        head.add_widget(Seal("查\n询", 44))
+        title_col = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(48),
+                              spacing=dp(0))
+        t = lab("玩家查询", 22, C_INK, bold=True, height=30, serif=True)
+        title_col.add_widget(t)
+        title_col.add_widget(lab("放置江湖 · 昵称或 UID 查实时档案", 11.5, C_MUTED, height=18))
+        head.add_widget(title_col)
 
         self.servers = self._servers()
         names = [n for _k, n in self.servers] + [self.AUTO_LABEL]
-        row_srv = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
-        pre = lab("分区：", 13, C_MUTED, height=48)
-        pre.size_hint_x = None
-        pre.width = dp(52)
-        row_srv.add_widget(pre)
-        self.spin = Spinner(
-            text=self._name_of(self._picked_key()) or names[0], values=names,
-            font_name=FONT, font_size=sp(14), color=C_INK, halign="left",
-            background_color=(0, 0, 0, 0), background_normal="",
-            size_hint_y=None, height=dp(48), option_cls=CnSpinnerOption,
-        )
-        self.spin.bind(width=lambda inst, v: setattr(inst, "text_size", (v, None)))
-        self.spin.bind(text=lambda inst, v: self._save_pick(v))
-        row_srv.add_widget(self.spin)
-        more = lab("切换", 12, C_ACCENT, bold=True, height=48, halign="right")
-        more.size_hint_x = None
-        more.width = dp(48)
-        row_srv.add_widget(more)
 
-        form = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(6))
+        form = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(10))
         form.bind(minimum_height=form.setter("height"))
-        form.add_widget(lab("昵称或 UID", 12, C_MUTED, height=20))
-        self.inp = TextInput(
-            text="", hint_text="例如 唐云卷 或 21079729670", font_name=FONT, font_size=sp(16),
-            multiline=False, input_type="text", padding=[dp(2), dp(10)],
+
+        self.inp = RoundInput(
+            text="", hint_text="输入昵称或 UID", font_name=FONT, font_size=sp(16),
+            multiline=False, input_type="text",
             size_hint_y=None, height=dp(48),
-            background_color=(0, 0, 0, 0), background_normal="", background_active="",
             foreground_color=C_INK, hint_text_color=C_MUTED, cursor_color=C_ACCENT,
         )
         self.inp.bind(on_text_validate=lambda *a: self.start())
         self.inp.bind(text=self._on_query_text)
         form.add_widget(self.inp)
-        self.inp_line = HLine(color=C_LINE, thickness=1)
-        self.inp.bind(focus=lambda inst, v: self.inp_line.set_color(C_ACCENT if v else C_LINE))
-        form.add_widget(self.inp_line)
 
-        # 昵称候选提示行：默认高度 0，有结果才展开，不影响原有布局
+        # 昵称候选提示行：默认折叠，有结果才展开（网页里是下拉列表，这里用弹层）
         self.sug = Button(
             text="", font_name=FONT, font_size=sp(13), halign="left", valign="middle",
             size_hint_y=None, height=dp(0), opacity=0,
-            background_color=C_ACCENT_SOFT, background_normal="", color=C_ACCENT,
+            background_color=(0, 0, 0, 0), background_normal="", color=C_ACCENT,
         )
-        self.sug.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(20), None)))
+        self.sug.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(4), None)))
         self.sug.bind(on_release=lambda *a: self._show_candidates())
         form.add_widget(self.sug)
 
-        self.btn = Button(
+        self.btn = PrimaryButton(
             text="查询玩家", font_name=FONT, font_size=sp(15), bold=True,
             size_hint_y=None, height=dp(48),
-            background_color=C_ACCENT, background_normal="", color=(1, 1, 1, 1),
         )
         self.btn.bind(on_release=lambda *a: self.start())
+        form.add_widget(self.btn)
+
+        row_srv = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(48),
+                            spacing=dp(10))
+        pre = lab("分区", 13, C_MUTED, height=48)
+        pre.size_hint_x = None
+        pre.width = dp(38)
+        row_srv.add_widget(pre)
+        self.spin = RoundSpinner(
+            text=self._name_of(self._picked_key()) or names[0], values=names,
+            font_name=FONT, font_size=sp(14), color=C_INK, halign="left",
+            size_hint_y=None, height=dp(48), option_cls=CnSpinnerOption,
+        )
+        self.spin.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(30), None)))
+        self.spin.bind(text=lambda inst, v: self._save_pick(v))
+        row_srv.add_widget(self.spin)
+        form.add_widget(row_srv)
+
         self.q_status = lab("", 12, C_MUTED, height=0)
-        self.query_widgets = [head, row_srv, form, self.btn, self.q_status]
+        form.add_widget(self.q_status)
+
+        form.add_widget(lab("输入昵称命中时会自动切到该角色所在区；UID 为 5–12 位数字。",
+                            11.5, C_MUTED, height=18))
+
+        self.query_widgets = [head, form]
 
     def _build_result_summary(self):
         bar = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(12))
@@ -406,7 +557,36 @@ class PlayerLookup(App):
             pass
 
     # ---------- 查询态空状态 ----------
+    def _set_body_card(self, on):
+        """结果态把内容区包成白卡（对应网页 .lk-result），查询态恢复无底色。"""
+        from kivy.graphics import Color, RoundedRectangle, Line
+        self.body.canvas.before.clear()
+        if not on:
+            self._body_bg = None
+            self.body.padding = (0, 0, 0, dp(12))
+            return
+        self.body.padding = (dp(14), dp(14), dp(14), dp(14))
+        self._body_r = dp(14)
+        with self.body.canvas.before:
+            Color(*C_CARD)
+            self._body_bg = RoundedRectangle(radius=[self._body_r],
+                                             pos=self.body.pos, size=self.body.size)
+            Color(*C_LINE)
+            self._body_ln = Line(rounded_rectangle=(self.body.x, self.body.y,
+                                                    self.body.width, self.body.height,
+                                                    self._body_r), width=1)
+        self._body_sync()
+
+    def _body_sync(self, *a):
+        if getattr(self, "_body_bg", None) is None:
+            return
+        self._body_bg.pos = self.body.pos
+        self._body_bg.size = self.body.size
+        self._body_ln.rounded_rectangle = (self.body.x, self.body.y,
+                                           self.body.width, self.body.height, self._body_r)
+
     def _show_idle(self):
+        self._set_body_card(False)
         self.body.clear_widgets()
         self.body.add_widget(self._hint_widget())
         self.body.add_widget(self._recent_widget())
@@ -627,6 +807,7 @@ class PlayerLookup(App):
         self.btn.disabled = False
         self.btn.text = "查询玩家"
         self.set_status(title, C_ACCENT)
+        self._set_body_card(True)
         self.body.clear_widgets()
         bar = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(4),
                         padding=(dp(12), dp(10)))
@@ -644,10 +825,11 @@ class PlayerLookup(App):
 
     # ---------- 结果态 ----------
     def _render(self, p):
+        self._set_body_card(True)
         self.body.clear_widgets()
 
         head = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(12))
-        head.add_widget(lab(p["name"], 26, C_INK, height=44))
+        head.add_widget(lab(p["name"], 24, C_INK, bold=True, height=44, serif=True))
         rank_txt = ("榜上第 %s 名" % p["rank"]) if p.get("rank") else "未上榜"
         head.add_widget(Chip(rank_txt, width=dp(120)))
         self.body.add_widget(head)
