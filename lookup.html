@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="description" content="放置江湖 玩家查询：输入游戏内 UID，由 GitHub Actions 实时拉取该角色的等级、门派、武学与装备。" />
+<meta name="description" content="放置江湖 玩家查询：输入游戏昵称或 UID，由 GitHub Actions 实时拉取该角色的等级、门派、福缘、武学与装备。" />
 <meta name="theme-color" content="#8c2f28" />
 <meta name="robots" content="noindex, nofollow" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content="玩家查询 · 放置江湖高手榜" />
-<meta property="og:description" content="输入 UID 实时查询角色档案，由 GitHub Actions 执行。" />
+<meta property="og:description" content="输入昵称或 UID 实时查询角色档案，由 GitHub Actions 执行。" />
 <meta property="og:url" content="https://fzpaihang.github.io/lanlandeku/lookup.html" />
 <meta property="og:site_name" content="放置江湖 · 高手榜" />
 <meta name="twitter:card" content="summary" />
 <link rel="canonical" href="https://fzpaihang.github.io/lanlandeku/lookup.html" />
 <title>玩家查询 · 放置江湖高手榜</title>
-<link rel="stylesheet" href="./assets/style.css?v=7d5bb0ae" />
+<link rel="stylesheet" href="./assets/style.css?v=9d2253a9" />
 </head>
 <body>
 
@@ -26,11 +26,11 @@
       <span class="seal">查<br>询</span>
       <div class="brand-txt">
         <h1>玩家查询</h1>
-        <p class="sub">放置江湖 · 输入 UID 查实时档案</p>
+        <p class="sub">放置江湖 · 昵称或 UID 查实时档案</p>
       </div>
     </div>
     <div class="meta">
-      <span id="state" class="pill">GitHub 驱动</span>
+      <span id="state" class="pill ghost">GitHub 驱动</span>
       <a class="navbtn" href="./index.html">高手榜 ›</a>
     </div>
   </div>
@@ -45,30 +45,35 @@
     <b>需要 GitHub 账号</b>（GitHub 不接受匿名提交）。
   </p>
 
-  <section class="lk" aria-label="按 UID 查询">
+  <section class="lk" aria-label="按昵称或 UID 查询">
     <div class="lk-row">
       <div class="lk-field">
-        <input id="uid" class="lk-input" type="text" maxlength="12" inputmode="numeric"
-               placeholder="输入 UID，例如 7257325" aria-label="游戏内 UID"
-               autocomplete="off" enterkeyhint="go" />
+        <input id="q" class="lk-input" type="text" maxlength="20"
+               placeholder="输入昵称或 UID" aria-label="游戏昵称或 UID"
+               autocomplete="off" enterkeyhint="search"
+               role="combobox" aria-autocomplete="list"
+               aria-controls="suggest" aria-expanded="false" />
+        <div id="suggest" class="lk-suggest" role="listbox" aria-label="昵称候选" hidden></div>
       </div>
       <button id="go" class="lk-btn" type="button">提交查询</button>
     </div>
-    <p class="lk-hint">UID 是游戏个人信息页里的角色 ID（5–12 位纯数字），榜外玩家也能查。</p>
-    <p class="lk-hint">流程：填 UID → 点「提交查询」→ 在打开的 GitHub 页面点 <b>Submit new issue</b> → 等 30–90 秒，结果会作为评论出现。</p>
+
+    <p class="lk-hint">UID 是游戏个人信息页里的角色 ID（5–12 位数字），<b>榜外玩家只能用 UID 查</b>。</p>
+    <p class="lk-hint">昵称从已收录的档案里匹配（排行榜 + 历史查询），选中后会自动带上分区，命中率更高。</p>
+    <div class="lk-hint" id="mode"></div>
   </section>
 
-  <div id="tips" class="lk-empty">
+  <div id="tips" class="lk-empty" hidden>
     <p>最近提交</p>
     <div id="recent" class="lk-recent"></div>
   </div>
 
   <p class="foot">
     每次查询会新建一条<b>公开 Issue</b>（包含 UID 和查询结果），介意的话请不要提交。<br />
-    数据由游戏接口实时拉取，和排行榜的快照可能有出入。
+    查询成功后，该角色的 <b>UID 与昵称</b>会被自动收录进昵称索引，之后就能直接用昵称搜到。
   </p>
 </main>
 
-<script src="./assets/lookup.js?v=9353dfe5"></script>
+<script src="./assets/lookup.js?v=30dbdfab"></script>
 </body>
 </html>
