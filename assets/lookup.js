@@ -345,24 +345,14 @@
     return String(Math.round(n));
   }
 
-  function renderMeta(m, issueNo) {
-    if (!el.out) return;
-    el.out.hidden = false;
-    el.who.textContent = m.n || ('UID ' + m.uid);
-
-    var sub = [];
-    if (m.sn) sub.push(m.sn);
-    sub.push('UID ' + m.uid);
-    if (m.r) sub.push('第 ' + m.r + ' 名');
-    el.sub.textContent = sub.join(' · ');
-
+  function summaryGrid(m) {
     var grid = document.createElement('div');
     grid.className = 'pf-grid';
-    [['等级', m.lv], ['门派', m.m], ['经验', fmtBig(m.exp)], ['福缘', m.fy],
-     ['武学造诣', m.k != null ? Number(m.k).toFixed(2) : null],
-     ['传承', m.ic != null ? m.ic + ' 次' : null],
-     ['武学', m.sk != null ? m.sk + ' 门' : null],
-     ['装备', m.eq != null ? m.eq + ' 件' : null]].forEach(function (kv) {
+    [['等级', m.lv], ['门派', m.m || m.menpai], ['经验', fmtBig(m.exp)], ['福缘', m.fy != null ? m.fy : m.fuyuan],
+     ['武学造诣', m.k != null ? Number(m.k).toFixed(2) : (m.kongfu != null ? Number(m.kongfu).toFixed(2) : null)],
+     ['传承', (m.ic != null ? m.ic : m.inheritCount) != null ? (m.ic != null ? m.ic : m.inheritCount) + ' 次' : null],
+     ['武学', m.sk != null ? m.sk + ' 门' : (m.skills ? m.skills.length + ' 门' : null)],
+     ['装备', m.eq != null ? m.eq + ' 件' : (m.equips ? m.equips.length + ' 件' : null)]].forEach(function (kv) {
       var cell = document.createElement('dl');   // dt/dd 必须放在 dl 里才合法
       cell.className = 'pf-cell';
       var dt = document.createElement('dt');
@@ -373,14 +363,43 @@
       cell.appendChild(dd);
       grid.appendChild(cell);
     });
+    return grid;
+  }
 
-    if (el.body) { el.body.textContent = ''; el.body.appendChild(grid); }
+  function renderMeta(m, issueNo) {
+    if (!el.out) return;
+    var isFull = Array.isArray(m.skills);
+    el.out.hidden = false;
+    el.who.textContent = m.name || m.n || ('UID ' + m.uid);
+
+    var sub = [];
+    if (m.serverName || m.sn) sub.push(m.serverName || m.sn);
+    sub.push('UID ' + m.uid);
+    if (m.rank || m.r) sub.push('第 ' + (m.rank || m.r) + ' 名');
+    el.sub.textContent = sub.join(' · ');
+
+    if (el.body) {
+      el.body.textContent = '';
+      if (isFull && window.FZJH && typeof window.FZJH.renderProfile === 'function') {
+        window.FZJH.renderProfile(el.body, m);      // 完整档案：与高手榜弹窗同一套渲染
+      } else {
+        el.body.appendChild(summaryGrid(m));        // 旧评论只有摘要时兜底
+      }
+    }
 
     var bits = [];
-    if (m.at) bits.push('数据时间 ' + m.at);
+    if (m.fetchedAt || m.at) bits.push('数据时间 ' + (m.fetchedAt || m.at));
     if (m.ms) bits.push('耗时 ' + (m.ms / 1000).toFixed(1) + ' 秒');
-    bits.push('完整档案见 Issue #' + issueNo);
-    el.meta.textContent = bits.join(' · ');
+
+    el.meta.textContent = '';
+    if (bits.length) el.meta.appendChild(document.createTextNode(bits.join(' · ') + ' · '));
+    var a = document.createElement('a');
+    a.href = 'https://github.com/' + REPO + '/issues/' + issueNo;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.textContent = '在 GitHub 查看 Issue #' + issueNo + ' ›';
+    a.style.color = 'var(--accent)';
+    el.meta.appendChild(a);
   }
 
   function choose(p) {
