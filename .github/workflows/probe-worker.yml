@@ -1,0 +1,42 @@
+name: 探测 Worker 出口
+
+# 临时用途：从 GitHub 的机房访问 Cloudflare Worker，验证边缘出口能否连上游戏服。
+# 结果写回 worker/probe-result.txt，测完即删。
+on:
+  push:
+    paths:
+      - '.github/workflows/probe-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 调用 Worker
+        run: |
+          set +e
+          URL="https://fzjh-lookup.mire-sight.workers.dev/api/query"
+          {
+            echo "time: $(date -u '+%Y-%m-%d %H:%M:%S') UTC"
+            echo "== diag =="
+            curl -s -m 40 "$URL?diag=1"
+            echo ""
+            echo "== query =="
+            curl -s -m 70 "$URL?uid=21079748850&server=taptap_3"
+            echo ""
+          } > worker/probe-result.txt
+          cat worker/probe-result.txt
+
+      - name: 回传结果
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add worker/probe-result.txt
+          git commit -m "worker probe result" || exit 0
+          git push

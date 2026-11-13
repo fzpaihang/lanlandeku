@@ -1,0 +1,10 @@
+name = "fzjh-lookup"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[vars]
+FZJH_ORIGIN = "https://fzpaihang.github.io,http://localhost:8000,http://127.0.0.1:8000"
