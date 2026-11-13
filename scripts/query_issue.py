@@ -30,11 +30,11 @@ L.CACHE_PATH = "/tmp/fzjh_issue_cache.json"
 TITLE_RE = re.compile(r"^\[QUERY\]\s*(\d{5,12})(?:\s*@\s*([A-Za-z0-9_]+))?", re.I)
 
 # ---------------------------------------------------------------- 加速
-# 原实现每次重试都重新握手，且单次请求最长等 25 秒——Actions 机房 IP 被限流时
-# 一次查询能拖到 40 秒以上。这里改成：复用会话 + 每次请求硬超时 + 短退避。
-ATTEMPT_TIMEOUT = 8.0     # 单次尝试（握手+查询）硬超时
+# 原实现每次重试都重新握手。这里改成复用会话（省一次握手），
+# 但**超时必须给足**：游戏服务器对机房 IP 响应很慢，单次请求常要 10–20 秒。
+ATTEMPT_TIMEOUT = 25.0    # 单次尝试（握手+查询）硬超时
 ATTEMPT_MAX = 3
-DEADLINE = 32.0           # 查询阶段总预算
+DEADLINE = 75.0           # 查询阶段总预算
 
 _KEYS = {}
 KEYS_TTL = 180
@@ -87,7 +87,7 @@ def _fast_try_one(srv, uid, hotver):
 
 
 def _fast_single(uid, srv, cache, hotver, note):
-    """重试策略：最多 3 次，退避 0.8/1.5 秒，总时长不超过 DEADLINE。"""
+    """重试策略：最多 3 次，退避 1.2/2.4 秒，总时长不超过 DEADLINE。"""
     t0 = time.time()
     for attempt in range(ATTEMPT_MAX):
         data, ec = L.try_one(srv, uid, hotver)
@@ -99,7 +99,7 @@ def _fast_single(uid, srv, cache, hotver, note):
             break
         cache["_limited"] = ec
         if attempt < ATTEMPT_MAX - 1 and time.time() - t0 < DEADLINE:
-            time.sleep(0.8 + attempt * 0.7)
+            time.sleep(1.2 * (attempt + 1))
     return None
 
 
@@ -242,10 +242,11 @@ def main():
         return 0
 
     prof, err = None, cfg_err
+    cache = {}
     if not err:
         try:
             cfg = {"servers": servers, "hotver": int(os.environ.get("FZJH_HOTVER") or 18464)}
-            prof = L.lookup(uid, server=server, cfg=cfg, cache={})
+            prof = L.lookup(uid, server=server, cfg=cfg, cache=cache)
         except Exception as e:
             err = "%s: %s" % (type(e).__name__, e)
 
@@ -257,6 +258,13 @@ def main():
         body = build_markdown(prof, elapsed, arch)
     elif err:
         body = "## 查询失败\n\n```\n%s\n```\n\n---\nGitHub Actions 执行异常，稍后重试或检查 Secrets。" % err
+    elif cache.get("_limited"):
+        body = (
+            "## 接口繁忙\n\n"
+            "游戏接口正在限流（errcode `%s`），这次没能拿到数据。\n\n"
+            "**等 30 秒后重新提交一次**即可，不是 UID 或分区的问题。\n\n"
+            "---\nGitHub Actions 实时查询" % cache.get("_limited")
+        )
     else:
         body = (
             "## 没查到\n\n"
