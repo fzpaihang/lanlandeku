@@ -206,14 +206,14 @@
     return false;
   }
 
-  function openIssue(uid, server) {
+  function openIssue(uid, server, name) {
     if (!server) {
       setState('请选分区', 'warn');
       notice('提交前请先选择角色所在的分区——自动匹配已停用，选错会查不到。');
       return;
     }
     if (el.mode) el.mode.textContent = '';
-    pushRecent(uid, '', server);
+    pushRecent(uid, name || '', server);
     setState('等待提交', 'warn');
 
     var url = issueUrl(uid, server);
@@ -221,8 +221,6 @@
     var w = null;
     try { w = window.open(url, '_blank'); } catch (e) { w = null; }
     if (w) { try { w.opener = null; } catch (e) { } }
-
-    notice('已打开 GitHub 页面：点右下角绿色「Create」按钮提交，约 30–90 秒后结果会出现在评论里。');
 
     // 无论有没有弹出成功，都留一个可点的入口，避免被拦截时卡住
     if (el.mode) {
@@ -242,7 +240,7 @@
       at: Date.now(),
       issue: 0
     });
-    startPolling();
+    startPolling('已打开 GitHub 页面：点右下角绿色「Create」提交，本页会自动显示结果（约 45–60 秒），不用去评论区。');
   }
 
   /* ---------- 自动回显：轮询公开 Issue 取结果 ---------- */
@@ -270,11 +268,11 @@
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   }
 
-  function startPolling() {
+  function startPolling(msg) {
     stopPolling();
     pollLeft = POLL_MAX;
     setState('等待结果', 'warn');
-    notice('正在等待结果…（在 GitHub 点「Create」后约 45–60 秒，本页会自动显示，不用去评论区）');
+    notice(msg || '正在等待结果…（约 45–60 秒，本页会自动显示，不用去评论区）');
     tick();
     pollTimer = setInterval(tick, POLL_MS);
   }
@@ -357,7 +355,7 @@
      ['传承', m.ic != null ? m.ic + ' 次' : null],
      ['武学', m.sk != null ? m.sk + ' 门' : null],
      ['装备', m.eq != null ? m.eq + ' 件' : null]].forEach(function (kv) {
-      var cell = document.createElement('div');
+      var cell = document.createElement('dl');   // dt/dd 必须放在 dl 里才合法
       cell.className = 'pf-cell';
       var dt = document.createElement('dt');
       dt.textContent = kv[0];
@@ -382,7 +380,7 @@
     hideSuggest();
     // 昵称命中时用索引里的分区，选不到就沿用当前下拉
     var sv = (p.s && setServer(p.s)) ? p.s : currentServer();
-    openIssue(p.u, sv);
+    openIssue(p.u, sv, p.n);
   }
 
   function submit() {
