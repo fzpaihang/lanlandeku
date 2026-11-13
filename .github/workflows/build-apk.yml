@@ -81,6 +81,25 @@ jobs:
           print('已注入 %d 个分区: %s' % (len(keys), ', '.join(keys)))
           PY
 
+      - name: 注入昵称回写凭据
+        # 查询成功后把 uid→昵称 写回仓库。没配 Secret 也能正常工作，
+        # 只是退化成「只记本地、不同步」——不会影响查询。
+        working-directory: apk
+        env:
+          WRITE_TOKEN: ${{ secrets.GH_TOKEN_APK }}
+        run: |
+          if [ -z "$WRITE_TOKEN" ]; then
+            echo "未配置 GH_TOKEN_APK，APK 将只做本地记账（不写仓库）"
+            exit 0
+          fi
+          printf '{"token":"%s","repo":"%s"}' "$WRITE_TOKEN" "${{ github.repository }}" > gh.json
+          python - <<'PY'
+          import json, io
+          d = json.load(io.open('gh.json', encoding='utf-8'))
+          t = d.get('token') or ''
+          print('已注入回写凭据：repo=%s token=%s***' % (d.get('repo'), t[:8]))
+          PY
+
       - name: 打包 APK
         working-directory: apk
         run: |
