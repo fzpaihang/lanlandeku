@@ -38,6 +38,7 @@ python scripts/pack_update.py "这次改了什么"   # 2. 打包热更（版本�
 | `skill_groups.py` | 138 | 武学分组逻辑（多对多 + 关键词兜底） | ✓ |
 | `skill_class.py` | 785 | **自动生成**的武学位置表（774 条 `id → "内功,拳脚,招架"`） | ✓ |
 | `names.json` | 64 KB | 武学 / 门派 / 槽位 id→中文名 | ✗（改它必须重装） |
+| `fonts/NotoSansSC-Regular.ttf` | 7.1 MB | **自动生成**的中文字体子集（21637 字），见 §5.3 | ✗（改它必须重装） |
 | `buildozer.spec` | 44 | 打包配置（包名、权限、架构、依赖） | ✗ |
 | `icon.png` | 3.8 KB | 图标 | ✗ |
 | `config.json` | — | 分区 uuid/账号，**gitignore，绝不提交** | ✗（Secret 注入） |
@@ -48,8 +49,9 @@ python scripts/pack_update.py "这次改了什么"   # 2. 打包热更（版本�
 
 关键约束：
 
-- **热更只替换 `.py`**。`names.json`、`config.json`、`icon.png`、`buildozer.spec`、新增第三方依赖，都不在热更包里 → 必须重打 APK。
-- `buildozer.spec` 的 `source.include_exts = py,json,png,jpg,kv,atlas`，`.gz` 不打包，所以 `data/skill.json.gz` 只在本地生成时用。
+- **热更只替换 `.py`**。`names.json`、`fonts/*.ttf`、`config.json`、`icon.png`、`buildozer.spec`、新增第三方依赖，都不在热更包里 → 必须重打 APK。
+- `buildozer.spec` 的 `source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf`；`.gz` 不打包，所以 `data/skill.json.gz` 只在本地生成时用。
+- **字体必须重装才生效**：热更包带不了 `.ttf`。发 v26 时热更先上线，老 APK 会自动回退系统字体（`_local_font()` 返回空），新 APK 才用到打包字体。
 - 缓存和用户数据写在 `ANDROID_PRIVATE`（`/data/data/com.fzjh.fzjhlookup/files/`），**不放 `live/`**，否则每次热更 `/data` 里的分区记忆和最近查询都会被清掉。
 
 ### 1.1 本地目录约定
@@ -71,7 +73,7 @@ python scripts/pack_update.py "这次改了什么"   # 2. 打包热更（版本�
 |---|---|---|
 | `app_ui.py` / `lookup_core.py` / `webview_overlay.py` 等 .py | **热更**（§3） | 退出重开 |
 | 新增一个 `.py` 模块 | 热更，但**必须加进 `pack_update.py` 的 FILES** | 退出重开 |
-| `names.json` / `icon.png` / `buildozer.spec` / 新依赖 | **重打 APK**（§4） | 下载重装 |
+| `names.json` / `fonts/*.ttf` / `icon.png` / `buildozer.spec` / 新依赖 | **重打 APK**（§4） | 下载重装 |
 | 武学位置表（`skill_class.py`） | 重新生成后热更（§5.1） | 退出重开 |
 | 服务端数据（榜单、昵称索引、隐私名单） | 不碰 APK，改仓库数据即可（§5.2） | 无感 |
 
@@ -279,6 +281,32 @@ python scripts/pack_update.py "更新武学位置表"
 
 改完推 `main` 即可，用户下次打开就吃到新数据。隐私名单要重新跑一次 `build_lookup_index.py` 才会进索引。
 
+### 5.3 中文字体子集（`fonts/NotoSansSC-Regular.ttf`）
+
+**为什么必须打包**：App 原来按路径探测系统字体，三条候选都不靠谱 ——
+`NotoSansCJKsc-Regular.ttf` 只有部分 ROM 有、`DroidSansFallback.ttf` 在 Android 9 后已移除、
+`NotoSansCJK-Regular.ttc` 的 face 0 是**日文字形**（简体「门」都没有）。三条全落空时退回
+`Roboto`（不含中文）→ 全屏豆腐块。而 MuMu 是 AOSP，一定有第一个文件，**这个故障在模拟器上永远复现不出来**。
+
+生成（源文件用 Windows 自带的 `NotoSansSC-VF.ttf`，OFL 1.1 可随 APK 分发）：
+
+```bash
+cd /e/workbuddy2/fzjh-rank
+python scripts/build_font_subset.py            # 默认 C:/Windows/Fonts/NotoSansSC-VF.ttf
+python scripts/build_font_subset.py --src "D:/xxx/NotoSansSC-VF.ttf"
+```
+
+脚本做三件事：`instancer` 固定 `wght=400` → 子集化 21637 字 → 输出单体 ttf（7.1 MB）。
+字符集 = CJK 基本区全量（20992）+ ASCII + Latin-1 + CJK 标点 + 全角 + **几何符号 U+25A0–U+25FF**。
+
+> 踩过的坑：折叠箭头 `▶` 就在几何符号区，第一版字符集漏了它，武学分组全变豆腐块（☒）。
+> Kivy 不做字体回退，缺一个字就是豆腐块，所以字符集宁大勿小。
+
+`_local_font()` 的查找顺序：`__file__` 目录（热更时是 `live/`）→ `ANDROID_APP_PATH` → `sys.path`。
+所以调试时把字体推到 `files/live/fonts/` 就能生效，不必重打 APK。
+
+改完字体要**重打 APK**（§4），热更包带不了 `.ttf`。
+
 ---
 
 ## 6. 模拟器调试环境（MuMu）
@@ -368,6 +396,8 @@ printf '99' > E:/workbuddy2/_agent_tmp/v99.txt
 | WebView 抢走输入法焦点 | 关掉网页后 Kivy 输入框「像被禁用」，软键盘弹出来字却进了看不见的网页 | 关闭时 `hideSoftInputFromWindow` + `clearFocus` + `removeView` + `destroy()`；打开网页前先让 App 输入框失焦 |
 | Kivy 默认不弹虚拟键盘 | 日志 `virtual keyboard not allowed`，点输入框没键盘 | `Config.set("kivy", "keyboard_mode", "system")`（启动最早期设置） |
 | 已聚焦的输入框再点不重申请键盘 | 关网页后再也调不回输入法 | `RoundInput.on_touch_down` 里 `rekeyboard()` + 补一次 `SDL_StartTextInput()` |
+| 依赖系统字体路径 | 厂商 ROM 可能一个都没有 → 退回 Roboto → 全屏豆腐块；MuMu 是 AOSP 测不出来 | 字体打包进 APK（§5.3），系统字体只做兜底 |
+| 子集漏字符 | Kivy 无字体回退，缺一个字符就是豆腐块（折叠箭头 ▶ 曾整片变 ☒） | 字符集按区段整段收（几何符号 U+25A0–U+25FF 等），别只挑几个 |
 | 拼音 id 参与英文关键词匹配 | `jibenqinfa` 含 `qi` → 被误判成内功 | 只对含大写的驼峰 id 做英文匹配 |
 | 新模块忘了进 `FILES` | 热更包里没这个文件，功能静默降级 | 改 `scripts/pack_update.py` 的 `FILES` |
 | 起名带 `dp(78)` 当纯数字 | 按钮宽度翻倍 | 见第一条 |

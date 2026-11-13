@@ -223,3 +223,45 @@ bash _agent_tmp/vp.sh reset  # 回到 MuMu 默认 600dp
 5. 若要「保存」真实可用，应改成导出到公共「下载」目录或走系统分享（需要 `jnius` 调 Intent，热更风险较高）。
 
 
+
+## 七、v26：顶栏不再固定 + 中文字体打包
+
+### 7.1 顶栏随页面滚动
+
+原来 `AppBar` 挂在 `root` 上（固定），滚动时内容从顶栏下面穿过去，印章像一张贴在窗口上的贴纸，
+和页面完全脱开。现在改成：
+
+```
+root ── sv(ScrollView) ── inner(BoxLayout)
+                             ├── appbar
+                             └── body
+        └── foot（固定底栏，保留）
+```
+
+`inner` 用 `size_hint_y=None` + `minimum_height` 撑高，顶栏就成了"页面自己的头部"，
+往下滚会一起滚走。代价是结果页滚到中段时返回箭头不可见，靠系统返回键（`_on_key` 已处理）。
+
+### 7.2 字体打包进 APK
+
+判定：**不再赌系统字体**。原因见 `docs/APK修改操作手册.md` §5.3 ——
+三条系统路径都不保证存在，全落空会退回不含中文的 Roboto，而 MuMu 是 AOSP 永远测不出来。
+
+- 生成脚本 `scripts/build_font_subset.py`：`NotoSansSC-VF.ttf` → 固定 wght=400 → 子集 21637 字 → 7.1 MB
+- 字符集：CJK 基本区全量 + ASCII + Latin-1 + CJK 标点 + 全角 + 几何符号整段
+- 探测顺序：`_local_font()`（打包子集）→ 系统指定路径 → 厂商字体（MiSans/HarmonyOS/OPPO/vivo）
+  → `NotoSansCJK-Regular.ttc` → 扫 `/system/fonts`
+- 老 APK 上 `_local_font()` 返回空 → 自动回退系统字体，热更不会把老用户搞成豆腐块
+- `buildozer.spec` 的 `source.include_exts` 加 `ttf,otf`
+- 启动日志：`[font] FONT=CN(打包子集) SERIF=CN SEAL=CNSeal`
+
+**坑**：第一版字符集只挑了 `▲▼■□`，漏了折叠箭头 `▶`（U+25B6），武学分组全变 ☒。
+Kivy 没有字体回退，所以改成按区段整段收（U+25A0–U+25FF）。
+
+### 7.3 仍然存在的两件事
+
+1. **标题的宋体**：`SERIF` 候选（`NotoSerifSC-*.otf`）在真机几乎不存在，实际是黑体。
+   要做真宋体得再打包一个衬线子集（约 +5 MB）。
+2. **「保存」功能**：原实现是把档案 JSON 写到 `App.user_data_dir`
+   （安卓 `/data/user/0/com.fzjh.fzjhlookup/files/昵称_uid.json`），普通用户看不到，
+   App 也没有读回入口，等于写了个隐藏文件。v25 已移除按钮；若要恢复，应改成导出到
+   公共「下载」目录或系统分享，需要 `jnius` 调 `Intent`/`MediaStore`。
