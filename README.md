@@ -241,11 +241,15 @@ python scripts\serve_api.py 8788                 # 静态站 + /api/query 直连
 
 ## 安卓 App（可选）
 
-`apk/` 是一个「输入 UID 查玩家档案」的小工具，Kivy 写的，和网页共用同一套协议代码。
+`apk/` 是安卓端「按昵称 / UID 查玩家档案」的小工具，Kivy 写的，和网页共用同一套协议代码。查询直连游戏接口，出口是用户自己的网络，不受机房 IP 风控影响。
 
-- 启动器 `main.py` 冷启动时检查 `apk/update/version.json`，版本更高就下 `code.zip` 解压到私有目录 `live/` 并运行；失败静默回退内置代码（p4a 的 Python 不带系统根证书，所以用了不校验证书的 HTTPS，只做 md5 + 语法校验）
-- 改 UI / 逻辑只需推一个约 25 KB 的热更包（本地脚本 `pack_update.py`），不用重新装 APK
-- `build-apk.yml` 只在 `apk/**` 或自身改动时触发，构建产物在 Actions 的 artifact 里
+- **昵称搜索**：启动时后台拉 `data/lookup-index.json`（五区榜单 + 苍松 5 转普查，约 8000 人），本地缓存 6 小时，断网降级为纯 UID 模式
+- **结果回写**：查询成功后先写本地 `pending_names.jsonl`，再由后台线程同步进 `data/extra-names.json`；`409` 冲突自动重读重试。凭据由 `GH_TOKEN_APK` 在打包时注入 `apk/gh.json`，不进热更包
+- **隐私名单**：`data/hidden.json` 里的 uid 在榜单生成、昵称索引、网页查询、APK 查询四处同时拦截；APK 内置一份 uid 兜底，索引没下载成功也拦得住
+- **内嵌高手榜**：点右上角「高手榜 ›」用原生 WebView 在 App 内打开 `index.html`，顶栏「关闭」或返回键退出；WebView 创建失败自动回退系统浏览器
+- **联网热更**：启动器 `main.py` 冷启动比对 `apk/update/version.json`，版本更高就下 `code.zip` 解压到私有目录 `live/`；失败静默回退内置代码（p4a 的 Python 不带系统根证书，所以用了不校验证书的 HTTPS，只做 md5 + 语法校验）
+- 改 UI / 逻辑只需推一个约 39 KB 的热更包（本地脚本 `scripts/pack_update.py`），不用重新装 APK
+- 安装包在仓库 Release `apk-v1.0`；`build-apk.yml` 只在 `apk/**` 或自身改动时触发，产物在 Actions 的 artifact 里
 
 ## 几个坑
 
