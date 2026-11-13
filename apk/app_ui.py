@@ -86,10 +86,10 @@ C_SOFT = (0.945, 0.937, 0.910, 1)        # #F1EFE8
 C_ACCENT_SOFT = (0.953, 0.906, 0.894, 1)  # #F3E7E4，与网页 --accent-soft 一致
 C_INK = (0.122, 0.137, 0.157, 1)         # #1F2328
 C_INK2 = (0.290, 0.322, 0.376, 1)        # #4A5260
-C_MUTED = (0.541, 0.569, 0.612, 1)       # #8A919C
+C_MUTED = (0.376, 0.408, 0.459, 1)       # #606870 加深：原先 #8A919C 在手机上发灰发虚
 C_ACCENT = (0.549, 0.184, 0.157, 1)      # #8C2F28
 C_ACCENT_DK = (0.478, 0.153, 0.122, 1)   # #7A271F 按钮按下
-C_LINE = (0.906, 0.890, 0.855, 1)        # #E7E3DA
+C_LINE = (0.867, 0.847, 0.808, 1)        # #DDD8CE 边框略加深，边界更清楚
 C_LINE2 = (0.941, 0.925, 0.890, 1)       # #F0ECE3
 
 
@@ -140,6 +140,10 @@ def lab(text, size=13, color=C_INK, bold=False, height=None, halign="left",
 
 
 WEB_BASE = "https://fzpaihang.github.io/lanlandeku/"
+
+# 隐私名单兜底（与 data/hidden.json 同步）。昵称索引下载失败 / 用旧缓存时，
+# 这一份仍然生效，保证任何情况下都不会对这些 uid 发起查询。
+HIDDEN_UIDS = set(("4047491326", "4168426", "6622657", "21079748748"))
 
 
 def open_url(url):
@@ -224,7 +228,7 @@ class Seal(BoxLayout):
             Color(*C_ACCENT)
             self._bg = RoundedRectangle(radius=[dp(radius)], pos=self.pos, size=self.size)
         self.bind(pos=self._sync, size=self._sync)
-        self.add_widget(lab(text, 12, (1, 1, 1, 1), bold=True, height=side,
+        self.add_widget(lab(text, 14, (1, 1, 1, 1), bold=True, height=side,
                             halign="center", serif=True))
 
     def _sync(self, *a):
@@ -345,7 +349,7 @@ class Chip(BoxLayout):
             Color(*C_ACCENT_SOFT)
             self._bg = RoundedRectangle(radius=[dp(15)], pos=self.pos, size=self.size)
         self.bind(pos=self._sync, size=self._sync)
-        self.label = lab(text, 12, C_ACCENT, bold=True, height=30, halign="center")
+        self.label = lab(text, 13.5, C_ACCENT, bold=True, height=30, halign="center")
         self.add_widget(self.label)
 
     def _sync(self, *a):
@@ -385,11 +389,41 @@ class Pill(BoxLayout):
 
 
 class CnSpinnerOption(SpinnerOption):
+    """分区下拉选项：白底深字 + 细分隔线。
+
+    Kivy 默认的 SpinnerOption 用半透明灰色 button atlas，叠在页面上又灰又糊，
+    这里全部改成实色，字也加大加粗，点按时变强调色。
+    """
+
     def __init__(self, **kw):
         kw.setdefault("font_name", FONT)
-        kw.setdefault("font_size", sp(14))
+        kw.setdefault("font_size", sp(16))
         kw.setdefault("color", C_INK)
+        kw.setdefault("bold", True)
+        kw.setdefault("size_hint_y", None)
+        kw.setdefault("height", dp(56))
+        kw.setdefault("background_color", C_CARD)
+        kw.setdefault("background_normal", "")
+        kw.setdefault("background_down", "")
         super(CnSpinnerOption, self).__init__(**kw)
+        # 再强制一次：某些 Kivy 版本会在构造后套用默认主题
+        self.background_normal = ""
+        self.background_down = ""
+        self.background_color = C_CARD
+        from kivy.graphics import Color, Line
+        with self.canvas.after:
+            Color(*C_LINE)
+            self._sep = Line(width=1)
+        self.bind(pos=self._sync_sep, size=self._sync_sep, state=self._on_state)
+        self._sync_sep()
+
+    def _sync_sep(self, *a):
+        if getattr(self, "_sep", None) is not None:
+            self._sep.points = [self.x + dp(12), self.y,
+                                self.right - dp(12), self.y]
+
+    def _on_state(self, _inst, st):
+        self.color = C_ACCENT if st == "down" else C_INK
 
 
 class PlayerLookup(App):
@@ -455,17 +489,17 @@ class PlayerLookup(App):
 
     def _build_query_widgets(self):
         # 顶部：印章 + 标题 + 副标题（对应网页 .hero 里的 .brand）
-        head = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(48),
+        head = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(54),
                          spacing=dp(13))
-        head.add_widget(Seal("查\n询", 44))
-        title_col = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(48),
+        head.add_widget(Seal("查\n询", 48))
+        title_col = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(54),
                               spacing=dp(0))
-        t = lab("玩家查询", 22, C_INK, bold=True, height=30, serif=True)
+        t = lab("玩家查询", 24, C_INK, bold=True, height=34, serif=True)
         title_col.add_widget(t)
-        title_col.add_widget(lab("放置江湖 · 昵称或 UID 查实时档案", 11.5, C_MUTED, height=18))
+        title_col.add_widget(lab("放置江湖 · 昵称或 UID 查实时档案", 13, C_INK2, height=22))
         head.add_widget(title_col)
 
-        self.web_btn = txt_button("高手榜 ›", C_ACCENT, width=78, height=48, size=12.5)
+        self.web_btn = txt_button("高手榜 ›", C_ACCENT, width=82, height=54, size=14)
         self.web_btn.bind(on_release=lambda *a: self._open_web())
         head.add_widget(self.web_btn)
 
@@ -476,10 +510,10 @@ class PlayerLookup(App):
         form.bind(minimum_height=form.setter("height"))
 
         self.inp = RoundInput(
-            text="", hint_text="输入昵称或 UID", font_name=FONT, font_size=sp(16),
+            text="", hint_text="输入昵称或 UID", font_name=FONT, font_size=sp(17),
             multiline=False, input_type="text",
-            size_hint_y=None, height=dp(48),
-            foreground_color=C_INK, hint_text_color=C_MUTED, cursor_color=C_ACCENT,
+            size_hint_y=None, height=dp(52),
+            foreground_color=C_INK, hint_text_color=C_INK2, cursor_color=C_ACCENT,
         )
         self.inp.bind(on_text_validate=lambda *a: self.start())
         self.inp.bind(text=self._on_query_text)
@@ -487,7 +521,7 @@ class PlayerLookup(App):
 
         # 昵称候选提示行：默认折叠，有结果才展开（网页里是下拉列表，这里用弹层）
         self.sug = Button(
-            text="", font_name=FONT, font_size=sp(13), halign="left", valign="middle",
+            text="", font_name=FONT, font_size=sp(14.5), halign="left", valign="middle",
             size_hint_y=None, height=dp(0), opacity=0,
             background_color=(0, 0, 0, 0), background_normal="", color=C_ACCENT,
         )
@@ -496,33 +530,33 @@ class PlayerLookup(App):
         form.add_widget(self.sug)
 
         self.btn = PrimaryButton(
-            text="查询玩家", font_name=FONT, font_size=sp(15), bold=True,
-            size_hint_y=None, height=dp(48),
+            text="查询玩家", font_name=FONT, font_size=sp(16.5), bold=True,
+            size_hint_y=None, height=dp(52),
         )
         self.btn.bind(on_release=lambda *a: self.start())
         form.add_widget(self.btn)
 
-        row_srv = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(48),
+        row_srv = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(52),
                             spacing=dp(10))
-        pre = lab("分区", 13, C_MUTED, height=48)
+        pre = lab("分区", 14.5, C_INK2, bold=True, height=52)
         pre.size_hint_x = None
-        pre.width = dp(38)
+        pre.width = dp(46)
         row_srv.add_widget(pre)
         self.spin = RoundSpinner(
             text=self._name_of(self._picked_key()) or names[0], values=names,
-            font_name=FONT, font_size=sp(14), color=C_INK, halign="left",
-            size_hint_y=None, height=dp(48), option_cls=CnSpinnerOption,
+            font_name=FONT, font_size=sp(16), color=C_INK, halign="left",
+            size_hint_y=None, height=dp(52), option_cls=CnSpinnerOption,
         )
         self.spin.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(30), None)))
         self.spin.bind(text=lambda inst, v: self._save_pick(v))
         row_srv.add_widget(self.spin)
         form.add_widget(row_srv)
 
-        self.q_status = lab("", 12, C_MUTED, height=0)
+        self.q_status = lab("", 13.5, C_INK2, height=0)
         form.add_widget(self.q_status)
 
         form.add_widget(lab("输入昵称命中时会自动切到该角色所在区；UID 为 5–12 位数字。",
-                            11.5, C_MUTED, height=18))
+                            13, C_INK2, height=24))
 
         self.query_widgets = [head, form]
 
@@ -693,7 +727,7 @@ class PlayerLookup(App):
         box = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(6))
         box.bind(minimum_height=box.setter("height"))
         row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
-        row.add_widget(lab("UID 是游戏内角色 ID，不是登录账号", 13, C_INK2, height=40))
+        row.add_widget(lab("UID 是游戏内角色 ID，不是登录账号", 14.5, C_INK2, height=40))
         q = lab("？", 14, C_ACCENT, bold=True, height=40, halign="center")
         q.size_hint_x = None
         q.width = dp(32)
@@ -701,11 +735,11 @@ class PlayerLookup(App):
         box.add_widget(row)
         if self.hint_open:
             box.add_widget(lab("默认只查选中的分区，速度快、不易被限流；分区选择会被记住。",
-                               12, C_INK2, height=34))
+                               13.5, C_INK2, height=38))
             box.add_widget(lab("不确定在哪个区时，用列表最后的「自动探测」逐区尝试。",
-                               12, C_INK2, height=34))
+                               13.5, C_INK2, height=38))
             box.add_widget(lab("关于 · 当前 %s · 数据来自游戏接口" % code_version(),
-                               12, C_MUTED, height=22))
+                               13, C_MUTED, height=26))
         box.add_widget(HLine())
         box.bind(on_touch_down=lambda inst, t: self._hint_touch(inst, t))
         return box
@@ -727,7 +761,7 @@ class PlayerLookup(App):
                            bold=True, height=28))
         if not has:
             box.add_widget(lab("下面是丹凤朝阳的示例角色，点一下自动填入",
-                               12, C_MUTED, height=22))
+                               13.5, C_INK2, height=26))
         for r in rows:
             b = txt_button("%s  ·  %s" % (r.get("uid"), r.get("name") or r.get("serverName") or ""),
                            color=C_INK2, height=48, size=13)
@@ -808,8 +842,8 @@ class PlayerLookup(App):
         for h in hits:
             tail = h["sn"] or h["s"]
             label = "%s  ·  %s%s" % (h["n"], tail, ("  lv%s" % h["lv"]) if h["lv"] else "")
-            b = Button(text=label, font_name=FONT, font_size=sp(14), halign="left",
-                       valign="middle", size_hint_y=None, height=dp(46),
+            b = Button(text=label, font_name=FONT, font_size=sp(16), halign="left",
+                       valign="middle", size_hint_y=None, height=dp(54),
                        background_color=C_SOFT, background_normal="", color=C_INK)
             b.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(20), None)))
             b.bind(on_release=lambda inst, x=h: self._pick(x))
@@ -817,7 +851,7 @@ class PlayerLookup(App):
 
         sv.add_widget(inner)
         box.add_widget(sv)
-        pop = Popup(title="选择角色", title_font=FONT, title_size=sp(15),
+        pop = Popup(title="选择角色", title_font=FONT, title_size=sp(17),
                     content=box, size_hint=(0.9, 0.62),
                     background_color=C_BG, separator_color=C_ACCENT)
         self._popup = pop
@@ -845,6 +879,7 @@ class PlayerLookup(App):
 
         # 非纯数字 → 当作昵称搜本地索引
         hits = NI.search(raw, 8) if NI else []
+        hits = [h for h in hits if not self._hidden(h["u"])]
         if not hits:
             if NI and NI.state() == "loading":
                 self.set_status("昵称索引还在加载，稍等一下，或直接输 UID", C_ACCENT)
@@ -860,7 +895,36 @@ class PlayerLookup(App):
         self._hits = hits
         self._show_candidates()
 
+    def _hidden(self, uid):
+        """隐私名单：内置兜底 ∪ 索引里的 hidden 字段。"""
+        k = str(uid or "").strip()
+        if k in HIDDEN_UIDS:
+            return True
+        try:
+            return bool(NI and NI.is_hidden(k))
+        except Exception:
+            return False
+
+    def _deny(self):
+        """名单内角色：不发请求，也不保留上一次的档案。"""
+        self.busy = False
+        self.btn.disabled = False
+        self.btn.text = "查询玩家"
+        self.prof = None
+        if self.mode != "query":
+            self.show_query()
+        self.set_status("该角色不支持查询", C_ACCENT)
+        self.body.clear_widgets()
+        self._set_body_card(True)
+        self.body.add_widget(lab("无法查询", 20, C_ACCENT, bold=True, height=34))
+        self.body.add_widget(lab("该角色已设置为不公开档案，无法查看详细信息。",
+                                 14, C_INK2, height=30))
+        self.body.add_widget(lab("请换一个 UID 或昵称再试。", 13.5, C_MUTED, height=26))
+
     def _begin(self, uid):
+        if self._hidden(uid):
+            self._deny()
+            return
         self.busy = True
         self.btn.disabled = True
         self.btn.text = "查询中…"
@@ -919,7 +983,7 @@ class PlayerLookup(App):
     def set_status(self, text, color=C_MUTED):
         self.q_status.text = text or ""
         self.q_status.color = color
-        self.q_status.height = dp(24) if text else dp(0)
+        self.q_status.height = dp(28) if text else dp(0)
 
     # ---------- 结果态 ----------
     def _render(self, p):
