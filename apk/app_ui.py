@@ -17,7 +17,8 @@ import traceback
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.text import LabelBase
-from kivy.metrics import dp, sp
+from kivy.metrics import Metrics, dp
+from kivy.metrics import sp as _sp_raw
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
@@ -47,6 +48,56 @@ try:
     import skill_groups as SG          # 武学分类表，缺失时退化成不分组
 except Exception:
     SG = None
+
+
+# ---------- 屏幕适配 ----------
+# 模拟器分辨率 900×1600 / 240dpi = 600dp 宽，真机通常只有 360~412dp。
+# 写死 dp 的尺寸在模拟器上宽松、到手机上就挤，所以这里统一按「逻辑宽度」分档。
+# 注意不能在此处 import Window：此时 Kivy 还没创建窗口，
+# 提前建窗会让 run() 里设置的软键盘配置失效。
+def vp_w():
+    """当前视口逻辑宽度（dp）。"""
+    try:
+        from kivy.core.window import Window
+        return float(Window.width) / max(float(Metrics.density), 0.01)
+    except Exception:
+        return 360.0
+
+
+def vp_h():
+    try:
+        from kivy.core.window import Window
+        return float(Window.height) / max(float(Metrics.density), 0.01)
+    except Exception:
+        return 640.0
+
+
+def sp(v):
+    """字体尺寸。
+
+    Kivy 的 sp 会乘系统字体缩放（真机常见 1.15~1.3）。本页所有行高都是固定
+    dp，完全跟随放大就会把文字顶出容器，所以把缩放限在 1.12 以内。
+    """
+    try:
+        f = max(1.0, min(float(Metrics.fontscale or 1.0), 1.12))
+    except Exception:
+        f = 1.0
+    return v * float(Metrics.density) * f
+
+
+def hp():
+    """内容区左右留白（dp）。
+
+    宽度超过 520dp 时不再拉满，而是把内容收窄居中——否则在 600dp 的模拟器
+    或平板上，卡片会被抻成一条长条，和手机上的观感完全不是一回事。
+    320dp 以下把留白收到 10dp，给内容多让出 12dp。
+    """
+    w = vp_w()
+    if w >= 520:
+        return max(16.0, (w - 520.0) / 2.0)
+    if w < 340:
+        return 10.0
+    return 16.0
 
 # 安卓返回键的两种 keycode：老版本 SDL 给 27(ESC)，新版本给 AC_BACK
 _BACK_KEYS = (27, 1073742094)
@@ -369,6 +420,20 @@ class AppBar(BoxLayout):
             background_color=(0, 0, 0, 0), background_normal="",
         )
         self.add_widget(self.right_btn)
+
+        # 副标题可点：结果页的 UID 点一下就复制，省掉底栏一个按钮
+        self._sub_cb = None
+        self.sub_lab.bind(on_touch_down=self._sub_touch)
+
+    def bind_sub(self, fn):
+        """给副标题挂点击回调（结果页用来点 UID 复制）。"""
+        self._sub_cb = fn
+
+    def _sub_touch(self, inst, touch):
+        if self._sub_cb and inst.collide_point(*touch.pos):
+            self._sub_cb()
+            return True
+        return False
 
     def _sync(self, *a):
         self._bg.pos = self.pos
@@ -761,6 +826,14 @@ class PlayerLookup(App):
         try:
             from kivy.core.window import Window
             Window.bind(on_keyboard=self._on_key)
+            Window.bind(on_resize=self._on_resize)
+        except Exception:
+            pass
+
+        try:
+            print("[ui] viewport %.0f x %.0f dp · density %.2f · fontscale %.2f "
+                  "· hpad %.0f" % (vp_w(), vp_h(), Metrics.density,
+                                   Metrics.fontscale or 1.0, hp()))
         except Exception:
             pass
 
@@ -852,22 +925,26 @@ class PlayerLookup(App):
             pass
 
     def _set_foot(self, on):
-        """结果态把操作条固定在底部；查询态归零，不占位。"""
+        """结果态把操作条固定在底部；查询态归零，不占位。
+
+        原来右侧并排「复制 UID」「保存」两个 12.5sp 的纯文字按钮，在 360dp
+        的真机上被主按钮挤成一小坨，两个动作还都不重要：
+        - 复制 UID：改成点顶栏 UID 就复制，手势更顺手；
+        - 保存：写的是 App 私有目录的 JSON，用户既看不到也读不回来，已去掉。
+        """
         self.foot.clear_widgets()
         if not on:
             self.foot.height = 0
             return
-        self.foot.height = dp(64)
+        # 左右留白跟内容区一致，按钮边缘和上面卡片的边对齐
+        pad = hp()
+        self.foot.padding = (dp(pad), dp(8), dp(pad), dp(10))
+        self.foot.height = dp(62)
         again = PrimaryButton(text="再查一个", font_name=FONT, font_size=sp(15),
-                              bold=True, size_hint_y=None, height=dp(46))
+                              bold=True, size_hint=(1, None), height=dp(46))
+        again.shorten = True
         again.bind(on_release=lambda *a: self.again())
         self.foot.add_widget(again)
-        b1 = txt_button("复制 UID", C_INK2, width=74, height=46, size=12.5)
-        b1.bind(on_release=lambda *a: self.copy_uid())
-        self.foot.add_widget(b1)
-        b2 = txt_button("保存", C_INK2, width=44, height=46, size=12.5)
-        b2.bind(on_release=lambda *a: self.save())
-        self.foot.add_widget(b2)
 
     def _result_uid(self):
         p = self.prof or {}
@@ -949,6 +1026,23 @@ class PlayerLookup(App):
         except Exception:
             pass
 
+    def _apply_metrics(self):
+        """按当前视口宽度重排留白。断点是按宽度算的，旋转/分屏后必须重算。"""
+        pad = hp()
+        self.appbar.padding = (dp(pad), 0, dp(pad), 0)
+        if self.mode == "query":
+            self.body.padding = (dp(pad), dp(14), dp(pad), dp(18))
+        else:
+            self.body.padding = (dp(pad), dp(12), dp(pad), dp(14))
+
+    def _on_resize(self, _win, _w, _h):
+        Clock.schedule_once(lambda dt: self._relayout(), 0.12)
+
+    def _relayout(self):
+        self._apply_metrics()
+        if self.mode == "result":
+            self._set_foot(True)
+
     def show_query(self):
         self.mode = "query"
         self.prof = None
@@ -956,7 +1050,8 @@ class PlayerLookup(App):
         # 顶部不放「高手榜」：页面底部已经有入口卡，一个动作不占两个位置
         self.appbar.set_content(title="", sub="放置江湖 · 多平台自助查询",
                                 right="", back=False, seal=True)
-        self.body.padding = (dp(16), dp(14), dp(16), dp(18))
+        self.appbar.bind_sub(None)
+        self._apply_metrics()
         self.body.spacing = dp(12)
         self._set_body_card(False)
         self.body.clear_widgets()
@@ -969,9 +1064,12 @@ class PlayerLookup(App):
     def show_result(self, p):
         self.mode = "result"
         self.prof = p
+        # 顶栏不再放「修改」：左边的 ‹ 就是回查询页，同一个动作不占两个位置，
+        # 少一个按钮也把标题行的空间让给分区名。
         self.appbar.set_content(title=p["serverName"],
                                 sub="UID %s" % (p.get("uid") or ""),
-                                right="修改", back=True)
+                                right="", back=True)
+        self.appbar.bind_sub(lambda: self.copy_uid())
         self.prep_open = False
         self.skill_open = False
         self.skill_query = ""
@@ -1387,7 +1485,7 @@ class PlayerLookup(App):
         线只留在真正的列表内部（准备位、传承），密度立刻降下来。
         """
         self._set_body_card(False)
-        self.body.padding = (dp(12), dp(12), dp(12), dp(14))
+        self.body.padding = (dp(hp()), dp(12), dp(hp()), dp(14))
         self.body.spacing = dp(12)
         self.body.clear_widgets()
 
@@ -1669,21 +1767,6 @@ class PlayerLookup(App):
     def again(self):
         self.inp.text = ""
         self.show_query()
-
-    def save(self):
-        if not self.prof:
-            return
-        try:
-            d = App.get_running_app().user_data_dir
-            if not os.path.isdir(d):
-                os.makedirs(d)
-            fn = "%s_%s.json" % (self.prof["name"] or "player", self.prof["uid"])
-            path = os.path.join(d, fn)
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(json.dumps(self.prof, ensure_ascii=False, indent=2))
-            self._flash("已保存 JSON")
-        except Exception as e:
-            self._flash("保存失败：%s" % e)
 
 
 def run():
