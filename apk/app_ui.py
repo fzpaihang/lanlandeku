@@ -557,6 +557,7 @@ class PlayerLookup(App):
 
         form.add_widget(lab("输入昵称命中时会自动切到该角色所在区；UID 为 5–12 位数字。",
                             13, C_INK2, height=24))
+        form.add_widget(lab("当前代码版本：%s" % code_version(), 12.5, C_MUTED, height=22))
 
         self.query_widgets = [head, form]
 
@@ -601,15 +602,36 @@ class PlayerLookup(App):
     def _open_in_app(self, url):
         """优先用内嵌 WebView 打开；不支持或失败返回 False，由调用方回退外部浏览器。"""
         if not WV:
+            self._web_fail("缺少 webview_overlay 模块（热更包不完整）")
             return False
         try:
             if self._web is None:
                 self._web = WV.WebOverlay()
             self._web.open(url)
             return True
-        except Exception:
+        except Exception as e:
+            detail = ""
+            try:
+                detail = self._web.last_error or ""
+            except Exception:
+                pass
+            self._web_fail("%s: %s%s" % (
+                type(e).__name__, str(e)[:130],
+                ("｜" + detail) if detail and detail not in str(e) else ""))
             self._web = None          # 下次重新尝试创建
             return False
+
+    def _web_fail(self, msg):
+        """把内嵌失败的原因留在页面上，用户回来还能看到，方便定位。"""
+        self.set_status("内嵌网页失败，已改用浏览器", C_ACCENT)
+        self.body.clear_widgets()
+        self._set_body_card(True)
+        self.body.add_widget(lab("内嵌网页打开失败", 18, C_ACCENT, bold=True, height=32))
+        d = lab(msg, 13.5, C_INK2, height=1)
+        d.bind(texture_size=lambda inst, sz: setattr(inst, "height", sz[1] + dp(6)))
+        self.body.add_widget(d)
+        self.body.add_widget(lab("已改用系统浏览器。把上面这段字发我即可定位。",
+                                13, C_MUTED, height=28))
 
     def _on_key(self, _win, key, *args):
         """返回键：网页开着就先关网页，其它情况交回 Kivy 默认处理。"""
