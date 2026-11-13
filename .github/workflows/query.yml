@@ -23,11 +23,7 @@ jobs:
       - name: 检出仓库
         uses: actions/checkout@v4
 
-      - name: 安装 Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
+      # 不装 setup-python：runner 自带 python3，代码是纯标准库，省 5–8 秒启动时间
       - name: 查询并回帖
         env:
           GH_TOKEN: ${{ github.token }}
@@ -36,7 +32,7 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           FZJH_SERVERS: ${{ secrets.FZJH_SERVERS }}
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
-        run: python scripts/query_issue.py
+        run: python3 scripts/query_issue.py
 
       - name: 关闭 Issue
         if: always()
