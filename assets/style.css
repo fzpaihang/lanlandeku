@@ -574,3 +574,13 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
 .lk-suggest .s-n{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lk-suggest .s-m{color:var(--muted);font-size:12px;margin-left:auto;white-space:nowrap;padding-left:10px}
 .lk-servers{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+
+/* 分区选择（自动匹配停用后必须手选） */
+.lk-srv-row{align-items:center;margin-top:10px}
+.lk-label{flex:0 0 auto;font-size:13px;color:var(--muted);letter-spacing:.3px}
+.lk-select{
+  flex:1 1 auto;min-width:0;height:40px;padding:0 10px;
+  font-size:14.5px;color:var(--ink);background:var(--card);
+  border:1px solid var(--line);border-radius:10px;cursor:pointer;
+}
+.lk-select:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px rgba(140,47,40,.08)}
