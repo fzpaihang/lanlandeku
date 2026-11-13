@@ -1,6 +1,8 @@
 # 仅本地使用，不要提交（里面有设备 uuid 和账号 id，等同凭据）
 config.json
 apk/config.json
+# 昵称回写的 GitHub 凭据：打包时从 Secret 注入到 apk/，绝不进仓库
+apk/gh.json
 
 # 运行时产物
 data/logs/
