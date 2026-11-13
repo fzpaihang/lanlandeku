@@ -14,6 +14,7 @@
     state: document.getElementById('state'),
     notice: document.getElementById('notice'),
     suggest: document.getElementById('suggest'),
+    srv: document.getElementById('srv'),
     mode: document.getElementById('mode'),
     tips: document.getElementById('tips'),
     recent: document.getElementById('recent')
@@ -123,9 +124,7 @@
       if (item.p.lv) tail += ' · lv' + item.p.lv;
       b.appendChild(h('span', 's-m', tail));
       b.addEventListener('click', function () {
-        el.q.value = item.p.n;
-        hideSuggest();
-        openIssue(item.p.u, item.p.s);
+        choose(item.p);
       });
       el.suggest.appendChild(b);
     });
@@ -162,7 +161,8 @@
       b.type = 'button';
       b.addEventListener('click', function () {
         el.q.value = x.uid;
-        openIssue(x.uid, x.s);
+        if (x.s) setServer(x.s);
+        openIssue(x.uid, currentServer() || x.s);
       });
       el.recent.appendChild(b);
     });
@@ -184,7 +184,25 @@
       encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
   }
 
+  function currentServer() {
+    return el.srv ? String(el.srv.value || '') : '';
+  }
+
+  function setServer(key) {
+    if (!el.srv || !key) return false;
+    var before = el.srv.value;
+    el.srv.value = key;
+    if (el.srv.value === key) return true;
+    el.srv.value = before;      // 选项里没有这个 key，回退
+    return false;
+  }
+
   function openIssue(uid, server) {
+    if (!server) {
+      setState('请选分区', 'warn');
+      notice('提交前请先选择角色所在的分区——自动匹配已停用，选错会查不到。');
+      return;
+    }
     if (el.mode) el.mode.textContent = '';
     pushRecent(uid, '', server);
     setState('等待提交', 'warn');
@@ -212,15 +230,16 @@
   function choose(p) {
     el.q.value = p.n || String(p.u);
     hideSuggest();
-    pushRecent(p.u, p.n, p.s);
-    openIssue(p.u, p.s);
+    // 昵称命中时用索引里的分区，选不到就沿用当前下拉
+    var sv = (p.s && setServer(p.s)) ? p.s : currentServer();
+    openIssue(p.u, sv);
   }
 
   function submit() {
     var raw = el.q.value.trim();
     if (!raw) { el.q.focus(); return; }
 
-    if (/^\d{5,12}$/.test(raw)) { openIssue(raw, ''); return; }
+    if (/^\d{5,12}$/.test(raw)) { openIssue(raw, currentServer()); return; }
 
     if (!NAMES) {
       loadNames().then(function () { submit(); });
