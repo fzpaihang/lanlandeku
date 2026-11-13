@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""打包腾讯云 SCF 部署包：api/build/fzjh-lookup-api.zip
+"""打包云函数部署包：api/build/fzjh-lookup-api.zip
 
-包里 = api/index.py（入口）+ apk/ 下已跑通的协议核心（fetch / lookup_core / aes_pure / names.json）。
+包里 = cloud/fc_index.py（入口）+ apk/ 下已跑通的协议核心（fetch / lookup_core / aes_pure / names.json）。
 协议核心**只有 apk/ 一份源**，这里只做复制，避免两份代码各自漂移。
+
+注意：入口源文件放在 cloud/ 而不是 api/——api/ 留给 Vercel 的 Python 函数，
+两边入口同名会被平台误当成对方的 handler。
 
 用法： python scripts/build_api_zip.py [--stage-only]
 """
@@ -22,7 +25,7 @@ ZIP_PATH = os.path.join(BUILD, "fzjh-lookup-api.zip")
 
 # 源文件 → 包内文件名
 COPIES = [
-    (os.path.join(API, "index.py"), "index.py"),
+    (os.path.join(ROOT, "cloud", "fc_index.py"), "index.py"),
     (os.path.join(APK, "fetch.py"), "fetch.py"),
     (os.path.join(APK, "lookup_core.py"), "lookup_core.py"),
     (os.path.join(APK, "aes_pure.py"), "aes_pure.py"),
