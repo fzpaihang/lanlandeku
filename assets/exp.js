@@ -117,6 +117,7 @@
     var list = sorted(state.rows);
     el.empty.hidden = list.length > 0;
     el.count.textContent = list.length + ' 人';
+    syncSortState();
 
     if (isMobile()) {
       el.tbody.textContent = '';
@@ -170,7 +171,10 @@
       frag.appendChild(tr);
     });
     el.tbody.appendChild(frag);
+  }
 
+  /* 表头 aria-sort 跟随排序；移动端只渲染卡片，但表头状态也要同步 */
+  function syncSortState() {
     Array.prototype.forEach.call(el.tbl.querySelectorAll('th[data-key]'), function (th) {
       if (th.dataset.key === state.sortKey) {
         th.setAttribute('aria-sort', state.sortDir === 'asc' ? 'ascending' : 'descending');
