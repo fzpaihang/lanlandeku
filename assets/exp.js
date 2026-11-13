@@ -47,6 +47,36 @@
     return n;
   }
 
+  /* 经验差值统一先取整再判断符号：
+     历史快照是榜单浮点值、新快照是档案整数，相减会留 0.x 尾数，
+     直接用原始值判断符号就会出现「+0」「-0.00%」这类假变化。 */
+  function growText(g) {
+    if (g === null) return '—';
+    var v = Math.round(g);
+    if (v === 0) return '0';
+    return (v > 0 ? '+' : '') + fmtBig(v);
+  }
+
+  function growCls(g) {
+    if (g === null) return 'flat';
+    var v = Math.round(g);
+    return v > 0 ? 'up' : (v < 0 ? 'down' : 'flat');
+  }
+
+  function pctText(p) {
+    if (p === null) return '—';
+    var v = Number(p.toFixed(2));
+    if (v === 0) return '0.00%';
+    return (v > 0 ? '+' : '') + v.toFixed(2) + '%';
+  }
+
+  function dayText(p) {
+    if (p === null) return '—';
+    var v = Math.round(p);
+    if (v === 0) return '0';
+    return (v > 0 ? '+' : '') + fmtBig(v);
+  }
+
   function sorted(list) {
     var k = state.sortKey, dir = state.sortDir === 'asc' ? 1 : -1;
     return list.slice().sort(function (a, b) {
@@ -93,11 +123,8 @@
 
       // 右侧：区间增长为主，增幅为辅
       var right = h('div', 'pc-r');
-      var growCls = 'grow ' + (r.grow > 0 ? 'up' : (r.grow < 0 ? 'down' : 'flat'));
-      right.appendChild(h('span', growCls,
-        r.grow === null ? '—' : (r.grow > 0 ? '+' : '') + fmtBig(r.grow)));
-      right.appendChild(h('span', 'pc-pct',
-        r.pct === null ? '—' : (r.pct > 0 ? '+' : '') + r.pct.toFixed(2) + '%'));
+      right.appendChild(h('span', 'grow ' + growCls(r.grow), growText(r.grow)));
+      right.appendChild(h('span', 'pc-pct', pctText(r.pct)));
       card.appendChild(right);
 
       frag.appendChild(card);
@@ -160,13 +187,11 @@
       tr.appendChild(h('td', 'c-exp num', fmtBig(r.expN)));
 
       var tdG = h('td', 'c-grow num');
-      tdG.appendChild(h('span', 'grow ' + (r.grow > 0 ? 'up' : (r.grow < 0 ? 'down' : 'flat')),
-        r.grow === null ? '—' : (r.grow > 0 ? '+' : '') + fmtBig(r.grow)));
+      tdG.appendChild(h('span', 'grow ' + growCls(r.grow), growText(r.grow)));
       tr.appendChild(tdG);
 
-      tr.appendChild(h('td', 'c-day num', r.perDay === null ? '—' : '+' + fmtBig(r.perDay)));
-      tr.appendChild(h('td', 'c-pct num',
-        r.pct === null ? '—' : (r.pct > 0 ? '+' : '') + r.pct.toFixed(2) + '%'));
+      tr.appendChild(h('td', 'c-day num', dayText(r.perDay)));
+      tr.appendChild(h('td', 'c-pct num', pctText(r.pct)));
 
       frag.appendChild(tr);
     });
@@ -248,7 +273,7 @@
         var grow = null, perDay = null, pct = null;
 
         if (baseSnap && curExp != null && baseExp != null) {
-          grow = curExp - baseExp;
+          grow = Math.round(curExp - baseExp);
           // 日均按固定 3 天窗口归一（区间增长 ÷ 3）；不足 3 天不显示，避免短区间线性外推夸大
           perDay = days >= WINDOW_DAYS ? grow / WINDOW_DAYS : null;
           pct = baseExp > 0 ? (grow / baseExp) * 100 : null;
