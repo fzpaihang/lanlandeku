@@ -919,6 +919,7 @@ class PlayerLookup(App):
         self._hits = []
         self._sug_ev = None
         self._web = None
+        self._cached_uid = None      # 上一次命中的缓存 UID，再查一次就绕过缓存
 
         root = Root(orientation="vertical", padding=0, spacing=0)
         # 全站统一顶栏：查询页 / 结果页只换内容，不换壳
@@ -1600,7 +1601,11 @@ class PlayerLookup(App):
             self.set_status("请输入昵称或 UID", C_ACCENT)
             return
         if raw.isdigit():
-            return self._begin(int(raw))
+            uid = int(raw)
+            # 同一个 UID 连点两次查询 = 绕过缓存强制刷新。
+            # 不额外加刷新按钮：右上角已经被删过两次，用户明确不想在那里放操作。
+            force = (getattr(self, "_cached_uid", None) == uid)
+            return self._begin(uid, force=force)
 
         # 非纯数字 → 当作昵称搜本地索引
         hits = NI.search(raw, 8) if NI else []
@@ -1646,21 +1651,24 @@ class PlayerLookup(App):
                                  14, C_INK2, height=30))
         self.body.add_widget(lab("请换一个 UID 或昵称再试。", 13.5, C_MUTED, height=26))
 
-    def _begin(self, uid):
+    def _begin(self, uid, force=False):
         if self._hidden(uid):
             self._deny()
             return
         self.busy = True
         self.btn.disabled = True
         self.btn.text = "查询中…"
-        self.set_status("连接中…", C_ACCENT)
+        self.set_status("连接中…" if force else "连接中…（10 分钟内查过会直接给结果）",
+                        C_ACCENT)
         key = self.key_of(self.spin.text)
-        threading.Thread(target=self._worker, args=(uid, key), daemon=True).start()
+        threading.Thread(target=self._worker, args=(uid, key, force),
+                         daemon=True).start()
 
-    def _worker(self, uid, server):
+    def _worker(self, uid, server, force=False):
         try:
-            prof = L.lookup(uid, server=server, progress=lambda m: Clock.schedule_once(
-                lambda dt, msg=m: self.set_status(msg, C_ACCENT)))
+            prof = L.lookup(uid, server=server, use_cache=not force,
+                            progress=lambda m: Clock.schedule_once(
+                                lambda dt, msg=m: self.set_status(msg, C_ACCENT)))
         except Exception:
             err = traceback.format_exc()[-300:]
             Clock.schedule_once(lambda dt: self._fail("查询异常", err))
@@ -1678,6 +1686,12 @@ class PlayerLookup(App):
                 self._fail("该分区未找到，试试「自动探测」", "确认分区选对了吗？请求繁忙请稍后重试")
             return
         L.add_recent(prof)
+        # 缓存命中：告诉用户这是旧结果，并且下次同一 UID 再查会绕过缓存
+        if prof.get("_cached"):
+            self._cached_uid = prof.get("uid")
+            self._flash("10 分钟内的结果 · 再查一次可刷新")
+        else:
+            self._cached_uid = None
         # 先本地记账（一定不丢），再尽力同步到仓库；同步失败完全不影响展示
         if AL:
             try:

@@ -40,7 +40,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: refresh-fzjh
+  group: fzjh-data
   cancel-in-progress: false
 
 jobs:

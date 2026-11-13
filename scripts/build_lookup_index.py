@@ -130,8 +130,25 @@ def main():
         # 供 APK 在查询前拦截：这些 uid 不允许拉档案
         "hidden": hidden_out,
     }
-    with io.open(OUT, "w", encoding="utf-8", newline="\n") as f:
+    # 熔断：上游拉取失败时宁可让本轮失败，也不能静默把索引写成只剩榜单几百人，
+    # 否则 APK 与网页会一起搜不到人，而且没人会收到告警。
+    total = len(players) + len(zhuan5)
+    prev_total = 0
+    try:
+        with io.open(OUT, encoding="utf-8") as f:
+            old = json.load(f)
+        prev_total = int(old.get("count") or 0) + len(old.get("zhuan5") or [])
+    except Exception:
+        prev_total = 0
+    if prev_total >= 500 and total < prev_total * 0.7:
+        raise SystemExit(
+            "索引人数从 %d 掉到 %d（-%.0f%%），疑似上游数据缺失，拒绝写入"
+            % (prev_total, total, (1 - total / float(prev_total)) * 100))
+
+    tmp = OUT + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
+    os.replace(tmp, OUT)
 
     size = os.path.getsize(OUT)
     print("已生成 %s：%d 个分区 / %d 名玩家 / 5 转 %d 人 / %.1f KB"

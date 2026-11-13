@@ -102,10 +102,18 @@ def merge_server(key, verbose=True):
     hist_path = os.path.join(SERVERS, key, "exp-history.json")
     hist = load(hist_path) or {"snapshots": []}
     snaps = hist.get("snapshots") or []
+    # 只把「本轮真的刷新过档案」的玩家写进快照；没刷新的沿用上一条快照的值。
+    # 否则一个三天没更新的玩家，在第四天更新时会被前端算成「今天的日增 = 三天累积」。
+    prev_map = (snaps[-1].get("exp") or {}) if snaps else {}
     exp_map = {}
+    fresh = 0
     for r in rows:
-        if r.get("exp") is not None:
-            exp_map[str(r.get("userid"))] = r["exp"]
+        uid_s = str(r.get("userid"))
+        if r.get("expSrc") == "profile" and r.get("exp") is not None:
+            exp_map[uid_s] = r["exp"]
+            fresh += 1
+        elif uid_s in prev_map:
+            exp_map[uid_s] = prev_map[uid_s]
 
     entry = {
         "ts": board_ts or int(time.time()),
@@ -113,6 +121,7 @@ def merge_server(key, verbose=True):
         "time": bj_time(board_ts or time.time(), "%H:%M"),
         "exp": exp_map,
         "src": "profile",
+        "fresh": fresh,          # 本轮真正更新档案的人数，排查数据时看这个
     }
     if snaps and abs(int(snaps[-1].get("ts", 0)) - entry["ts"]) <= SNAP_GAP:
         snaps[-1] = entry                      # 同一轮：直接改写，避免出现两条

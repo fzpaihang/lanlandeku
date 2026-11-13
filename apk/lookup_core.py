@@ -409,7 +409,72 @@ def _lookup_single(uid, srv, cache, hotver, note):
     return None
 
 
-def lookup(uid, progress=None, cfg=None, cache=None, server=None):
+# ---------- 结果缓存：同一个 UID 10 分钟内直接复用 ----------
+PROFILE_TTL = 600      # 秒。游戏侧档案本身也不是秒级刷新，再短没意义
+PROFILE_MAX = 12       # 最多留 12 份；单份 profile 约 20 KB
+PROFILE_VER = 2        # 结构变了就 +1，旧缓存自动作废（防止缺字段把界面打崩）
+
+
+def _pkey(uid, server):
+    return "%s|%s" % (uid, server or AUTO_SERVER)
+
+
+def _cache_get(cache, uid, server):
+    box = cache.get("profiles")
+    if not isinstance(box, dict):
+        return None
+    rec = box.get(_pkey(uid, server))
+    if not isinstance(rec, dict):
+        return None
+    try:
+        if time.time() - float(rec.get("t") or 0) > PROFILE_TTL:
+            return None
+    except Exception:
+        return None
+    p = rec.get("p")
+    if not isinstance(p, dict) or p.get("_v") != PROFILE_VER:
+        return None
+    return json.loads(json.dumps(p))      # 深拷贝：界面改字段不会污染缓存
+
+
+def _cache_put(cache, uid, server, prof):
+    box = cache.get("profiles")
+    if not isinstance(box, dict):
+        box = {}
+    p = dict(prof)
+    p["_v"] = PROFILE_VER
+    box[_pkey(uid, server)] = {"t": time.time(), "p": p}
+    if len(box) > PROFILE_MAX:
+        for k in sorted(box, key=lambda x: box[x].get("t", 0))[:-PROFILE_MAX]:
+            box.pop(k, None)
+    cache["profiles"] = box
+
+
+def lookup(uid, progress=None, cfg=None, cache=None, server=None, use_cache=True):
+    """查询入口，带 10 分钟结果缓存。
+
+    命中时返回上次的档案并打上 `_cached`，界面据此提示。
+    要强制拿最新数据就传 use_cache=False（界面约定：同一个 UID 再点一次查询）。
+    """
+    cfg = cfg or load_config()
+    cache = cache if cache is not None else load_cache()
+    uid = int(uid)
+
+    if use_cache:
+        hit = _cache_get(cache, uid, server)
+        if hit:
+            hit["_cached"] = True
+            return hit
+
+    prof = _lookup_uncached(uid, progress, cfg, cache, server)
+    if prof:
+        prof.pop("_cached", None)
+        _cache_put(cache, uid, server, prof)
+        save_cache(cache)
+    return prof
+
+
+def _lookup_uncached(uid, progress=None, cfg=None, cache=None, server=None):
     """查询并解析。返回 dict（含 server/serverName）或 None。
 
     server=None / "auto" → 五区轮询（兼容旧行为，慢且易触发限流）

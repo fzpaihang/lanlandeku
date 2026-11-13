@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: merge-exp
+  group: fzjh-data
   cancel-in-progress: false
 
 jobs:
