@@ -13,7 +13,7 @@
    "menpai": "崆峒派",
    "lv": 3410,
    "kongfu": 1870,
-   "exp": 3982608547.6286,
+   "exp": 3992419849.0,
    "money": 320078836,
    "yueli": 969806,
    "xiayi": 254759.2,
@@ -24,7 +24,9 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 1,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 3982608547.6286,
+   "expSrc": "profile"
   },
   {
    "rank": 2,
@@ -33,7 +35,7 @@
    "menpai": "官府",
    "lv": 3352,
    "kongfu": 1850.67,
-   "exp": 3781240210.3115,
+   "exp": 3782975680.0,
    "money": 355414553,
    "yueli": 1229987,
    "xiayi": 7295522.7,
@@ -44,7 +46,9 @@
    "wuxing": 237,
    "inheritCount": 5,
    "prevRank": 2,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 3781240210.3115,
+   "expSrc": "profile"
   },
   {
    "rank": 3,
@@ -53,7 +57,7 @@
    "menpai": "全真教",
    "lv": 3320,
    "kongfu": 1840,
-   "exp": 3672958389.6422,
+   "exp": 3680021194.0,
    "money": 426548078,
    "yueli": 855414,
    "xiayi": -7870.6,
@@ -64,7 +68,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 3,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 3672958389.6422,
+   "expSrc": "profile"
   },
   {
    "rank": 4,
@@ -73,7 +79,7 @@
    "menpai": "丐帮",
    "lv": 3084,
    "kongfu": 1761.33,
-   "exp": 2944826176.0661,
+   "exp": 2944826176.0,
    "money": 46562663.180556,
    "yueli": 1028078,
    "xiayi": -1775.8,
@@ -84,7 +90,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 4,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2944826176.0661,
+   "expSrc": "profile"
   },
   {
    "rank": 5,
@@ -93,7 +101,7 @@
    "menpai": "丐帮",
    "lv": 3077,
    "kongfu": 1759,
-   "exp": 2926650890.8861,
+   "exp": 2926650891.0,
    "money": 46035933.830826,
    "yueli": 640624,
    "xiayi": 713130,
@@ -104,7 +112,9 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 5,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2926650890.8861,
+   "expSrc": "profile"
   },
   {
    "rank": 6,
@@ -113,7 +123,7 @@
    "menpai": "永夜楼",
    "lv": 3050,
    "kongfu": 1750,
-   "exp": 2849581489.2306,
+   "exp": 2849581489.0,
    "money": 381656013.80364,
    "yueli": 833598,
    "xiayi": 536159,
@@ -124,7 +134,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 7,
-   "delta": 1
+   "delta": 1,
+   "expBoard": 2849581489.2306,
+   "expSrc": "profile"
   },
   {
    "rank": 7,
@@ -133,7 +145,7 @@
    "menpai": "崆峒派",
    "lv": 3056,
    "kongfu": 1752,
-   "exp": 2866250512.3879,
+   "exp": 2866250512.0,
    "money": 108224781.28125,
    "yueli": 601499,
    "xiayi": -11090.5,
@@ -144,7 +156,9 @@
    "wuxing": 11,
    "inheritCount": 5,
    "prevRank": 6,
-   "delta": -1
+   "delta": -1,
+   "expBoard": 2866250512.3879,
+   "expSrc": "profile"
   },
   {
    "rank": 8,
@@ -153,7 +167,7 @@
    "menpai": "明教",
    "lv": 3044,
    "kongfu": 1748,
-   "exp": 2831724184.0301,
+   "exp": 2837969891.0,
    "money": 97567188.36567,
    "yueli": 575491,
    "xiayi": 25248,
@@ -164,7 +178,9 @@
    "wuxing": 195,
    "inheritCount": 5,
    "prevRank": 8,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2831724184.0301,
+   "expSrc": "profile"
   },
   {
    "rank": 9,
@@ -173,7 +189,7 @@
    "menpai": "峨眉派",
    "lv": 2991,
    "kongfu": 1730.33,
-   "exp": 2687732785.6226,
+   "exp": 2687732786.0,
    "money": 161314970.80123,
    "yueli": 597302,
    "xiayi": 117331.6,
@@ -184,7 +200,9 @@
    "wuxing": 225,
    "inheritCount": 5,
    "prevRank": 9,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2687732785.6226,
+   "expSrc": "profile"
   },
   {
    "rank": 10,
@@ -193,7 +211,7 @@
    "menpai": "全真教",
    "lv": 2994,
    "kongfu": 1731.33,
-   "exp": 2696985575.66,
+   "exp": 2696985576.0,
    "money": 36747787.151195,
    "yueli": 993966,
    "xiayi": -43240,
@@ -204,7 +222,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 10,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2696985575.66,
+   "expSrc": "profile"
   },
   {
    "rank": 11,
@@ -213,7 +233,7 @@
    "menpai": "虚渺宫",
    "lv": 2966,
    "kongfu": 1722,
-   "exp": 2620912084.1022,
+   "exp": 2620912084.0,
    "money": 60637316.522517,
    "yueli": 663364,
    "xiayi": -21495,
@@ -224,7 +244,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 11,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2620912084.1022,
+   "expSrc": "profile"
   },
   {
    "rank": 12,
@@ -233,7 +255,7 @@
    "menpai": "武当派",
    "lv": 2953,
    "kongfu": 1717.67,
-   "exp": 2588118070.4259,
+   "exp": 2590134893.0,
    "money": 488197878.50354,
    "yueli": 630476,
    "xiayi": 21788.4,
@@ -244,7 +266,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 12,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2588118070.4259,
+   "expSrc": "profile"
   },
   {
    "rank": 13,
@@ -253,7 +277,7 @@
    "menpai": "万灵谷",
    "lv": 3221,
    "kongfu": 1807,
-   "exp": 3356806853.6019,
+   "exp": 3356806854.0,
    "money": 274509691.52038,
    "yueli": 1124109,
    "xiayi": -369859,
@@ -264,7 +288,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 13,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 3356806853.6019,
+   "expSrc": "profile"
   },
   {
    "rank": 14,
@@ -273,7 +299,7 @@
    "menpai": "武当派",
    "lv": 2916,
    "kongfu": 1705.33,
-   "exp": 2490544219.5097,
+   "exp": 2497424974.0,
    "money": 459759814,
    "yueli": 677950,
    "xiayi": 3612,
@@ -284,7 +310,9 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 14,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2490544219.5097,
+   "expSrc": "profile"
   },
   {
    "rank": 15,
@@ -293,7 +321,7 @@
    "menpai": "虚渺宫",
    "lv": 2882,
    "kongfu": 1694,
-   "exp": 2403828295.3108,
+   "exp": 2403828295.0,
    "money": 81148245.371509,
    "yueli": 550137,
    "xiayi": 535523.6,
@@ -304,7 +332,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 15,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2403828295.3108,
+   "expSrc": "profile"
   },
   {
    "rank": 16,
@@ -313,7 +343,7 @@
    "menpai": "问情宫",
    "lv": 2882,
    "kongfu": 1694,
-   "exp": 2404486974.3701,
+   "exp": 2404486974.0,
    "money": 151039796.70606,
    "yueli": 551583,
    "xiayi": 101093.6,
@@ -324,7 +354,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 16,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2404486974.3701,
+   "expSrc": "profile"
   },
   {
    "rank": 17,
@@ -333,7 +365,7 @@
    "menpai": "昆仑派",
    "lv": 2873,
    "kongfu": 1675.22,
-   "exp": 2383372499.3222,
+   "exp": 2389983433.0,
    "money": 149608649,
    "yueli": 890278,
    "xiayi": 24275.5,
@@ -344,7 +376,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 17,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2383372499.3222,
+   "expSrc": "profile"
   },
   {
    "rank": 18,
@@ -353,7 +387,7 @@
    "menpai": "虚渺宫",
    "lv": 2860,
    "kongfu": 1686.67,
-   "exp": 2350836889.7018,
+   "exp": 2355205774.0,
    "money": 33927698,
    "yueli": 536047,
    "xiayi": 3812578,
@@ -364,7 +398,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 18,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2350836889.7018,
+   "expSrc": "profile"
   },
   {
    "rank": 19,
@@ -373,7 +409,7 @@
    "menpai": "华山",
    "lv": 2866,
    "kongfu": 1688.67,
-   "exp": 2364284910.3684,
+   "exp": 2374625173.0,
    "money": 15894483,
    "yueli": 496348,
    "xiayi": 969696.5,
@@ -384,7 +420,9 @@
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 19,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2364284910.3684,
+   "expSrc": "profile"
   },
   {
    "rank": 20,
@@ -393,7 +431,7 @@
    "menpai": "官府",
    "lv": 2865,
    "kongfu": 1642.33,
-   "exp": 2362320975.5952,
+   "exp": 2362320976.0,
    "money": 25450356.545834,
    "yueli": 1144111,
    "xiayi": -16165419,
@@ -404,7 +442,11 @@
    "wuxing": 11,
    "inheritCount": 5,
    "prevRank": 20,
-   "delta": 0
+   "delta": 0,
+   "expBoard": 2362320975.5952,
+   "expSrc": "profile"
   }
- ]
+ ],
+ "expSrc": "mixed",
+ "mergedAt": "2026-11-13 12:03:50"
 }
