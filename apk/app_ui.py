@@ -132,6 +132,33 @@ def lab(text, size=13, color=C_INK, bold=False, height=None, halign="left",
     return w
 
 
+WEB_BASE = "https://fzpaihang.github.io/lanlandeku/"
+
+
+def open_url(url):
+    """用系统浏览器打开链接。
+
+    安卓上 webbrowser 模块不一定实现，所以优先走 Intent；
+    桌面调试时 Intent 不存在，自动回退到 webbrowser。
+    """
+    try:
+        from jnius import autoclass
+        Intent = autoclass("android.content.Intent")
+        Uri = autoclass("android.net.Uri")
+        act = autoclass("org.kivy.android.PythonActivity").mActivity
+        it = Intent(Intent.ACTION_VIEW)
+        it.setData(Uri.parse(url))
+        act.startActivity(it)
+        return True
+    except Exception:
+        pass
+    try:
+        import webbrowser
+        return bool(webbrowser.open(url))
+    except Exception:
+        return False
+
+
 def txt_button(text, color=C_ACCENT, width=None, height=48, size=13):
     b = Button(
         text=text, font_name=FONT, font_size=sp(size), color=color,
@@ -423,6 +450,10 @@ class PlayerLookup(App):
         title_col.add_widget(lab("放置江湖 · 昵称或 UID 查实时档案", 11.5, C_MUTED, height=18))
         head.add_widget(title_col)
 
+        self.web_btn = txt_button("高手榜 ›", C_ACCENT, width=78, height=48, size=12.5)
+        self.web_btn.bind(on_release=lambda *a: self._open_web())
+        head.add_widget(self.web_btn)
+
         self.servers = self._servers()
         names = [n for _k, n in self.servers] + [self.AUTO_LABEL]
 
@@ -484,10 +515,37 @@ class PlayerLookup(App):
         bar = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(12))
         self.summary = lab("", 14, C_INK2, height=48)
         bar.add_widget(self.summary)
-        edit = txt_button("修改", C_ACCENT, width=56, height=48)
+        web = txt_button("榜单", C_INK2, width=52, height=48, size=12.5)
+        web.bind(on_release=lambda *a: self._open_web(self._result_uid()))
+        bar.add_widget(web)
+        edit = txt_button("修改", C_ACCENT, width=52, height=48)
         edit.bind(on_release=lambda *a: self.show_query())
         bar.add_widget(edit)
         self.result_widgets = [bar, HLine()]
+
+    def _result_uid(self):
+        p = self.prof or {}
+        return p.get("uid") or p.get("userid")
+
+    def _open_web(self, uid=None):
+        """打开网页高手榜：带上当前分区，查过人的话顺带高亮他。"""
+        key = (self.prof or {}).get("server") if self.mode == "result" else None
+        if key not in dict(self.servers):
+            key = self._picked_key()
+        q = []
+        if key in dict(self.servers):
+            q.append("s=" + key)
+        if uid:
+            q.append("me=" + str(uid))
+        url = WEB_BASE + ("?" + "&".join(q) if q else "")
+        if open_url(url):
+            return
+        msg = "没有可用的浏览器，打不开网页"
+        self.set_status(msg, C_ACCENT)
+        if self.mode == "result" and self.summary.text != msg:
+            keep = self.summary.text
+            self.summary.text = msg
+            Clock.schedule_once(lambda dt: setattr(self.summary, "text", keep), 3)
 
     def show_query(self):
         self.mode = "query"
