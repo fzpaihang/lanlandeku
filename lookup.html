@@ -3,22 +3,22 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="description" content="放置江湖 玩家查询：输入游戏昵称或 UID，由 GitHub Actions 实时拉取该角色的等级、门派、福缘、武学与装备。" />
+<meta name="description" content="放置江湖玩家查询：网页版已停用，请使用安卓 App 按昵称或 UID 查实时档案。高手榜与经验变化页面正常开放。" />
 <meta name="theme-color" content="#8c2f28" />
-<meta name="robots" content="noindex, nofollow" />
+<meta name="robots" content="noindex, follow" />
 <meta property="og:type" content="website" />
-<meta property="og:title" content="玩家查询 · 放置江湖高手榜" />
-<meta property="og:description" content="输入昵称或 UID 实时查询角色档案，由 GitHub Actions 执行。" />
+<meta property="og:title" content="玩家查询已停用 · 放置江湖高手榜" />
+<meta property="og:description" content="网页版查询已停用，改用安卓 App：昵称搜索、实时档案、结果自动收录。" />
 <meta property="og:url" content="https://fzpaihang.github.io/lanlandeku/lookup.html" />
 <meta property="og:site_name" content="放置江湖 · 高手榜" />
 <meta name="twitter:card" content="summary" />
 <link rel="canonical" href="https://fzpaihang.github.io/lanlandeku/lookup.html" />
-<title>玩家查询 · 放置江湖高手榜</title>
-<link rel="stylesheet" href="./assets/style.css?v=8f57c33a" />
+<title>玩家查询已停用 · 放置江湖高手榜</title>
+<link rel="stylesheet" href="./assets/style.css?v=34bbe739" />
 </head>
 <body>
 
-<a class="skip" href="#main">跳到查询表单</a>
+<a class="skip" href="#main">跳到正文</a>
 
 <header class="hero">
   <div class="wrap">
@@ -26,76 +26,62 @@
       <span class="seal">查<br>询</span>
       <div class="brand-txt">
         <h1>玩家查询</h1>
-        <p class="sub">放置江湖 · 昵称或 UID 查实时档案</p>
+        <p class="sub">网页版已停用 · 请使用安卓 App</p>
       </div>
     </div>
     <div class="meta">
-      <span id="state" class="pill ghost">GitHub 驱动</span>
+      <span class="pill">已停用</span>
       <a class="navbtn" href="./index.html">高手榜 ›</a>
+      <a class="navbtn" href="./exp.html">经验变化 ›</a>
     </div>
   </div>
 </header>
 
 <main class="wrap" id="main">
 
-  <p id="notice" class="banner" role="status" hidden></p>
-
   <p class="banner">
-    查询由 GitHub Actions 执行：提交一个 Issue，机器人会在 30–90 秒内把结果回复出来。
-    <b>需要 GitHub 账号</b>（GitHub 不接受匿名提交）。
+    这一页的<b>查询功能已经停用</b>。高手榜与经验变化两个页面不受影响，仍在每天自动更新。
   </p>
 
-  <section class="lk" aria-label="按昵称或 UID 查询">
-    <div class="lk-row">
-      <div class="lk-field">
-        <input id="q" class="lk-input" type="text" maxlength="20"
-               placeholder="输入昵称或 UID" aria-label="游戏昵称或 UID"
-               autocomplete="off" enterkeyhint="search"
-               role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
-               aria-controls="suggest" aria-expanded="false" />
-        <div id="suggest" class="lk-suggest" role="listbox" aria-label="昵称候选" hidden></div>
-      </div>
-      <button id="go" class="lk-btn" type="button">提交查询</button>
-    </div>
-
-    <div class="lk-row lk-srv-row">
-      <label class="lk-label" for="srv">分区</label>
-      <select id="srv" class="lk-select">
-        <option value="taptap">苍松迎客</option>
-        <option value="taptap_2">白鹤亮翅</option>
-        <option value="taptap_3">丹凤朝阳</option>
-        <option value="taptap_4">墨羽惊鸿</option>
-        <option value="4399">4399</option>
-      </select>
-    </div>
-
-    <p class="lk-hint"><b>必须选对分区</b>——自动匹配已停用，选错会查不到。<b>输入昵称命中时会自动切到该角色所在区。</b></p>
-    <p class="lk-hint">UID 是游戏个人信息页里的角色 ID（5–12 位数字），榜外玩家只能用 UID 查。</p>
-    <p class="lk-hint">昵称从已收录的档案里匹配（排行榜 + 历史查询），重名会列出候选让你选。</p>
-    <div class="lk-hint" id="mode"></div>
+  <section class="panel" aria-labelledby="why">
+    <h2 id="why">为什么停用</h2>
+    <ul>
+      <li>浏览器<b>不能直接请求游戏接口</b>：接口不返回跨域头，预检就被浏览器拦下。</li>
+      <li>所以网页必须有一台后端代为发起请求，而<b>没有稳定且免费的后端</b>。</li>
+      <li>试过的方案：腾讯云、Vercel 的机房 IP 被游戏风控（握手无响应）；阿里云杭州能通但按量计费；GitHub Actions 能查，但要 <b>登录 GitHub</b> 并等 <b>30–90 秒</b>，体验不成立。</li>
+    </ul>
+    <p>停用只是撤销了「网页发请求」这一层，已收录的昵称数据、榜单数据都完整保留。</p>
   </section>
 
-  <div id="tips" class="lk-empty" hidden>
-    <p>最近提交</p>
-    <div id="recent" class="lk-recent"></div>
-  </div>
-
-  <section id="out" class="lk-result" hidden aria-live="polite">
-    <div class="lk-head">
-      <h2 id="who">—</h2>
-      <span class="lk-sub" id="sub"></span>
+  <section class="panel" aria-labelledby="how">
+    <h2 id="how">现在怎么查</h2>
+    <ul>
+      <li>装一个<b>安卓 App</b>，它直接在手机上请求游戏接口，出口是你自己的网络，<b>不受机房风控影响</b>，通常 5–7 秒出结果。</li>
+      <li>支持<b>输入昵称</b>：本地索引约 8000 人（五区榜单 + 苍松 5 转普查），命中后自动切到对应分区。</li>
+      <li>查询成功后，昵称会<b>自动补进索引</b>，别人之后也能用昵称搜到这个角色。</li>
+      <li>App 里可直接跳转到本站高手榜，并高亮刚查的那个人。</li>
+    </ul>
+    <div class="panel-actions">
+      <a class="primary" href="https://github.com/fzpaihang/lanlandeku/releases/download/apk-v1.0/fzjh-lookup-v1.0.apk" rel="noopener">下载 App（19 MB）</a>
+      <a class="ghost" href="./index.html">打开高手榜</a>
+      <a class="ghost" href="./exp.html">看经验变化</a>
     </div>
-    <div id="body"></div>
-    <p class="lk-hint" id="meta"></p>
+    <p>安卓手机直接安装即可；首次打开会联网热更一次代码，之后自动保持最新，不用重复下载。</p>
+  </section>
+
+  <section class="panel" aria-labelledby="faq">
+    <h2 id="faq">常见问题</h2>
+    <ul>
+      <li><b>以前查过的记录还在吗？</b>在。查询结果是公开数据，索引仍保留，App 里按昵称就能搜到。</li>
+      <li><b>iPhone 能用吗？</b>暂时不能。iOS 没有可直接安装的包，需要开发者账号签名（每年 99 美元），目前没做。</li>
+      <li><b>网页会恢复吗？</b>如果以后有稳定的免费后端，会重新开放；届时这一页会直接变成查询表单。</li>
+    </ul>
   </section>
 
   <p class="foot">
-    每次查询会新建一条<b>公开 Issue</b>（包含 UID 和查询结果），介意的话请不要提交。<br />
-    查询成功后，该角色的 <b>UID 与昵称</b>会被自动收录进昵称索引，之后就能直接用昵称搜到。
+    高手榜与经验变化的数据来自游戏内公开排行榜，每天自动刷新 · 仅供参考，不作为任何交易依据。
   </p>
 </main>
 
-<script src="./assets/profile.js?v=2bfa3a8a"></script>
-<script src="./assets/lookup.js?v=2cfb2eac"></script>
 </body>
 </html>
