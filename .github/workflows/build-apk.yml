@@ -151,5 +151,11 @@ jobs:
           set -e
           APK=$(ls apk/bin/*.apk | head -1)
           echo "上传 $APK → fzjh-lookup-v1.0.apk"
-          gh release upload apk-v1.0 "$APK#fzjh-lookup-v1.0.apk" \
+          mkdir -p out
+          # gh release upload 不支持 file#name 改名，必须先复制成目标文件名
+          cp "$APK" out/fzjh-lookup-v1.0.apk
+          gh release upload apk-v1.0 out/fzjh-lookup-v1.0.apk \
             --repo "${{ github.repository }}" --clobber
+          # 清掉误传的原始文件名资产（没有也不报错）
+          gh release delete-asset apk-v1.0 fzjhlookup-1.0-arm64-v8a-debug.apk \
+            -y --repo "${{ github.repository }}" || true
