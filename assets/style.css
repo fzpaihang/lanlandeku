@@ -584,3 +584,32 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
   border:1px solid var(--line);border-radius:10px;cursor:pointer;
 }
 .lk-select:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px rgba(140,47,40,.08)}
+
+/* ---------- 停用说明页（lookup.html） ---------- */
+.panel{
+  margin:0 0 18px;padding:18px 18px 20px;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);
+}
+.panel h2{
+  margin:0 0 12px;font-size:18px;font-family:var(--serif);
+  font-weight:600;letter-spacing:.5px;
+}
+.panel ul{margin:0;padding-left:19px;color:var(--ink-2);font-size:13.5px;line-height:1.95}
+.panel ul b{color:var(--ink);font-weight:600}
+.panel p{margin:12px 0 0;color:var(--muted);font-size:12.5px;line-height:1.75}
+.panel-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.panel-actions a{
+  display:inline-flex;align-items:center;height:44px;padding:0 18px;
+  border-radius:12px;font-size:14px;font-weight:600;letter-spacing:.4px;
+  text-decoration:none;transition:background .15s,border-color .15s,color .15s;
+}
+.panel-actions .primary{background:var(--accent);color:#fff}
+.panel-actions .primary:hover{background:#7a271f}
+.panel-actions .ghost{background:var(--card);color:var(--ink-2);border:1px solid var(--line)}
+.panel-actions .ghost:hover{border-color:var(--accent);color:var(--accent)}
+@media (max-width:560px){
+  .panel{padding:16px 15px 18px}
+  .panel h2{font-size:17px}
+  .panel-actions a{flex:1 1 auto;justify-content:center;padding:0 14px;font-size:13.5px}
+}
