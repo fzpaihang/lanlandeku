@@ -22,13 +22,14 @@ jobs:
         run: |
           set +e
           URL="https://fzjh-lookup.mire-sight.workers.dev/api/query"
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
           {
             echo "time: $(date -u '+%Y-%m-%d %H:%M:%S') UTC"
             echo "== diag =="
-            curl -s -m 40 "$URL?diag=1"
+            curl -s -m 40 -A "$UA" -H "Accept: application/json" "$URL?diag=1"
             echo ""
             echo "== query =="
-            curl -s -m 70 "$URL?uid=21079748850&server=taptap_3"
+            curl -s -m 70 -A "$UA" -H "Accept: application/json" "$URL?uid=21079748850&server=taptap_3"
             echo ""
           } > worker/probe-result.txt
           cat worker/probe-result.txt
