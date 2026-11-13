@@ -1,137 +1,137 @@
 # -*- coding: utf-8 -*-
-"""武学分类：把「武学 N 门」按类型分组成 7 组。
+"""武学分组：按「可准备位置」把武学分成可折叠的几组。
 
-游戏接口里每门武学只有 id / 名称 / 等级，**没有分类字段**，所以这里用两条线索
-做初判：先看中文名后缀（剑法/掌/心法…），再看英文 id 关键词（Sword/Palm/Heart…）。
-两条都对不上的落进「其他」，界面上照样能看到，只是不归类。
+**数据来源不再是关键词猜测**：`apk/skill_class.py` 由 `scripts/build_skill_class.py`
+从 https://whfie.github.io/fzjhskill/ 的 skill.json 生成，774 门 id 与我们 names.json
+完全一致，直接给出每门武学的「可准备为:xxx」位置。
 
-校对只改本文件：
-  * NAME_RULES  按顺序匹配名称后缀，先命中先算；
-  * ID_RULES    名称没命中时看英文 id；
-  * OVERRIDES   点名指定，优先级最高（用来纠正自动判错的）。
+关键点：**一门武学可以有多个位置**（太玄经 = 拳脚 + 内功 + 招架；774 门里有 412 门
+可准备为招架），所以分组是多对多：同一门武学在每个可准备位置的分组里都会出现，
+各组门数之和大于角色实际武学数是正常的。
 
-生成校对表（列出全部武学及判定结果）：
-    python skill_groups.py > ../docs/武学分类校对表.md
+只有表里没有位置信息的 85 门，才退回名称/英文 id 关键词兜底（判不准就进「其他」）。
+
+生成/更新位置表：
+    python scripts/build_skill_class.py --fetch
 """
 
-ORDER = ["内功", "轻功", "拳脚", "兵器", "招架", "学识", "其他"]
+try:
+    from skill_class import CLASS as CLASS_MAP
+    from skill_class import POS_ORDER
+except Exception:                      # 老版本热更包里可能还没有这个模块
+    CLASS_MAP = {}
+    POS_ORDER = ["内功", "轻功", "拳脚", "招架", "剑法", "刀法", "棍法",
+                 "枪法", "鞭法", "斧法", "暗器", "双持", "乐器", "学识"]
 
-# 名称关键词（按顺序匹配，先命中先算；越靠后越宽泛，用兜底）
+OTHER = "其他"
+ORDER = list(POS_ORDER) + [OTHER]
+
+# 仅用于表里查不到位置时的兜底（顺序即优先级）
 NAME_RULES = [
-    ("招架", ("招架", "格挡", "御守", "铁布衫", "金钟罩", "不坏身")),
-    ("兵器", ("剑", "刀", "棍", "枪", "鞭", "锤", "匕", "斧", "戟", "钩", "笔",
-              "弓", "箭", "暗器", "杖", "锏", "镗", "钺", "环", "轮", "杵", "刃")),
-    ("拳脚", ("拳", "掌", "指", "爪", "抓", "腿", "脚", "手", "肘", "膝",
-              "咬", "啄")),
-    ("轻功", ("身法", "步", "轻功", "遁", "纵", "踏", "飞", "翔", "腾", "云",
-              "烟", "影")),
+    ("招架", ("招架", "格挡", "御守", "铁布衫", "金钟罩")),
+    ("剑法", ("剑",)),
+    ("刀法", ("刀",)),
+    ("棍法", ("棍", "杖")),
+    ("枪法", ("枪",)),
+    ("鞭法", ("鞭",)),
+    ("斧法", ("斧", "锤", "戟", "钺")),
+    ("暗器", ("暗器", "箭", "针", "镖")),
+    ("拳脚", ("拳", "掌", "指", "爪", "抓", "腿", "脚", "手", "肘", "膝")),
+    ("轻功", ("身法", "步", "轻功", "遁", "纵", "踏", "飞", "翔", "腾")),
     ("内功", ("心法", "内功", "神功", "真经", "心经", "禅", "罡", "周天",
-              "元气", "真元", "吐纳", "内息")),
+              "元气", "真元", "吐纳", "内息", "功", "气")),
     ("学识", ("术", "书", "录", "谱", "篇", "章", "集", "曲", "音", "律",
-              "经", "诀", "决", "阵", "图", "策", "弦", "奏", "琴", "棋", "藏",
-              "册", "技", "义", "乐器", "乐", "箫", "笛", "鼓", "钟", "琶")),
-    # 兜底：只剩「功 / 气 / 法」这类泛后缀的，按内功处理
-    ("内功", ("功", "气", "法", "劲")),
+              "经", "诀", "决", "阵", "图", "策", "弦", "奏", "琴", "棋", "藏")),
 ]
 
-# 英文 id 关键词（名称没命中时才用）
 ID_RULES = [
-    ("内功", ("heart", "internal", "meditation", "neigong", "sutra",
-              "scripture", "breath")),
-    ("招架", ("parry", "block", "guard", "shield")),
-    ("轻功", ("step", "agility", "light", "cloud", "fly", "dash", "swift",
-              "shadow", "wind", "sky")),
-    ("兵器", ("sword", "sowrd", "blade", "saber", "staff", "spear", "whip",
-              "hammer", "dagger", "axe", "bow", "arrow", "hook", "club",
-              "pike", "pen", "lswd", "knife", "halberd", "mace")),
+    ("内功", ("heart", "internal", "meditation", "neigong", "sutra", "scripture")),
+    ("轻功", ("step", "agility", "light", "cloud", "fly", "dash", "swift")),
+    ("剑法", ("sword", "sowrd", "lswd")),
+    ("刀法", ("blade", "saber", "knife")),
+    ("棍法", ("staff", "club", "stick")),
+    ("枪法", ("spear", "pike")),
+    ("鞭法", ("whip",)),
+    ("斧法", ("axe", "hammer", "halberd")),
+    ("暗器", ("hidden", "dart", "needle", "bow", "arrow")),
     ("拳脚", ("fist", "palm", "claw", "finger", "leg", "foot", "kick",
-              "elbow", "hand", "strike", "punch", "snap")),
-    ("学识", ("book", "knowledge", "study", "music", "song", "poem",
-              "scroll", "classic", "array")),
+              "elbow", "hand", "punch")),
+    ("学识", ("book", "knowledge", "study", "music", "song", "poem", "scroll")),
 ]
 
-# 点名纠正（名称 → 类型），优先级最高
-OVERRIDES = {
-    "八门气功": "内功",
-    "何惧死": "内功",
-    "无惧战": "拳脚",
-    "不坏身": "招架",
-    "独入黄泉": "拳脚",
-    "红尘八音": "学识",
-    "入阵曲": "学识",
-}
 
-_AMBIGUOUS_HINT = ("法", "功", "式", "招", "击", "绝", "学")
-
-
-def group_of(name, sid=""):
-    """返回 (分类, 置信度)。置信度 high=名称命中 / mid=仅英文命中 / low=都没命中。"""
+def _fallback(name, sid):
+    """表里没有位置信息时的关键词兜底。"""
     name = str(name or "")
-    if name in OVERRIDES:
-        return OVERRIDES[name], "high"
     for cat, keys in NAME_RULES:
         if any(k in name for k in keys):
-            return cat, "high"
-    # 拼音 id（如 jibenqinfa / wangshenggong）全小写无驼峰，关键词匹配会误伤，
-    # 只对英文驼峰 id 用 ID 规则。
+            return cat
     raw_id = str(sid or "")
-    low_id = raw_id.lower() if any(c.isupper() for c in raw_id) else ""
-    if low_id:
+    if any(c.isupper() for c in raw_id):     # 只看英文驼峰 id，拼音 id 不参与
+        low = raw_id.lower()
         for cat, keys in ID_RULES:
-            if any(k in low_id for k in keys):
-                return cat, "mid"
-    return "其他", "low"
+            if any(k in low for k in keys):
+                return cat
+    return OTHER
 
 
-def is_ambiguous(name):
-    """名称只有「法 / 功 / 式」这类泛后缀——自动判定最容易错的一批。"""
-    return str(name or "").endswith(_AMBIGUOUS_HINT)
+def positions_of(skill):
+    """返回该武学的所有可准备位置（列表，可能多个）。"""
+    sid = str(skill.get("id") or "")
+    raw = CLASS_MAP.get(sid)
+    if raw:
+        return [p for p in raw.split(",") if p]
+    return [_fallback(skill.get("n"), sid)]
 
 
 def group(skills):
-    """把 skills 列表分组成 [(分类, [items...])]，按 ORDER 排序，组内等级降序。"""
-    buckets = {c: [] for c in ORDER}
+    """按位置分组：[(位置, [武学...])]，多位置的武学会出现在多个组里。
+
+    组内按等级降序、同级按名称；只返回非空组。
+    """
+    buckets = {}
     for s in skills or []:
-        cat, _conf = group_of(s.get("n"), s.get("id"))
-        buckets.setdefault(cat, []).append(s)
+        for pos in positions_of(s):
+            buckets.setdefault(pos, []).append(s)
     out = []
-    for c in ORDER:
-        items = buckets.get(c) or []
-        if not items:
-            continue
-        items.sort(key=lambda x: (-(x.get("lv") or 0), str(x.get("n") or "")))
-        out.append((c, items))
-    # ORDER 之外的分类（理论上没有）兜底追加
-    for c, items in buckets.items():
-        if c not in ORDER and items:
+    for pos in ORDER:
+        items = buckets.pop(pos, None)
+        if items:
             items.sort(key=lambda x: (-(x.get("lv") or 0), str(x.get("n") or "")))
-            out.append((c, items))
+            out.append((pos, items))
+    for pos, items in buckets.items():       # ORDER 之外的兜底
+        items.sort(key=lambda x: (-(x.get("lv") or 0), str(x.get("n") or "")))
+        out.append((pos, items))
     return out
 
 
 def _main():
-    import io
+    """生成校对表：按位置列出所有武学，并标出多位置。"""
     import json
     import os
     import sys
 
     here = os.path.dirname(os.path.abspath(__file__))
-    with io.open(os.path.join(here, "names.json"), encoding="utf-8") as f:
+    with open(os.path.join(here, "names.json"), encoding="utf-8") as f:
         data = json.load(f)
     skills = [{"id": k, "n": v, "lv": 0} for k, v in (data.get("skills") or {}).items()]
+
     out = sys.stdout
-    out.write("# 武学分类校对表\n\n")
-    out.write("> 自动初判结果，按类型分组。带 ⚠️ 的是泛后缀（法/功/式…）判定，最容易错。\n")
-    out.write("> 改 `apk/skill_groups.py` 里的 `OVERRIDES`（点名）或 `NAME_RULES`（规则）即可。\n\n")
-    total = 0
-    for cat, items in group(skills):
-        total += len(items)
-        out.write("## %s（%d 门）\n\n" % (cat, len(items)))
+    out.write("# 武学可准备位置表（按网页数据生成）\n\n")
+    out.write("> 数据来源：https://whfie.github.io/fzjhskill/ 的 `public/data/skill.json.gz`\n")
+    out.write("> 一门武学可以有多个位置，因此各组门数之和大于 774。\n")
+    out.write("> 生成命令：`python scripts/build_skill_class.py --fetch`\n\n")
+
+    multi = [s for s in skills if len(positions_of(s)) > 1]
+    out.write("共 %d 门，其中多位置 %d 门。\n\n" % (len(skills), len(multi)))
+
+    for pos, items in group(skills):
+        out.write("## %s（%d 门）\n\n" % (pos, len(items)))
         for s in items:
-            mark = " ⚠️" if is_ambiguous(s["n"]) else ""
+            others = [p for p in positions_of(s) if p != pos]
+            mark = ("（兼：%s）" % "、".join(others)) if others else ""
             out.write("- %s%s\n" % (s["n"], mark))
         out.write("\n")
-    out.write("\n合计 %d 门\n" % total)
 
 
 if __name__ == "__main__":

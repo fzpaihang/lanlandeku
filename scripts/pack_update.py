@@ -29,6 +29,7 @@ FILES = [
     "archive_local.py",
     "webview_overlay.py",
     "skill_groups.py",
+    "skill_class.py",
 ]
 
 

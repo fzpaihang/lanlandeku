@@ -1274,9 +1274,10 @@ class PlayerLookup(App):
         head = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(8))
         head.add_widget(lab("武学 %d 门" % len(skills), 14, C_INK, bold=True,
                             height=32, shorten=True))
-        hint = lab("点分组展开", 11.5, C_MUTED, height=32, halign="right", shorten=True)
+        # 一门武学可以有多个可准备位置（太玄经=拳脚+内功+招架），组内会重复出现
+        hint = lab("按可准备位置", 11.5, C_MUTED, height=32, halign="right", shorten=True)
         hint.size_hint_x = None
-        hint.width = dp(72)
+        hint.width = dp(84)
         head.add_widget(hint)
         box.add_widget(head)
 
