@@ -35,6 +35,7 @@ _CTX.verify_mode = ssl.CERT_NONE
 
 _lock = threading.Lock()
 _players = []               # [(uid, name, server_key, server_name, lv)]
+_hidden = set()             # 不允许查询的 uid（来自 lookup-index.json 的 hidden 字段）
 _state = "idle"             # idle | loading | ready | empty
 _source = ""                # cache | net | ""
 _started = False
@@ -55,9 +56,23 @@ def _fetch(url):
         return r.read()
 
 
+def _parse_hidden(raw):
+    """抽出索引里的隐藏名单：[[uid, server], ...] → {uid}。"""
+    try:
+        d = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+        return set(str(x[0]) for x in (d.get("hidden") or [])
+                   if isinstance(x, (list, tuple)) and x and x[0] is not None)
+    except Exception:
+        return set()
+
+
 def _parse(raw):
-    """lookup-index.json → 扁平列表。榜单在前，5 转在后，重名都能被搜到。"""
+    """lookup-index.json → 扁平列表。榜单在前，5 转在后，重名都能被搜到。
+
+    隐藏名单在构建侧已经剔除，这里再挡一次：即使拿到旧索引也不会漏。
+    """
     d = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    blocked = _parse_hidden(raw)
     out = []
     seen = set()
     for p in d.get("players") or []:
@@ -70,7 +85,7 @@ def _parse(raw):
             uid = int(p["u"])
         except (TypeError, ValueError):
             continue
-        if uid in seen:
+        if str(uid) in blocked or uid in seen:
             continue
         seen.add(uid)
         out.append((uid, name, str(p.get("s") or "taptap"),
@@ -85,7 +100,7 @@ def _parse(raw):
             uid = int(it[0])
         except (TypeError, ValueError):
             continue
-        if uid in seen:
+        if str(uid) in blocked or uid in seen:
             continue
         seen.add(uid)
         out.append((uid, name, "taptap", "苍松迎客", None))
@@ -93,9 +108,14 @@ def _parse(raw):
 
 
 def _read_cache():
+    """读缓存时同步恢复隐藏名单——离线也不能让隐藏玩家被搜出来。"""
+    global _hidden
     try:
         with io.open(CACHE, encoding="utf-8") as f:
-            rows = _parse(f.read())
+            raw = f.read()
+        rows = _parse(raw)
+        with _lock:
+            _hidden = _parse_hidden(raw)
         return rows, os.path.getmtime(CACHE)
     except Exception:
         return [], 0
@@ -118,7 +138,7 @@ def _write_cache(raw):
 
 def _load_blocking():
     """先吃本地缓存让功能立刻可用，再视情况联网刷新。"""
-    global _players, _state, _source
+    global _players, _state, _source, _hidden
 
     rows, mtime = _read_cache()
     if rows:
@@ -156,6 +176,7 @@ def _load_blocking():
     _write_cache(raw)
     with _lock:
         _players = fresh
+        _hidden = _parse_hidden(raw)
     _state, _source = "ready", "net"
 
 
@@ -188,11 +209,14 @@ def search(text, limit=8):
         return []
     with _lock:
         snap = _players
+        blocked = set(_hidden)
     if not snap:
         return []
 
     hits = []
     for uid, name, key, sname, lv in snap:
+        if str(uid) in blocked:
+            continue
         n = name.lower()
         if n == q:
             score = 0
@@ -211,9 +235,15 @@ def search(text, limit=8):
             for h in hits[:limit]]
 
 
+def is_hidden(uid):
+    """该 uid 是否属于隐私名单（APK 查询前会用它拦截）。"""
+    with _lock:
+        return str(uid or "").strip() in _hidden
+
+
 def get(uid):
     key = str(uid or "").strip()
-    if not key.isdigit():
+    if not key.isdigit() or is_hidden(key):
         return None
     with _lock:
         for u, n, k, sn, lv in _players:
