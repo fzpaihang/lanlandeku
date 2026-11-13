@@ -13,7 +13,7 @@ on:
       - '.github/workflows/build-apk.yml'
 
 permissions:
-  contents: read
+  contents: write   # 构建完直接替换 Release 上的下载文件，省掉手动下载/上传
 
 concurrency:
   group: build-apk
@@ -140,3 +140,16 @@ jobs:
           path: apk/bin/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: 发布到 Release（覆盖下载链接指向的文件）
+        # 网页上的下载按钮固定指向 apk-v1.0 / fzjh-lookup-v1.0.apk，
+        # 这里保持 asset 名字不变、只换内容，链接就不用跟着改。
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          APK=$(ls apk/bin/*.apk | head -1)
+          echo "上传 $APK → fzjh-lookup-v1.0.apk"
+          gh release upload apk-v1.0 "$APK#fzjh-lookup-v1.0.apk" \
+            --repo "${{ github.repository }}" --clobber
