@@ -16,6 +16,11 @@
     suggest: document.getElementById('suggest'),
     srv: document.getElementById('srv'),
     mode: document.getElementById('mode'),
+    out: document.getElementById('out'),
+    who: document.getElementById('who'),
+    sub: document.getElementById('sub'),
+    body: document.getElementById('body'),
+    meta: document.getElementById('meta'),
     tips: document.getElementById('tips'),
     recent: document.getElementById('recent')
   };
@@ -170,8 +175,12 @@
 
   /* ---------- 提交 Issue ---------- */
 
+  function titleFor(uid, server) {
+    return '[QUERY] ' + uid + (server ? ' @' + server : '');
+  }
+
   function issueUrl(uid, server) {
-    var title = '[QUERY] ' + uid + (server ? ' @' + server : '');
+    var title = titleFor(uid, server);
     var body = [
       '由网页提交的实时查询，**请勿修改标题**（机器人靠标题识别 UID 和分区）。',
       '',
@@ -225,6 +234,147 @@
       a.style.color = 'var(--accent)';
       el.mode.appendChild(a);
     }
+
+    savePending({
+      uid: String(uid),
+      server: server,
+      title: titleFor(uid, server),
+      at: Date.now(),
+      issue: 0
+    });
+    startPolling();
+  }
+
+  /* ---------- 自动回显：轮询公开 Issue 取结果 ---------- */
+
+  var PEND_KEY = 'fzjh_lookup_pending';
+  var API = 'https://api.github.com/repos/' + REPO;
+  var POLL_MS = 7000;
+  var POLL_MAX = 26;          // 约 3 分钟
+  var pollTimer = null;
+  var pollLeft = 0;
+
+  function savePending(p) {
+    try { localStorage.setItem(PEND_KEY, JSON.stringify(p)); } catch (e) { }
+  }
+
+  function readPending() {
+    try { return JSON.parse(localStorage.getItem(PEND_KEY) || 'null'); } catch (e) { return null; }
+  }
+
+  function clearPending() {
+    try { localStorage.removeItem(PEND_KEY); } catch (e) { }
+  }
+
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  function startPolling() {
+    stopPolling();
+    pollLeft = POLL_MAX;
+    setState('等待结果', 'warn');
+    notice('正在等待结果…（在 GitHub 点「Create」后约 45–60 秒，本页会自动显示，不用去评论区）');
+    tick();
+    pollTimer = setInterval(tick, POLL_MS);
+  }
+
+  function tick() {
+    var p = readPending();
+    if (!p) { stopPolling(); return; }
+    if (pollLeft-- <= 0) {
+      stopPolling();
+      setState('等待超时', 'warn');
+      notice('还没等到结果。可能是没在 GitHub 上点「Create」，也可能接口正忙——去那条 Issue 看看评论。');
+      return;
+    }
+
+    var found = p.issue
+      ? Promise.resolve({ number: p.issue })
+      : findIssue(p).then(function (it) {
+          if (it) { p.issue = it.number; savePending(p); }
+          return it;
+        });
+
+    found.then(function (it) {
+      if (!it) return null;
+      return fetchJson(API + '/issues/' + it.number + '/comments').then(function (cs) {
+        if (!cs || !cs.length) return null;
+        var m = String(cs[cs.length - 1].body || '').match(/<!--FZJHJSON (\{[\s\S]*?\})-->/);
+        return m ? { meta: JSON.parse(m[1]), number: it.number, total: cs.length } : null;
+      });
+    }).then(function (res) {
+      if (!res) return;
+      stopPolling();
+      clearPending();
+      renderMeta(res.meta, res.number);
+      setState('已返回');
+      notice('');
+    }).catch(function () { /* 网络抖动就等下一轮 */ });
+  }
+
+  function findIssue(p) {
+    var url = API + '/issues?state=all&sort=created&direction=desc&per_page=30';
+    return fetchJson(url).then(function (list) {
+      if (!Array.isArray(list)) return null;
+      var since = (p.at || 0) - 120000;      // 允许 2 分钟时钟偏差
+      for (var i = 0; i < list.length; i++) {
+        var it = list[i];
+        if (it.pull_request) continue;
+        if ((it.title || '') !== p.title) continue;
+        if (new Date(it.created_at).getTime() < since) continue;
+        return it;
+      }
+      return null;
+    });
+  }
+
+  function fmtBig(n) {
+    if (n == null || n === '') return '—';
+    n = Number(n);
+    if (!isFinite(n)) return '—';
+    var a = Math.abs(n);
+    if (a >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+    if (a >= 1e4) return (n / 1e4).toFixed(1) + '万';
+    return String(Math.round(n));
+  }
+
+  function renderMeta(m, issueNo) {
+    if (!el.out) return;
+    el.out.hidden = false;
+    el.who.textContent = m.n || ('UID ' + m.uid);
+
+    var sub = [];
+    if (m.sn) sub.push(m.sn);
+    sub.push('UID ' + m.uid);
+    if (m.r) sub.push('第 ' + m.r + ' 名');
+    el.sub.textContent = sub.join(' · ');
+
+    var grid = document.createElement('div');
+    grid.className = 'pf-grid';
+    [['等级', m.lv], ['门派', m.m], ['经验', fmtBig(m.exp)], ['福缘', m.fy],
+     ['武学造诣', m.k != null ? Number(m.k).toFixed(2) : null],
+     ['传承', m.ic != null ? m.ic + ' 次' : null],
+     ['武学', m.sk != null ? m.sk + ' 门' : null],
+     ['装备', m.eq != null ? m.eq + ' 件' : null]].forEach(function (kv) {
+      var cell = document.createElement('div');
+      cell.className = 'pf-cell';
+      var dt = document.createElement('dt');
+      dt.textContent = kv[0];
+      var dd = document.createElement('dd');
+      dd.textContent = (kv[1] === null || kv[1] === undefined || kv[1] === '') ? '—' : String(kv[1]);
+      cell.appendChild(dt);
+      cell.appendChild(dd);
+      grid.appendChild(cell);
+    });
+
+    if (el.body) { el.body.textContent = ''; el.body.appendChild(grid); }
+
+    var bits = [];
+    if (m.at) bits.push('数据时间 ' + m.at);
+    if (m.ms) bits.push('耗时 ' + (m.ms / 1000).toFixed(1) + ' 秒');
+    bits.push('完整档案见 Issue #' + issueNo);
+    el.meta.textContent = bits.join(' · ');
   }
 
   function choose(p) {
@@ -302,5 +452,13 @@
     var q = new URLSearchParams(location.search).get('uid');
     if (q && /^\d{5,12}$/.test(q)) el.q.value = q;
   });
+
   renderRecent();
+
+  var savedPending = readPending();
+  if (savedPending && Date.now() - (savedPending.at || 0) < 10 * 60 * 1000) {
+    startPolling();                 // 上次提交还没看到结果，继续等
+  } else if (savedPending) {
+    clearPending();
+  }
 })();
