@@ -14,6 +14,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,6 +28,83 @@ from archive_name import archive  # noqa: E402
 L.CACHE_PATH = "/tmp/fzjh_issue_cache.json"
 
 TITLE_RE = re.compile(r"^\[QUERY\]\s*(\d{5,12})(?:\s*@\s*([A-Za-z0-9_]+))?", re.I)
+
+# ---------------------------------------------------------------- 加速
+# 原实现每次重试都重新握手，且单次请求最长等 25 秒——Actions 机房 IP 被限流时
+# 一次查询能拖到 40 秒以上。这里改成：复用会话 + 每次请求硬超时 + 短退避。
+ATTEMPT_TIMEOUT = 8.0     # 单次尝试（握手+查询）硬超时
+ATTEMPT_MAX = 3
+DEADLINE = 32.0           # 查询阶段总预算
+
+_KEYS = {}
+KEYS_TTL = 180
+
+
+def _hard_timeout(fn, seconds, default=None):
+    box = {}
+
+    def run():
+        try:
+            box["v"] = fn()
+        except Exception as e:
+            box["e"] = e
+
+    th = threading.Thread(target=run, daemon=True)
+    th.start()
+    th.join(seconds)
+    if th.is_alive():
+        return default
+    return box.get("v", default)
+
+
+def _fast_try_one(srv, uid, hotver):
+    """与 L.try_one 等价，但复用握手会话，并给整次尝试加硬超时。"""
+    srv = dict(srv)
+    srv["hotver"] = hotver
+    cfg = F.server_cfg(srv)
+    key = srv["key"]
+
+    def _do():
+        rec = _KEYS.get(key)
+        if rec and time.time() - rec[0] < KEYS_TTL:
+            keys = rec[1]
+        else:
+            keys = F.handshake(cfg, time.time())
+            _KEYS[key] = (time.time(), keys)
+        return F.api_post(cfg, "get_user_info", {"userid": uid, "type": 0}, keys, time.time())
+
+    d = _hard_timeout(_do, ATTEMPT_TIMEOUT, None)
+    if d is None:
+        _KEYS.pop(key, None)      # 会话可能已失效，下次重新握手
+        return None, -1
+    data = d.get("data")
+    ec = d.get("errcode")
+    if ec == 0 and isinstance(data, dict) and data.get("name"):
+        return data, 0
+    if ec == 20616:
+        _KEYS.pop(key, None)
+    return None, ec
+
+
+def _fast_single(uid, srv, cache, hotver, note):
+    """重试策略：最多 3 次，退避 0.8/1.5 秒，总时长不超过 DEADLINE。"""
+    t0 = time.time()
+    for attempt in range(ATTEMPT_MAX):
+        data, ec = L.try_one(srv, uid, hotver)
+        if data:
+            return L._finish(uid, srv, data, cache, hotver, note)
+        if ec == 0:
+            return None                       # 服务端明确回「没有这个角色」
+        if ec not in (20616, -1):
+            break
+        cache["_limited"] = ec
+        if attempt < ATTEMPT_MAX - 1 and time.time() - t0 < DEADLINE:
+            time.sleep(0.8 + attempt * 0.7)
+    return None
+
+
+L.try_one = _fast_try_one
+L._lookup_single = _fast_single
 
 
 def fmt(v, suffix=""):
