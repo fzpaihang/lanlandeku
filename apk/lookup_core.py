@@ -147,11 +147,23 @@ def load_cache():
 
 
 def save_cache(c):
+    # 先写 .tmp 再 os.replace：安卓低内存随时可能杀进程，直接覆盖写会留下
+    # 半个 JSON，下次 load_cache 解析失败就把分区记忆/最近查询全丢了。
+    tmp = CACHE_PATH + ".tmp"
     try:
-        with io.open(CACHE_PATH, "w", encoding="utf-8") as f:
+        with io.open(tmp, "w", encoding="utf-8") as f:
             f.write(json.dumps(c, ensure_ascii=False, indent=2))
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+        os.replace(tmp, CACHE_PATH)
     except Exception:
-        pass
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
 
 
 def recent_queries():

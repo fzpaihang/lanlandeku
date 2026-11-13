@@ -327,6 +327,67 @@ def open_url(url):
         return False
 
 
+def _android_activity():
+    from jnius import autoclass
+    return autoclass("org.kivy.android.PythonActivity").mActivity
+
+
+def _js(v):
+    """把 Python str 变成 java.lang.String。
+
+    ContentValues.put / Intent.putExtra 都有好几个重载（String / Integer /
+    Long / byte[] / CharSequence…），pyjnius 不做自动类型收敛时会抛
+    "No methods called put"。和 setText 那个坑同源，所以统一走这里 cast。
+    """
+    from jnius import autoclass, cast
+    return cast("java.lang.String", autoclass("java.lang.String")(v))
+
+
+def save_to_download(filename, text):
+    """把文本写进公共「下载」目录，返回给人看的路径。
+
+    Android 10+ 走 MediaStore，不需要任何存储权限；10 以下直接抛错让用户改用
+    分享（老系统要 WRITE_EXTERNAL_STORAGE，为存一个 json 申请读写权限不值得）。
+    """
+    from jnius import autoclass
+    version = autoclass("android.os.Build$VERSION")
+    if int(version.SDK_INT) < 29:
+        raise RuntimeError("系统低于 Android 10，请用「分享文本」")
+
+    Downloads = autoclass("android.provider.MediaStore$Downloads")
+    ContentValues = autoclass("android.content.ContentValues")
+
+    values = ContentValues()
+    values.put(_js("_display_name"), _js(filename))
+    values.put(_js("mime_type"), _js("application/json"))
+    values.put(_js("relative_path"), _js("Download"))
+
+    resolver = _android_activity().getContentResolver()
+    uri = resolver.insert(Downloads.EXTERNAL_CONTENT_URI, values)
+    if uri is None:
+        raise RuntimeError("系统拒绝创建文件")
+    out = resolver.openOutputStream(uri)
+    try:
+        out.write(text.encode("utf-8"))
+        out.flush()
+    finally:
+        out.close()
+    return "下载/" + filename
+
+
+def share_text(filename, text):
+    """走系统分享面板发出去。key 用字面量，避免静态字段类型在 pyjnius 里对不上。"""
+    from jnius import autoclass
+    Intent = autoclass("android.content.Intent")
+    intent = Intent()
+    intent.setAction(_js("android.intent.action.SEND"))
+    intent.setType(_js("text/plain"))
+    intent.putExtra(_js("android.intent.extra.SUBJECT"), _js("玩家档案 " + filename))
+    intent.putExtra(_js("android.intent.extra.TEXT"), _js(text))
+    chooser = Intent.createChooser(intent, _js("分享玩家档案"))
+    _android_activity().startActivity(chooser)
+
+
 def txt_button(text, color=C_ACCENT, width=None, height=48, size=13):
     b = Button(
         text=text, font_name=FONT, font_size=sp(size), color=color,
@@ -983,21 +1044,47 @@ class PlayerLookup(App):
                             11, C_MUTED, height=16, shorten=True))
 
     def _flash(self, text):
-        """在顶栏副标题上短暂提示一句，两秒后恢复成原来的上下文。"""
+        """在顶栏副标题上短暂提示一句，两秒后恢复成原来的上下文。
+
+        必须带序号：如果这 2.2 秒内用户切了页，`set_content` 已经把副标题换成
+        新页面的文案，此时再写回旧值会把「UID xxx」留在查询页顶栏上。
+        """
         try:
             keep = self.appbar.sub_lab.text
             self.appbar.sub_lab.text = text
-            Clock.schedule_once(lambda dt: setattr(self.appbar.sub_lab, "text", keep), 2.2)
+            self._flash_seq = getattr(self, "_flash_seq", 0) + 1
+            seq = self._flash_seq
+
+            def _restore(_dt):
+                if seq != getattr(self, "_flash_seq", 0):
+                    return
+                self.appbar.sub_lab.text = keep
+
+            Clock.schedule_once(_restore, 2.2)
+        except Exception:
+            pass
+
+    def _drop_flash(self):
+        """切页时调用：让还没执行的 _flash 恢复动作失效。"""
+        self._flash_seq = getattr(self, "_flash_seq", 0) + 1
+
+    def _drop_popup(self):
+        """切页时关掉导出弹窗，否则它会盖在新页面上。"""
+        p = getattr(self, "_pop", None)
+        if p is None:
+            return
+        self._pop = None
+        try:
+            p.dismiss()
         except Exception:
             pass
 
     def _set_foot(self, on):
         """结果态把操作条固定在底部；查询态归零，不占位。
 
-        原来右侧并排「复制 UID」「保存」两个 12.5sp 的纯文字按钮，在 360dp
-        的真机上被主按钮挤成一小坨，两个动作还都不重要：
-        - 复制 UID：改成点顶栏 UID 就复制，手势更顺手；
-        - 保存：写的是 App 私有目录的 JSON，用户既看不到也读不回来，已去掉。
+        底栏只放两个动作：「导出」（次要，纯文字）+「再查一个」（主按钮）。
+        之前并排三个按钮，360dp 下主按钮被挤成一坨，所以导出收成图标式文字按钮、
+        宽度写死 84dp，剩下的全给主按钮。
         """
         self.foot.clear_widgets()
         if not on:
@@ -1007,11 +1094,87 @@ class PlayerLookup(App):
         pad = hp()
         self.foot.padding = (dp(pad), dp(8), dp(pad), dp(10))
         self.foot.height = dp(62)
+
+        exp = txt_button("导出", C_ACCENT, width=84, height=46, size=14)
+        exp.bind(on_release=lambda *a: self._export_menu())
+        self.foot.add_widget(exp)
+
         again = PrimaryButton(text="再查一个", font_name=FONT, font_size=sp(15),
                               bold=True, size_hint=(1, None), height=dp(46))
         again.shorten = True
         again.bind(on_release=lambda *a: self.again())
         self.foot.add_widget(again)
+
+    # ---------- 导出 / 分享 ----------
+    def _export_name(self):
+        p = self.prof or {}
+        raw = "%s_%s" % (p.get("name") or "player", p.get("uid") or "")
+        # 文件名里不能有路径分隔符和 shell 敏感字符
+        safe = re.sub(r'[\\/:*?"<>|\s]+', "_", raw).strip("_")
+        return (safe or "player") + ".json"
+
+    def _export_text(self):
+        p = self.prof or {}
+        return json.dumps(p, ensure_ascii=False, indent=2)
+
+    def _export_menu(self):
+        """导出方式二选一：写进公共「下载」目录，或走系统分享。"""
+        if not self.prof:
+            return
+        from kivy.uix.popup import Popup
+
+        # 用 Card 自己画白底：Popup 默认背景图在这套 p4a 主题里是半透明的，
+        # 深色字压上去几乎看不见。background_color 设全透明后只留 Card。
+        box = Card(pad=16, spacing=10, size_hint_y=1)
+        box.add_widget(lab("导出「%s」的档案" % (self.prof.get("name") or ""),
+                           14, C_INK, bold=True, height=30, shorten=True))
+        box.add_widget(lab("完整 JSON，含等级 / 经验 / 武学 / 装备 / 传承",
+                           11.5, C_MUTED, height=22, shorten=True))
+
+        save = PrimaryButton(text="保存到「下载」", font_name=FONT, font_size=sp(15),
+                             size_hint_y=None, height=dp(46))
+        share = PrimaryButton(text="分享文本", font_name=FONT, font_size=sp(15),
+                              size_hint_y=None, height=dp(46))
+        cancel = txt_button("取消", C_INK2, height=40, size=14)
+
+        pop = Popup(title="", content=box, size_hint=(None, None),
+                    size=(dp(304), dp(286)), separator_height=0,
+                    title_size=dp(0), background_color=(0, 0, 0, 0),
+                    auto_dismiss=True)
+        self._pop = pop
+        pop.bind(on_dismiss=lambda *a: setattr(self, "_pop", None))
+        save.bind(on_release=lambda *a: (pop.dismiss(), self._export_save()))
+        share.bind(on_release=lambda *a: (pop.dismiss(), self._export_share()))
+        cancel.bind(on_release=lambda *a: pop.dismiss())
+        for w in (save, share, cancel):
+            box.add_widget(w)
+        pop.open()
+
+    def _export_save(self):
+        fn, text = self._export_name(), self._export_text()
+        try:
+            where = save_to_download(fn, text)
+            self._flash("已保存到 %s" % where)
+        except Exception as e:
+            print("[export] 保存失败：%r" % (e,))
+            self._flash("保存失败，试试「分享文本」")
+            self._export_fail(e)
+
+    def _export_share(self):
+        fn, text = self._export_name(), self._export_text()
+        try:
+            share_text(fn, text)
+            self._flash("已打开分享面板")
+        except Exception as e:
+            print("[export] 分享失败：%r" % (e,))
+            self._flash("分享失败：%s" % e)
+
+    def _export_fail(self, e):
+        """保存失败时把原因写进状态行，别只闪一句就没了。"""
+        try:
+            self.set_status("导出失败：%s" % (str(e)[:60] or type(e).__name__), C_ACCENT)
+        except Exception:
+            pass
 
     def _result_uid(self):
         p = self.prof or {}
@@ -1099,8 +1262,8 @@ class PlayerLookup(App):
         self.appbar.padding = (dp(pad), 0, dp(pad), 0)
         if self.mode == "query":
             self.body.padding = (dp(pad), dp(14), dp(pad), dp(18))
-        else:
-            self.body.padding = (dp(pad), dp(12), dp(pad), dp(14))
+        # 结果态是白卡：内边距由 _set_body_card 固定成 14，这里不能改，
+        # 否则旋转/分屏后卡片内容会突然贴边（原来就是 14 与 12 来回跳）
 
     def _on_resize(self, _win, _w, _h):
         Clock.schedule_once(lambda dt: self._relayout(), 0.12)
@@ -1113,6 +1276,8 @@ class PlayerLookup(App):
     def show_query(self):
         self.mode = "query"
         self.prof = None
+        self._drop_flash()
+        self._drop_popup()
         self._set_foot(False)
         # 顶部不放「高手榜」：页面底部已经有入口卡，一个动作不占两个位置
         self.appbar.set_content(title="", sub="放置江湖 · 多平台自助查询",
@@ -1131,6 +1296,8 @@ class PlayerLookup(App):
     def show_result(self, p):
         self.mode = "result"
         self.prof = p
+        self._drop_flash()
+        self._drop_popup()
         # 顶栏不再放「修改」：左边的 ‹ 就是回查询页，同一个动作不占两个位置，
         # 少一个按钮也把标题行的空间让给分区名。
         self.appbar.set_content(title=p["serverName"],

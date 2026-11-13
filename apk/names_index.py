@@ -126,9 +126,12 @@ def _write_cache(raw):
     try:
         with open(tmp, "wb") as f:
             f.write(raw)
-        if os.path.exists(CACHE):
-            os.remove(CACHE)
-        os.rename(tmp, CACHE)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+        os.replace(tmp, CACHE)      # remove+rename 之间有空窗，直接 replace 一步到位
     except Exception:
         try:
             os.remove(tmp)

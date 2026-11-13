@@ -92,12 +92,23 @@ def _read_pending():
 
 
 def _write_pending(items):
+    # 原子替换：这里存的是「还没提交到仓库的昵称」，写一半被杀就永久丢记录
+    tmp = PENDING + ".tmp"
     try:
-        with io.open(PENDING, "w", encoding="utf-8", newline="\n") as f:
+        with io.open(tmp, "w", encoding="utf-8", newline="\n") as f:
             for it in items[-MAX_PENDING:]:
                 f.write(json.dumps(it, ensure_ascii=False, separators=(",", ":")) + "\n")
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+        os.replace(tmp, PENDING)
     except Exception:
-        pass
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
 
 
 def pending_count():
