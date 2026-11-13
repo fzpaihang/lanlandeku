@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": [
+    "hkg1"
+  ],
+  "functions": {
+    "api/query.py": {
+      "maxDuration": 30,
+      "memory": 1024,
+      "includeFiles": [
+        "apk/*.py",
+        "apk/names.json",
+        "data/servers/*/gaoshoubang.json"
+      ]
+    }
+  }
+}
