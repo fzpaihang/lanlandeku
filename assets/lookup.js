@@ -70,6 +70,14 @@
         if (!p || p.u == null) return;
         map[String(p.u)] = { u: p.u, n: p.n, s: p.s, sn: p.sn, lv: p.lv, a: [] };
       });
+      // 苍松 5 转老玩家（8 万普查里筛出来的，多数不在榜上）——榜单已有的不覆盖
+      var zhuan = (res[0] && res[0].zhuan5) || [];
+      zhuan.forEach(function (it) {
+        if (!it || it.length < 2 || it[0] == null) return;
+        var zk = String(it[0]);
+        if (map[zk]) return;
+        map[zk] = { u: it[0], n: String(it[1] || ''), s: 'taptap', sn: '苍松迎客', lv: null, a: [] };
+      });
       extra.forEach(function (p) {
         if (!p || p.u == null) return;
         var k = String(p.u);
