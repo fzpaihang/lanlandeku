@@ -129,10 +129,17 @@ def split_num(v):
 
 
 def lab(text, size=13, color=C_INK, bold=False, height=None, halign="left",
-        markup=False, serif=False):
+        markup=False, serif=False, shorten=False):
+    """单行文本。shorten=True 时宽度不够用省略号，而不是折行溢出到控件外面。
+
+    Kivy 的 Label **不会裁切超出高度的文字**：text_size 的宽一旦塌到 0，
+    每个汉字会各占一行，而 height 只够一行，多出来的字就画到控件外，
+    把下面的列表盖住（「武学 206 门」被压成竖排就是这么来的）。
+    """
     w = Label(
         text=text, font_name=(SERIF if serif else FONT), font_size=sp(size), color=color,
         bold=bold, halign=halign, valign="middle", markup=markup,
+        shorten=shorten, shorten_from="right",
         size_hint_y=None, height=dp(height if height is not None else size * 1.9),
     )
     w.bind(width=lambda inst, v: setattr(inst, "text_size", (v, None)))
@@ -536,17 +543,19 @@ class PlayerLookup(App):
 
     def _build_query_widgets(self):
         # 顶部：印章 + 标题 + 副标题（对应网页 .hero 里的 .brand）
-        head = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(54),
-                         spacing=dp(13))
-        head.add_widget(Seal("查\n询", 48))
-        title_col = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(54),
-                              spacing=dp(0))
-        t = lab("玩家查询", 24, C_INK, bold=True, height=34, serif=True)
+        head = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(46),
+                         spacing=dp(12))
+        head.add_widget(Seal("查\n询", 44))
+        title_col = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(46),
+                              size_hint_x=1, spacing=dp(0))
+        t = lab("玩家查询", 22, C_INK, bold=True, height=30, serif=True, shorten=True)
         title_col.add_widget(t)
-        title_col.add_widget(lab("放置江湖 · 昵称或 UID 查实时档案", 13, C_INK2, height=22))
+        # 副标题必须单行：以前宽度不足会折成两行，把整行顶歪
+        title_col.add_widget(lab("放置江湖 · 昵称 / UID", 12, C_INK2, height=18,
+                                 shorten=True))
         head.add_widget(title_col)
 
-        self.web_btn = txt_button("高手榜 ›", C_ACCENT, width=82, height=54, size=14)
+        self.web_btn = txt_button("高手榜 ›", C_ACCENT, width=82, height=46, size=13)
         self.web_btn.bind(on_release=lambda *a: self._open_web())
         head.add_widget(self.web_btn)
 
@@ -1066,7 +1075,8 @@ class PlayerLookup(App):
         self.body.clear_widgets()
 
         head = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(12))
-        head.add_widget(lab(p["name"], 24, C_INK, bold=True, height=44, serif=True))
+        head.add_widget(lab(p["name"], 24, C_INK, bold=True, height=44, serif=True,
+                              shorten=True))
         rank_txt = ("榜上第 %s 名" % p["rank"]) if p.get("rank") else "未上榜"
         head.add_widget(Chip(rank_txt, width=dp(120)))
         self.body.add_widget(head)
@@ -1165,7 +1175,7 @@ class PlayerLookup(App):
             idx.width = dp(22)
             row.add_widget(idx)
             row.add_widget(lab(h["n"] or "—", 13, C_ACCENT if last else C_INK2,
-                               bold=last, height=34))
+                               bold=last, height=34, shorten=True))
             dt = lab(fmt_date(h.get("t")), 11, C_MUTED, height=34, halign="right")
             dt.size_hint_x = None
             dt.width = dp(56)
@@ -1181,9 +1191,12 @@ class PlayerLookup(App):
             return
         box = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(6))
         box.bind(minimum_height=box.setter("height"))
-        head = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(8))
-        head.add_widget(lab("武学 %d 门" % len(skills), 14, C_INK, bold=True, height=32))
-        self.skill_toggle = txt_button("", C_ACCENT, width=dp(150), height=32, size=12)
+        head = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(8))
+        head.add_widget(lab("武学 %d 门" % len(skills), 14, C_INK, bold=True,
+                            height=36, shorten=True))
+        # txt_button 内部会再乘一次 dp，这里只能传纯数字：以前写 width=dp(150)，
+        # 实际变成 337px，比整行还宽，标题宽度被挤到 0 → 每个汉字各占一行。
+        self.skill_toggle = txt_button("", C_ACCENT, width=104, height=36, size=12)
         self.skill_toggle.bind(on_release=lambda *a: self._toggle_skill(p))
         head.add_widget(self.skill_toggle)
         box.add_widget(head)
@@ -1207,7 +1220,7 @@ class PlayerLookup(App):
 
     def _sync_skill_ui(self, p):
         n = len(p["skills"] or [])
-        self.skill_toggle.text = "收起" if self.skill_open else ("展开全部 %d 门" % n)
+        self.skill_toggle.text = "收起" if self.skill_open else "展开全部"
         self.skill_search.height = dp(44) if self.skill_open else dp(0)
         self.skill_search.opacity = 1.0 if self.skill_open else 0.0
         self.skill_search.disabled = not self.skill_open
@@ -1223,18 +1236,18 @@ class PlayerLookup(App):
             items = items[:10]
         if not items:
             self.skill_list.add_widget(lab("没有匹配的武学", 12, C_MUTED, height=34))
-            self.skill_list.height = dp(34)
             return
         for s in items:
             row = BoxLayout(size_hint_y=None, height=dp(34), spacing=dp(10))
-            row.add_widget(lab(s["n"], 13, C_INK2, height=34))
+            row.add_widget(lab(s["n"], 13, C_INK2, height=34, shorten=True))
             lv = lab("%s 级" % s["lv"], 11, C_MUTED, height=34, halign="right")
             lv.size_hint_x = None
             lv.width = dp(72)
             row.add_widget(lv)
             self.skill_list.add_widget(row)
             self.skill_list.add_widget(HLine())
-        self.skill_list.height = dp(35) * len(items)
+        # 高度交给 minimum_height 绑定，别再拿 dp(35)*条数 估：
+        # 搜索过滤后条数变了，估算值会和真实内容错位。
 
     def _toggle_skill(self, p):
         self.skill_open = not self.skill_open
@@ -1280,6 +1293,15 @@ class PlayerLookup(App):
 
 
 def run():
+    # 安卓上 Kivy 默认不申请虚拟键盘（启动日志会打印
+    # "virtual keyboard not allowed, single mode, not docked"），
+    # 于是点输入框不弹软键盘、也收不到输入法提交的字。
+    # 必须在 Window 创建之前改配置，所以放在 App.run() 之前。
+    try:
+        from kivy.config import Config
+        Config.set("kivy", "keyboard_mode", "system")
+    except Exception:
+        pass
     PlayerLookup().run()
 
 
