@@ -188,9 +188,25 @@
     if (el.mode) el.mode.textContent = '';
     pushRecent(uid, '', server);
     setState('等待提交', 'warn');
-    notice('已打开 GitHub 页面：点「Submit new issue」后约 30–90 秒出结果，结果会作为评论出现。');
-    var w = window.open(issueUrl(uid, server), '_blank', 'noopener');
-    if (!w) notice('弹窗被拦截了，请允许弹窗后重试。');
+
+    var url = issueUrl(uid, server);
+    // 注意：带 'noopener' 时 window.open 永远返回 null，不能用返回值判断是否被拦截
+    var w = null;
+    try { w = window.open(url, '_blank'); } catch (e) { w = null; }
+    if (w) { try { w.opener = null; } catch (e) { } }
+
+    notice('已打开 GitHub 页面：点右下角绿色「Create」按钮提交，约 30–90 秒后结果会出现在评论里。');
+
+    // 无论有没有弹出成功，都留一个可点的入口，避免被拦截时卡住
+    if (el.mode) {
+      var a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = '没打开？点这里进入提交页 ›';
+      a.style.color = 'var(--accent)';
+      el.mode.appendChild(a);
+    }
   }
 
   function choose(p) {
