@@ -8,7 +8,7 @@ on:
 
 permissions:
   issues: write
-  contents: read
+  contents: write          # 查询成功后把 uid → 昵称 归档进 data/extra-names.json
 
 concurrency:
   group: query-issue-${{ github.event.issue.number }}
@@ -31,6 +31,7 @@ jobs:
       - name: 查询并回帖
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           FZJH_SERVERS: ${{ secrets.FZJH_SERVERS }}
