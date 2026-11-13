@@ -10,8 +10,10 @@ permissions:
   issues: write
   contents: write          # 查询成功后把 uid → 昵称 归档进 data/extra-names.json
 
+# 同一 uuid 只保留一个有效会话密钥（服务端行为），两个查询同时跑会互相作废旧密钥，
+# 表现为 errcode 20616「请求错误」。所以必须全局串行，不能按 Issue 号分组。
 concurrency:
-  group: query-issue-${{ github.event.issue.number }}
+  group: fzjh-query
   cancel-in-progress: false
 
 jobs:
