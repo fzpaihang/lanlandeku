@@ -1,4 +1,5 @@
-/* 玩家查询页：输入 UID → 调腾讯云函数实时拉档案 → 复用 profile.js 渲染 */
+/* 玩家查询页：输入 UID → 调后端实时拉档案 → 复用 profile.js 渲染
+ * 后端停用期间页面会把输入框和按钮标成 disabled，此时整段逻辑不启动。 */
 (function () {
   'use strict';
 
@@ -183,7 +184,7 @@
     if (FZJH.renderProfile) FZJH.renderProfile(body, prof);
 
     var foot = [];
-    if (meta && meta.cached) foot.push('60 秒内查过同一个角色，直接复用上次结果');
+    if (meta && meta.cached) foot.push('10 分钟内查过同一个角色，直接复用上次结果');
     else if (meta && meta.elapsed) foot.push('用时 ' + (meta.elapsed / 1000).toFixed(1) + ' 秒');
     if (prof.lvEstimated) foot.push('等级由经验反算（该角色不在榜上）');
     if (foot.length) el.result.appendChild(h('p', 'lk-hint', foot.join(' · ')));
@@ -278,6 +279,10 @@
   /* ---------- 启动 ---------- */
 
   function boot(fz) {
+    // 输入框和按钮都是 disabled = 后端已停用，这里必须直接退出：
+    // 否则 URL 带 ?uid= 时会自动发起查询，busy() 会把「已暂停」改回「查询」并解除禁用。
+    if (el.go && el.go.disabled && el.uid && el.uid.disabled) return;
+
     // 默认自动：只按 UID 位数猜最可能的 2 个区（7 位→苍松、10 位→4399、11 位→丹凤→白鹤），
     // 不轮询五区——云函数连打五区必被限流。查不到就引导用户点分区条指定。
     var pinned = new URLSearchParams(location.search).get('s');
