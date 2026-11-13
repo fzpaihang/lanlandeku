@@ -1,7 +1,7 @@
 {
-  "version": 14,
-  "md5": "20274ad313dd91bfcca816021238a250",
-  "size": 39912,
-  "notes": "字体加深加大、分区下拉重做白底深字；隐藏玩家名单在 APK 内拦截（输入即提示无法查询）",
-  "builtAt": "2026-11-13 17:36:49"
+  "version": 15,
+  "md5": "73c42766b8691f32ff0d421192e241fe",
+  "size": 40618,
+  "notes": "修复内嵌 WebView：jnius 的 setText 需 Java String；补版本显示与失败原因提示",
+  "builtAt": "2026-11-13 18:04:29"
 }
