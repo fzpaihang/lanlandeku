@@ -150,11 +150,20 @@ git fetch -q origin
 git reset --mixed origin/main        # 让本地索引与远端对齐，不动工作区文件
 ```
 
-**代理问题**：本机环境变量里挂着 `HTTP_PROXY=http://127.0.0.1:51834`，会让 git 偶发 502。直连成功率高：
+**代理问题**：本机环境变量里挂着 `HTTP_PROXY`（端口会变，`echo $HTTP_PROXY` 看当前值），会让 git 偶发 502。直连成功率高：
 
 ```bash
 env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy \
-  timeout 90 git -c http.proxy= push origin HEAD:main
+  timeout 90 git -c http.proxy= -c http.sslBackend=openssl push origin HEAD:main
+```
+
+**`-c http.sslBackend=openssl` 别省**：Git for Windows 默认走 schannel，本机实测会
+`Failed to connect to github.com:443 after 21004 ms`（而同一时刻 `curl --noproxy '*'` 却能通，
+容易误判成网络问题）。换 openssl 后端后秒过。诊断顺序：
+
+```bash
+curl -sI --noproxy '*' --max-time 12 https://github.com          # 200 → 网络没问题
+git -c http.proxy= -c http.sslBackend=openssl ls-remote origin HEAD  # 能列出 sha → 通道没问题
 ```
 
 断了就等 1–2 分钟重试，别连续猛推。
