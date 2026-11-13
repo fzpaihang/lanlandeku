@@ -17,6 +17,11 @@
    导致整个 WebView 创建失败、静默回退系统浏览器（v14 就是这个症状）。
    必须 `autoclass("java.lang.String")("关闭")` 显式构造。
 5. 任何一步失败都要留下可读的原因，让界面显示出来，而不是静默跳浏览器。
+6. **关闭时只 setVisibility(GONE) 是不够的**：系统输入法里 mServedView 会一直
+   指向这个隐藏的 WebView（ThreadedInputConnection），之后软键盘弹出来也只会
+   把字送进看不见的网页，Kivy 的 TextInput 一个字符都收不到 —— 用户看到的就是
+   「搜索框被禁用了，打不了字」。所以关闭时必须 hideSoftInput + clearFocus，
+   并把整个 root 从窗口视图树里 removeView 掉（下次打开重新创建）。
 """
 
 import threading
@@ -37,6 +42,15 @@ def _activity():
 def _metrics(activity):
     m = activity.getResources().getDisplayMetrics()
     return float(m.density), int(m.heightPixels)
+
+
+def _imm(context):
+    """拿到 InputMethodManager。"""
+    from jnius import autoclass, cast
+    Context = autoclass("android.content.Context")
+    InputMethodManager = autoclass("android.view.inputmethod.InputMethodManager")
+    return cast("android.view.inputmethod.InputMethodManager",
+                context.getSystemService(Context.INPUT_METHOD_SERVICE))
 
 
 def precheck():
@@ -96,12 +110,52 @@ class WebOverlay(object):
         self._run_ui(self._hide_now)
 
     def _hide_now(self):
-        """必须在 UI 线程执行。点击回调本身就在 UI 线程，直接改可见性。"""
+        """必须在 UI 线程执行。点击回调本身就在 UI 线程，直接处理。
+
+        不能只 setVisibility(GONE)：输入法的 mServedView 会一直指向隐藏的
+        WebView，之后 Kivy 的输入框就再也收不到字（见文件头第 6 条）。
+        这里依次收起键盘、清焦点、把 root 从窗口摘掉，下次打开重新创建。
+        """
+        web, root = self._web, self._root
+        self._visible = False
         try:
-            self._root.setVisibility(_GONE)
+            if web is not None:
+                _imm(web.getContext()).hideSoftInputFromWindow(
+                    web.getWindowToken(), 0)
         except Exception:
             pass
-        self._visible = False
+        try:
+            if web is not None:
+                web.clearFocus()
+        except Exception:
+            pass
+        removed = False
+        try:
+            if root is not None and root.getParent() is not None:
+                # getParent() 的声明类型是 ViewParent，上面没有 removeView，
+                # 必须转成 ViewGroup 才能调（否则 pyjnius 抛 No methods called removeView）
+                from jnius import cast
+                parent = cast("android.view.ViewGroup", root.getParent())
+                parent.removeView(root)
+                removed = True
+        except Exception:
+            removed = False
+        try:
+            if web is not None:
+                web.loadUrl("about:blank")     # 断开网页里的输入连接
+        except Exception:
+            pass
+        if removed:
+            # 下一次 open() 会因为 _root 为 None 而重新建一个 WebView
+            self._root = None
+            self._web = None
+        else:
+            # 摘不掉就退化成隐藏，至少别挡着 App 界面
+            try:
+                if root is not None:
+                    root.setVisibility(_GONE)
+            except Exception:
+                pass
 
     def reload(self):
         if self._web is not None and self._last_url:

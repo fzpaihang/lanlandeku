@@ -262,6 +262,33 @@ class Card(BoxLayout):
         self._ln.rounded_rectangle = (self.x, self.y, self.width, self.height, self._r)
 
 
+def _sdl_start_text_input():
+    """直接调 SDL_StartTextInput，兜底把软键盘真正挂到 Kivy 上。
+
+    安卓上 Kivy 只在 request_keyboard 时让 SDL 申请文本输入；内嵌网页把输入法
+    抢走之后，这条链路有时不会重建，表现为「点了输入框没键盘 / 打了字不进去」。
+    这里直接戳一下原生接口，重复调用无副作用。
+    """
+    if not ("ANDROID_ARGUMENT" in os.environ or "ANDROID_PRIVATE" in os.environ):
+        return
+    try:
+        import ctypes
+    except Exception:
+        return
+    for name in ("libSDL2.so", None):
+        try:
+            lib = ctypes.CDLL(name) if name else ctypes.CDLL(None)
+            fn = getattr(lib, "SDL_StartTextInput")
+        except Exception:
+            continue
+        try:
+            fn.restype = None
+            fn()
+        except Exception:
+            pass
+        return
+
+
 class RoundInput(TextInput):
     """白底圆角输入框：对应网页 .lk-input（48 高、圆角 12、聚焦变强调色）。"""
 
@@ -286,9 +313,29 @@ class RoundInput(TextInput):
         self._bg.size = self.size
         self._ln.rounded_rectangle = (self.x, self.y, self.width, self.height, self._r)
 
+    def on_touch_down(self, touch):
+        in_box = self.collide_point(*touch.pos)
+        was_focus = self.focus
+        handled = super(RoundInput, self).on_touch_down(touch)
+        # 已经聚焦时再点一次：Kivy 不会重新向 SDL 申请文本输入，输入法就调不回来
+        # （关掉内嵌高手榜网页后必现）。这里强制重新走一遍。
+        if in_box and was_focus:
+            Clock.schedule_once(lambda dt: self.rekeyboard(), 0)
+        return handled
+
+    def rekeyboard(self):
+        try:
+            self.focus = False
+            self.focus = True
+        except Exception:
+            return
+        Clock.schedule_once(lambda dt: _sdl_start_text_input(), 0.05)
+
     def _on_focus(self, _inst, value):
         self._ln.width = 1.6 if value else 1
         self._lnc.rgba = C_ACCENT if value else C_LINE
+        if value:
+            Clock.schedule_once(lambda dt: _sdl_start_text_input(), 0.05)
 
 
 class PrimaryButton(Button):
@@ -579,6 +626,12 @@ class PlayerLookup(App):
 
     def _open_web(self, uid=None):
         """打开网页高手榜：带上当前分区，查过人的话顺带高亮他。"""
+        # 先放掉输入框焦点，免得 App 输入框和网页输入框抢同一个输入法
+        try:
+            if getattr(self, "inp", None) is not None and self.inp.focus:
+                self.inp.focus = False
+        except Exception:
+            pass
         key = (self.prof or {}).get("server") if self.mode == "result" else None
         if key not in dict(self.servers):
             key = self._picked_key()

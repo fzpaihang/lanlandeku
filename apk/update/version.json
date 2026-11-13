@@ -1,7 +1,7 @@
 {
-  "version": 15,
-  "md5": "73c42766b8691f32ff0d421192e241fe",
-  "size": 40618,
-  "notes": "修复内嵌 WebView：jnius 的 setText 需 Java String；补版本显示与失败原因提示",
-  "builtAt": "2026-11-13 18:04:29"
+  "version": 16,
+  "md5": "b958cf49a97c9ed64d5a948c22d0ba7d",
+  "size": 42199,
+  "notes": "修复关闭内嵌高手榜后搜索框打不了字：关闭时彻底摘掉 WebView 并收回输入法焦点，输入框重新申请软键盘",
+  "builtAt": "2026-11-13 18:27:23"
 }
