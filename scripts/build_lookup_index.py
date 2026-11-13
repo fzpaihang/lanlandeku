@@ -44,7 +44,30 @@ def load_zhuan5():
         return []
 
 
+def load_hidden():
+    """返回 (uid 黑名单, [[uid, server], ...])。
+
+    榜单生成时已剔除这些人，但 8 万普查导出的 5 转名单是另一条数据链路，
+    必须在这里再挡一次，否则隐藏玩家会借昵称索引重新出现。
+    """
+    p = os.path.join(DATA, "hidden.json")
+    try:
+        with io.open(p, encoding="utf-8") as f:
+            rows = json.load(f).get("players") or []
+    except Exception:
+        return set(), []
+    blocked, out = set(), []
+    for x in rows:
+        uid = str(x.get("uid") or "").strip()
+        if not uid:
+            continue
+        blocked.add(uid)
+        out.append([int(uid), str(x.get("server") or "")])
+    return blocked, out
+
+
 def main():
+    hidden, hidden_out = load_hidden()
     servers = load_index_json()
     if not servers:
         # 兜底：直接从目录名推导
@@ -72,7 +95,7 @@ def main():
         for r in rows:
             uid = r.get("userid")
             name = (r.get("name") or "").strip()
-            if not uid or not name:
+            if not uid or not name or str(uid) in hidden:
                 continue
             k = (str(uid), key)
             if k in seen:
@@ -92,7 +115,8 @@ def main():
     players.sort(key=lambda x: (-(x.get("lv") or 0), x["n"]))
 
     # 5 转玩家：不塞进 players，单独一组 [uid, 昵称]，前端合并时优先用榜单的
-    zhuan5 = [x for x in load_zhuan5() if isinstance(x, list) and len(x) >= 2]
+    zhuan5 = [x for x in load_zhuan5()
+              if isinstance(x, list) and len(x) >= 2 and str(x[0]) not in hidden]
     board_uids = set(str(p["u"]) for p in players)
     zhuan5 = [x for x in zhuan5 if str(x[0]) not in board_uids]
 
@@ -103,6 +127,8 @@ def main():
         "count": len(players),
         "players": players,
         "zhuan5": zhuan5,
+        # 供 APK 在查询前拦截：这些 uid 不允许拉档案
+        "hidden": hidden_out,
     }
     with io.open(OUT, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
