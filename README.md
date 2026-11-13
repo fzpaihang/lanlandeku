@@ -246,7 +246,8 @@ python scripts\serve_api.py 8788                 # 静态站 + /api/query 直连
 - **昵称搜索**：启动时后台拉 `data/lookup-index.json`（五区榜单 + 苍松 5 转普查，约 8000 人），本地缓存 6 小时，断网降级为纯 UID 模式
 - **结果回写**：查询成功后先写本地 `pending_names.jsonl`，再由后台线程同步进 `data/extra-names.json`；`409` 冲突自动重读重试。凭据由 `GH_TOKEN_APK` 在打包时注入 `apk/gh.json`，不进热更包
 - **隐私名单**：`data/hidden.json` 里的 uid 在榜单生成、昵称索引、网页查询、APK 查询四处同时拦截；APK 内置一份 uid 兜底，索引没下载成功也拦得住
-- **内嵌高手榜**：点右上角「高手榜 ›」用原生 WebView 在 App 内打开 `index.html`，顶栏「关闭」或返回键退出；WebView 创建失败自动回退系统浏览器
+- **内嵌高手榜**：点右上角「高手榜 ›」用原生 WebView 在 App 内打开 `index.html`，顶栏「关闭」或返回键退出；创建失败会把具体原因显示在页面上，再回退系统浏览器
+  - ⚠️ pyjnius 1.7 不会把 Python `str` 自动转成 Java `CharSequence`，`btn.setText("关闭")` 会抛 `JavaException` 并让整个 WebView 创建失败（表现为「一点就跳浏览器」）。必须 `autoclass("java.lang.String")("关闭")` 显式构造
 - **联网热更**：启动器 `main.py` 冷启动比对 `apk/update/version.json`，版本更高就下 `code.zip` 解压到私有目录 `live/`；失败静默回退内置代码（p4a 的 Python 不带系统根证书，所以用了不校验证书的 HTTPS，只做 md5 + 语法校验）
 - 改 UI / 逻辑只需推一个约 39 KB 的热更包（本地脚本 `scripts/pack_update.py`），不用重新装 APK
 - 安装包在仓库 Release `apk-v1.0`；`build-apk.yml` 只在 `apk/**` 或自身改动时触发，产物在 Actions 的 artifact 里
