@@ -51,7 +51,7 @@
         <input id="q" class="lk-input" type="text" maxlength="20"
                placeholder="输入昵称或 UID" aria-label="游戏昵称或 UID"
                autocomplete="off" enterkeyhint="search"
-               role="combobox" aria-autocomplete="list"
+               role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
                aria-controls="suggest" aria-expanded="false" />
         <div id="suggest" class="lk-suggest" role="listbox" aria-label="昵称候选" hidden></div>
       </div>
@@ -60,7 +60,7 @@
 
     <div class="lk-row lk-srv-row">
       <label class="lk-label" for="srv">分区</label>
-      <select id="srv" class="lk-select" aria-label="角色所在分区">
+      <select id="srv" class="lk-select">
         <option value="taptap">苍松迎客</option>
         <option value="taptap_2">白鹤亮翅</option>
         <option value="taptap_3">丹凤朝阳</option>
@@ -95,6 +95,6 @@
   </p>
 </main>
 
-<script src="./assets/lookup.js?v=5da0cb51"></script>
+<script src="./assets/lookup.js?v=0bebfa82"></script>
 </body>
 </html>
