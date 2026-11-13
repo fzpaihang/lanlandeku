@@ -18,9 +18,11 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "apk"))
+sys.path.insert(0, os.path.join(ROOT, "cloud"))
 
 import lookup_core as L  # noqa: E402
 import fetch as F        # noqa: E402
+from archive_name import archive  # noqa: E402
 
 L.CACHE_PATH = "/tmp/fzjh_issue_cache.json"
 
@@ -33,7 +35,7 @@ def fmt(v, suffix=""):
     return "%s%s" % (v, suffix)
 
 
-def build_markdown(prof, elapsed):
+def build_markdown(prof, elapsed, arch="off"):
     lines = [
         "## 查询成功",
         "",
@@ -67,10 +69,27 @@ def build_markdown(prof, elapsed):
         names = " → ".join([history[0].get("p") or "初代"] + [x.get("n") or "—" for x in history])
         lines += ["", "<details><summary>传承历程</summary>", "", names, "", "</details>"]
 
+    ARCH_TXT = {
+        "ok": "✅ 已收录进昵称索引，下次可直接用昵称搜到",
+        "same": "已在昵称索引里，无需重复收录",
+        "off": "未配置归档（缺 GH_TOKEN / GH_REPO）",
+        "skip": "档案缺少 uid 或昵称，未收录",
+        "full": "昵称索引已满（5000 条），本次未收录",
+        "conflict": "归档写入冲突，下次查询会重试",
+    }
+    if arch in ARCH_TXT:
+        tail = ARCH_TXT[arch]
+    elif str(arch).startswith("http"):
+        tail = "归档失败（GitHub 返回 %s），检查 GH_TOKEN 的 Contents 权限" % str(arch)[4:]
+    else:
+        tail = "归档失败：%s" % arch
+
     lines += [
         "",
         "---",
         "由 GitHub Actions 实时查询，结果仅供娱乐参考。",
+        "",
+        "**昵称索引**：%s" % tail,
     ]
     return "\n".join(lines)
 
@@ -111,7 +130,9 @@ def main():
     elapsed = time.time() - t0
 
     if prof:
-        body = build_markdown(prof, elapsed)
+        arch = archive(prof)
+        print("归档结果：%s" % arch)
+        body = build_markdown(prof, elapsed, arch)
     elif err:
         body = "## 查询失败\n\n```\n%s\n```\n\n---\nGitHub Actions 执行异常，稍后重试或检查 Secrets。" % err
     else:
