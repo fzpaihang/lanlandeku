@@ -265,3 +265,47 @@ Kivy 没有字体回退，所以改成按区段整段收（U+25A0–U+25FF）。
    （安卓 `/data/user/0/com.fzjh.fzjhlookup/files/昵称_uid.json`），普通用户看不到，
    App 也没有读回入口，等于写了个隐藏文件。v25 已移除按钮；若要恢复，应改成导出到
    公共「下载」目录或系统分享，需要 `jnius` 调 `Intent`/`MediaStore`。
+
+## 八、v27 / v28：导出分享 + 查询缓存
+
+### 8.1 导出 / 分享（v27）
+
+底栏从「一个主按钮」变成「导出 + 再查一个」，导出占 84dp，主按钮拿剩下的宽度。
+
+- **保存到「下载」**：Android 10+ 用 `MediaStore.Downloads`，不需要存储权限
+  （10 以下提示改用分享，不为一个 json 申请读写权限）。实测导出 19.5 KB，
+  路径 `/sdcard/Download/昵称_uid.json`，重名自动生成 `(1)` 副本。
+- **分享文本**：`ACTION_SEND` + `text/plain`，完整 JSON 交给系统面板。
+- pyjnius 两个必须 cast 的地方：`ContentValues.put` 和 `Intent.putExtra`，
+  都有 Integer/Long/byte[]/CharSequence 多个重载，不 cast 就抛
+  `No methods called put`。与 `setText` 那个坑同源。
+- Popup 默认背景图在这套主题里是半透明的，深色字压上去看不见 →
+  用 `Card` 自绘白底，`background_color=(0,0,0,0)`。
+
+### 8.2 查询缓存（v28）
+
+| 项 | 值 |
+|---|---|
+| TTL | 600 秒 |
+| 容量 | 12 份（单份约 20 KB） |
+| key | `uid|server`（换区不串） |
+| 失效 | 结构版本号 `_v`，改字段时 +1 即可全量作废 |
+| 隔离 | 出缓存前 `json.loads(json.dumps(...))` 深拷贝，界面改字段不回写 |
+
+命中时给结果打 `_cached`，界面 flash「10 分钟内的结果 · 再查一次可刷新」。
+**强制刷新的交互是「同一个 UID 连点两次查询」**，不再往右上角加按钮
+（那个位置已经被删过两次，用户明确不想放操作）。
+
+逻辑用 6 个场景的本地单测验证：首次、命中、强制、过期、换区、深拷贝隔离。
+**未在模拟器做端到端点击验证**——MuMu 在 density 400 下 `input tap`
+只有部分区域生效（点输入框能聚焦、点「填入」无反应），不是应用问题。
+
+### 8.3 数据链三处隐患（同步修）
+
+1. `refresh.yml` / `merge-exp.yml` 的 concurrency 合并为 `fzjh-data`：
+   两者都写 `data/servers/*`，原来分属两组，同时跑时后 push 的失败，那轮合并白做。
+2. `merge_exp` 的 `exp-history` 快照只写**本轮真正刷新过档案**的玩家，
+   未刷新的沿用上一条快照值；新增 `fresh` 字段记录本轮更新人数。
+   否则三天没更新的玩家会在第四天被算成「日增 = 三天累积」。
+3. `build_lookup_index` 加人数熔断：新索引 < 上一版 70% 直接失败，
+   写入改成 `tmp + os.replace`。实测把上游文件移走后，7985 → 295 会被拒绝。
