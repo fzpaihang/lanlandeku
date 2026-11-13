@@ -229,6 +229,17 @@ def board_snapshot(server, uid):
     return None, at
 
 
+def load_hidden_uids():
+    """隐私名单：与 data/hidden.json 同源，网页查询通道也要拦。"""
+    p = os.path.join(ROOT, "data", "hidden.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            return set(str(x["uid"]) for x in (json.load(f).get("players") or [])
+                       if x.get("uid") is not None)
+    except Exception:
+        return set()
+
+
 def main():
     title = (os.environ.get("ISSUE_TITLE") or "").strip()
     number = os.environ.get("ISSUE_NUMBER") or ""
@@ -257,6 +268,12 @@ def main():
             f.write(body)
         gh("issue", "comment", str(number), "--body-file", "/tmp/issue-comment.md")
         print("已回帖")
+
+    # 隐私名单优先：无论分区填没填，都不对这些 uid 发起任何游戏请求
+    if str(uid) in load_hidden_uids():
+        post("## 无法查询\n\n该角色已设置为不公开档案，无法查看详细信息。"
+             "\n\n---\nGitHub Actions 实时查询")
+        return 0
 
     # 自动匹配已停用：标题必须带 @分区，否则不发起任何请求
     if not cfg_err and (not server or server in ("auto", "all") or server not in by_key):
