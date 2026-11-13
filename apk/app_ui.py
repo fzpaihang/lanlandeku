@@ -90,12 +90,16 @@ for _p in _SERIF_CANDIDATES:
 C_BG = (0.973, 0.961, 0.945, 1)          # #F8F5F1 页面底色
 C_CARD = (1.0, 1.0, 1.0, 1)              # #FFFFFF 卡片
 C_SOFT = (0.949, 0.937, 0.914, 1)        # #F2EFE9 次级底（搜索框/占位块）
-C_ACCENT_SOFT = (0.957, 0.906, 0.886, 1)  # #F4E7E2 强调浅底（胶囊/徽章）
+C_ACCENT_SOFT = (0.976, 0.894, 0.859, 1)  # #F9E4DB 强调浅底（胶囊/徽章），太浅在白卡上会消失
 C_INK = (0.165, 0.145, 0.133, 1)         # #2A2522 主文字，暖黑（原先偏冷 #1F2328）
 C_INK2 = (0.376, 0.337, 0.302, 1)        # #60564D 次文字
 C_MUTED = (0.545, 0.498, 0.455, 1)       # #8B7F74 弱文字 / 标签
-C_ACCENT = (0.482, 0.176, 0.149, 1)      # #7B2D26 主色，全站唯一强调色
-C_ACCENT_DK = (0.369, 0.129, 0.106, 1)   # #5E211B 按下态
+# 顶栏和按钮拆成两个色：原来是同一个 #7B2D26，整页像一大块暗红。
+# 顶栏压到浅一档的绛棕当框架，按钮提亮成朱砂当行动点，强调文字单独留深色。
+C_BAR = (0.549, 0.290, 0.243, 1)         # #8C4A3E 顶栏
+C_BTN = (0.761, 0.353, 0.227, 1)         # #C25A3A 主按钮
+C_BTN_DK = (0.678, 0.290, 0.180, 1)      # #AD4A2E 按钮按下
+C_ACCENT = (0.659, 0.282, 0.173, 1)      # #A8482C 强调文字 / 聚焦描边
 C_LINE = (0.898, 0.871, 0.835, 1)        # #E5DED5 卡片描边
 C_LINE2 = (0.945, 0.929, 0.906, 1)       # #F1EDE7 行内细线
 
@@ -296,7 +300,7 @@ class AppBar(BoxLayout):
         super(AppBar, self).__init__(orientation="horizontal", **kw)
         from kivy.graphics import Color, Rectangle
         with self.canvas.before:
-            Color(*C_ACCENT)
+            Color(*C_BAR)
             self._bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._sync, size=self._sync)
 
@@ -312,7 +316,7 @@ class AppBar(BoxLayout):
                         spacing=0, size_hint_x=1)
         self.title_lab = lab("", 15.5, (1, 1, 1, 0.97), bold=True, height=30,
                              serif=True, shorten=True)
-        self.sub_lab = lab("", 10.5, (1, 1, 1, 0.60), height=18, shorten=True)
+        self.sub_lab = lab("", 10.5, (1, 1, 1, 0.72), height=18, shorten=True)
         col.add_widget(self.title_lab)
         col.add_widget(self.sub_lab)
         self.add_widget(col)
@@ -453,7 +457,7 @@ class PrimaryButton(Button):
         super(PrimaryButton, self).__init__(**kw)
         from kivy.graphics import Color, RoundedRectangle
         with self.canvas.before:
-            self._c = Color(*C_ACCENT)
+            self._c = Color(*C_BTN)
             self._bg = RoundedRectangle(radius=[dp(radius)], pos=self.pos, size=self.size)
         self.bind(pos=self._sync, size=self._sync, state=self._on_state)
 
@@ -462,7 +466,7 @@ class PrimaryButton(Button):
         self._bg.size = self.size
 
     def _on_state(self, _inst, value):
-        self._c.rgba = C_ACCENT_DK if value == "down" else C_ACCENT
+        self._c.rgba = C_BTN_DK if value == "down" else C_BTN
 
 
 class RoundSpinner(Spinner):
@@ -543,7 +547,7 @@ class PillButton(Button):
         self._bg.size = self.size
 
     def _on_state(self, _inst, st):
-        self._c.rgba = C_ACCENT if st == "down" else C_ACCENT_SOFT
+        self._c.rgba = C_BTN if st == "down" else C_ACCENT_SOFT
         self.color = (1, 1, 1, 1) if st == "down" else C_ACCENT
 
 
