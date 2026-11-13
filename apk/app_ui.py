@@ -28,6 +28,17 @@ from kivy.uix.textinput import TextInput
 
 import lookup_core as L
 
+# 这两个模块是后加的，必须允许缺失：老版本 APK 里没有它们，
+# 任何 import 失败都只能降级为「纯 UID 查询」，不能让 App 打不开。
+try:
+    import names_index as NI
+except Exception:
+    NI = None
+try:
+    import archive_local as AL
+except Exception:
+    AL = None
+
 _CN_CANDIDATES = [
     "/system/fonts/DroidSansFallback.ttf",
     "/system/fonts/NotoSansCJK-Regular.ttc",
@@ -220,6 +231,8 @@ class PlayerLookup(App):
         self.skill_open = False
         self.skill_query = ""
         self.mode = "query"
+        self._hits = []
+        self._sug_ev = None
 
         root = Root(orientation="vertical", padding=(dp(20), dp(16), dp(20), dp(12)),
                     spacing=dp(12))
@@ -237,7 +250,22 @@ class PlayerLookup(App):
         self._build_query_widgets()
         self._build_result_summary()
         self.show_query()
+
+        # 昵称索引后台加载，绝不阻塞界面；加载完只更新一行提示
+        if NI:
+            NI.load_async(lambda st, n: Clock.schedule_once(
+                lambda dt: self._on_names_ready(st, n)))
         return root
+
+    def _on_names_ready(self, st, n):
+        if st == "ready" and n:
+            if self.mode == "query":
+                self.set_status("昵称索引已就绪（%d 个），可以按昵称搜" % n, C_MUTED)
+        elif st == "empty":
+            if self.mode == "query":
+                self.set_status("昵称索引不可用，先按 UID 查", C_MUTED)
+        if self.inp.text and not self.inp.text.strip().isdigit():
+            self._do_search(self.inp.text)
 
     def _build_query_widgets(self):
         head = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(56), spacing=dp(2))
@@ -267,19 +295,30 @@ class PlayerLookup(App):
 
         form = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(6))
         form.bind(minimum_height=form.setter("height"))
-        form.add_widget(lab("角色 UID", 12, C_MUTED, height=20))
+        form.add_widget(lab("昵称或 UID", 12, C_MUTED, height=20))
         self.inp = TextInput(
-            text="", hint_text="例如 21079729670", font_name=FONT, font_size=sp(16),
-            multiline=False, input_type="number", padding=[dp(2), dp(10)],
+            text="", hint_text="例如 唐云卷 或 21079729670", font_name=FONT, font_size=sp(16),
+            multiline=False, input_type="text", padding=[dp(2), dp(10)],
             size_hint_y=None, height=dp(48),
             background_color=(0, 0, 0, 0), background_normal="", background_active="",
             foreground_color=C_INK, hint_text_color=C_MUTED, cursor_color=C_ACCENT,
         )
         self.inp.bind(on_text_validate=lambda *a: self.start())
+        self.inp.bind(text=self._on_query_text)
         form.add_widget(self.inp)
         self.inp_line = HLine(color=C_LINE, thickness=1)
         self.inp.bind(focus=lambda inst, v: self.inp_line.set_color(C_ACCENT if v else C_LINE))
         form.add_widget(self.inp_line)
+
+        # 昵称候选提示行：默认高度 0，有结果才展开，不影响原有布局
+        self.sug = Button(
+            text="", font_name=FONT, font_size=sp(13), halign="left", valign="middle",
+            size_hint_y=None, height=dp(0), opacity=0,
+            background_color=C_ACCENT_SOFT, background_normal="", color=C_ACCENT,
+        )
+        self.sug.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(20), None)))
+        self.sug.bind(on_release=lambda *a: self._show_candidates())
+        form.add_widget(self.sug)
 
         self.btn = Button(
             text="查询玩家", font_name=FONT, font_size=sp(15), bold=True,
@@ -431,20 +470,125 @@ class PlayerLookup(App):
                 self.spin.text = nm
         self.set_status("已填入 %s，点「查询玩家」开始" % uid, C_INK2)
 
+    # ---------- 昵称搜索 ----------
+    def _on_query_text(self, _inst, value):
+        if self._sug_ev:
+            try:
+                self._sug_ev.cancel()
+            except Exception:
+                pass
+        self._sug_ev = Clock.schedule_once(lambda dt: self._do_search(value), 0.3)
+
+    def _do_search(self, value):
+        text = (value or "").strip()
+        if not text or text.isdigit():
+            return self._hide_sug()
+        if not NI:
+            return self._hide_sug()
+        if NI.state() == "loading":
+            self._show_sug("昵称索引加载中…（直接输 UID 也能查）", [])
+            return
+        hits = NI.search(text, 8)
+        self._hits = hits
+        if not hits:
+            self._show_sug("没找到「%s」，试试完整昵称或直接输 UID" % text, [])
+            return
+        if len(hits) == 1:
+            h = hits[0]
+            self._show_sug("找到「%s · %s」，点这里填入" % (h["n"], h["sn"] or h["s"]), hits)
+        else:
+            self._show_sug("找到 %d 个，点这里选择" % len(hits), hits)
+
+    def _show_sug(self, text, hits):
+        if not hasattr(self, "sug"):
+            return
+        self.sug.text = text
+        self.sug.height = dp(36)
+        self.sug.opacity = 1.0 if hits else 0.55
+        self.sug.disabled = not bool(hits)
+
+    def _hide_sug(self):
+        if not hasattr(self, "sug"):
+            return
+        self.sug.text = ""
+        self.sug.height = dp(0)
+        self.sug.opacity = 0
+        self._hits = []
+
+    def _show_candidates(self):
+        hits = self._hits or []
+        if not hits:
+            return
+        from kivy.uix.popup import Popup
+
+        box = BoxLayout(orientation="vertical", spacing=dp(6), padding=dp(8))
+        sv = ScrollView(do_scroll_x=False)
+        inner = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(4))
+        inner.bind(minimum_height=inner.setter("height"))
+
+        pop = None
+        for h in hits:
+            tail = h["sn"] or h["s"]
+            label = "%s  ·  %s%s" % (h["n"], tail, ("  lv%s" % h["lv"]) if h["lv"] else "")
+            b = Button(text=label, font_name=FONT, font_size=sp(14), halign="left",
+                       valign="middle", size_hint_y=None, height=dp(46),
+                       background_color=C_SOFT, background_normal="", color=C_INK)
+            b.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(20), None)))
+            b.bind(on_release=lambda inst, x=h: self._pick(x))
+            inner.add_widget(b)
+
+        sv.add_widget(inner)
+        box.add_widget(sv)
+        pop = Popup(title="选择角色", title_font=FONT, title_size=sp(15),
+                    content=box, size_hint=(0.9, 0.62),
+                    background_color=C_BG, separator_color=C_ACCENT)
+        self._popup = pop
+        pop.open()
+
+    def _pick(self, h):
+        try:
+            self._popup.dismiss()
+        except Exception:
+            pass
+        self._fill(h["u"], h["s"])
+        self._hide_sug()
+        self.set_status("已选中「%s」，点「查询玩家」开始" % h["n"], C_INK2)
+
     # ---------- 查询 ----------
     def start(self):
         if self.busy:
             return
         raw = (self.inp.text or "").strip()
-        if not raw.isdigit():
-            self.set_status("请输入纯数字 UID", C_ACCENT)
+        if not raw:
+            self.set_status("请输入昵称或 UID", C_ACCENT)
             return
+        if raw.isdigit():
+            return self._begin(int(raw))
+
+        # 非纯数字 → 当作昵称搜本地索引
+        hits = NI.search(raw, 8) if NI else []
+        if not hits:
+            if NI and NI.state() == "loading":
+                self.set_status("昵称索引还在加载，稍等一下，或直接输 UID", C_ACCENT)
+            elif not NI:
+                self.set_status("当前版本不支持昵称查询，请输入 UID", C_ACCENT)
+            else:
+                self.set_status("没找到「%s」，试试完整昵称或直接输 UID" % raw, C_ACCENT)
+            return
+        if len(hits) == 1:
+            self._fill(hits[0]["u"], hits[0]["s"])
+            self._begin(int(hits[0]["u"]))
+            return
+        self._hits = hits
+        self._show_candidates()
+
+    def _begin(self, uid):
         self.busy = True
         self.btn.disabled = True
         self.btn.text = "查询中…"
         self.set_status("连接中…", C_ACCENT)
         key = self.key_of(self.spin.text)
-        threading.Thread(target=self._worker, args=(int(raw), key), daemon=True).start()
+        threading.Thread(target=self._worker, args=(uid, key), daemon=True).start()
 
     def _worker(self, uid, server):
         try:
@@ -467,6 +611,14 @@ class PlayerLookup(App):
                 self._fail("该分区未找到，试试「自动探测」", "确认分区选对了吗？请求繁忙请稍后重试")
             return
         L.add_recent(prof)
+        # 先本地记账（一定不丢），再尽力同步到仓库；同步失败完全不影响展示
+        if AL:
+            try:
+                AL.record(prof)
+                if AL.configured():
+                    AL.sync_async()
+            except Exception:
+                pass
         self.set_status("")
         self.show_result(prof)
 
