@@ -1,0 +1,45 @@
+name: 实时查询（Issue）
+
+# 网页把 UID 拼成 Issue 标题提交，这里立刻查游戏接口并把结果回帖。
+# 标题格式：[QUERY] 7257325 或 [QUERY] 7257325 @taptap
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: query-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  query:
+    if: startsWith(github.event.issue.title, '[QUERY]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 查询并回帖
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          FZJH_SERVERS: ${{ secrets.FZJH_SERVERS }}
+          FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
+        run: python scripts/query_issue.py
+
+      - name: 关闭 Issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue close "$ISSUE_NUMBER" --reason completed || true
