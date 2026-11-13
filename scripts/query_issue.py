@@ -34,8 +34,9 @@ TITLE_RE = re.compile(r"^\[QUERY\]\s*(\d{5,12})(?:\s*@\s*([A-Za-z0-9_]+))?", re.
 # 但**超时必须给足**：游戏服务器对机房 IP 响应很慢，单次请求常要 10–20 秒。
 ATTEMPT_TIMEOUT = 25.0    # 单次尝试（握手+查询）硬超时
 ATTEMPT_MAX = 3
-DEADLINE = 75.0           # 查询阶段总预算
+DEADLINE = 300.0          # 查询阶段总预算
 EMPTY_RETRY = 2           # errcode=0 但 data 为空时，先当作「可能被限流」再试几次
+COOLDOWN = 115.0          # 限流冷却：实测约 120 秒，短退避只会把惩罚拉长
 
 _KEYS = {}
 KEYS_TTL = 180
@@ -90,16 +91,20 @@ def _fast_try_one(srv, uid, hotver):
 def _fast_single(uid, srv, cache, hotver, note):
     """只查指定分区。
 
-    重要：账号被限流时游戏接口**不一定**回 20616，也可能回 errcode=0 + data 为空。
-    所以「空数据」不能立刻判定成「这个区没有这个人」，必须先多试一次，
-    否则会把限流误报成「分区选错了」。
+    三条实测规则（来自 8 万次普查文档 + 本次调参）：
+    1. 被限流后**必须等约 120 秒**并重新握手，短退避（1–2 秒）会延长惩罚；
+    2. 账号被限流时不只回 20616，也可能回 errcode=0 + data 空，所以空数据要先重试；
+    3. 超时（-1）多半是会话被顶掉，清掉本地密钥重握手即可，不必长等。
     """
     t0 = time.time()
     empties = 0
-    for attempt in range(ATTEMPT_MAX):
+    cooled = False
+    key = srv["key"]
+    for attempt in range(ATTEMPT_MAX + 1):
         data, ec = L.try_one(srv, uid, hotver)
         if data:
             return L._finish(uid, srv, data, cache, hotver, note)
+
         if ec == 0:
             empties += 1
             cache["_empty"] = empties
@@ -108,12 +113,24 @@ def _fast_single(uid, srv, cache, hotver, note):
                 return None                   # 连续两次明确回「没有这个角色」
             time.sleep(1.0)
             continue
+
         cache["_last_ec"] = ec
         if ec not in (20616, -1):
             break
+
         cache["_limited"] = ec
-        if attempt < ATTEMPT_MAX - 1 and time.time() - t0 < DEADLINE:
-            time.sleep(1.2 * (attempt + 1))
+        if ec == 20616 and not cooled and time.time() - t0 < DEADLINE - COOLDOWN:
+            cooled = True
+            note("接口限流，冷却 %d 秒后重试…" % int(COOLDOWN))
+            time.sleep(COOLDOWN)
+            _KEYS.pop(key, None)              # 旧会话已作废，必须重新握手
+            continue
+
+        if ec == -1 and attempt < ATTEMPT_MAX:
+            _KEYS.pop(key, None)
+            time.sleep(2.0 + attempt)
+            continue
+        break
     return None
 
 
