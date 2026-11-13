@@ -4,22 +4,23 @@
 为什么不用 Kivy 控件：Kivy 没有 HTML 渲染器，排行榜这种表格页面没法用 Label 复原。
 为什么不用外部浏览器：用户要求留在 App 里看。
 
-实现要点（踩过的坑都写在这里，改之前先读）：
-1. Kivy 的 Python 主线程**不是**安卓 UI 线程，所有 View 的创建 / 修改都必须
-   通过 activity.runOnUiThread 投递，否则会抛
-   "Only the original thread that created a view hierarchy can touch its views"。
-2. WebView 与 SDL 的 SurfaceView 是同一个窗口里的兄弟节点。SurfaceView 的
-   surface 默认在窗口**下面**，所以后添加的普通 View 能正常盖住它——但前提是
-   容器有不透明背景，否则会看到 Kivy 的画面透出来。
-3. WebViewClient / OnClickListener 这些 Java 对象必须由 Python 侧强引用持有，
-   否则可能被 GC 回收导致崩溃。
-4. 任何一步失败都直接抛异常，交给调用方回退到系统浏览器——宁可用外部浏览器，
-   也不能让"点按钮没反应"。
+踩过的坑（改之前先读）：
+1. Kivy 的 Python 主线程**不是**安卓 UI 线程，View 的创建 / 修改必须走
+   activity.runOnUiThread，否则抛 "Only the original thread ... can touch its views"。
+2. 点击「关闭」的回调本身就在 UI 线程，必须调 _hide_now() 直接改可见性；
+   再往 UI 线程投递并等待 = 死锁，按钮会完全失效。
+3. jnius 对方法签名很挑：setTextSize(int, float) 第二参数要给浮点；
+   LinearLayout$LayoutParams(int,int,float) 这类三参构造也容易匹配失败。
+   所以这里一律用 ViewGroup.LayoutParams + 显式像素高度，避开权重构造。
+4. **pyjnius 1.7 不会把 Python str 自动转成 Java CharSequence**：
+   `btn.setText("关闭")` 会抛 `JavaException: No methods called setText ...`，
+   导致整个 WebView 创建失败、静默回退系统浏览器（v14 就是这个症状）。
+   必须 `autoclass("java.lang.String")("关闭")` 显式构造。
+5. 任何一步失败都要留下可读的原因，让界面显示出来，而不是静默跳浏览器。
 """
 
 import threading
 
-# 安卓 View 常量（避免额外 autoclass）
 _VISIBLE = 0
 _GONE = 8
 _MATCH = -1
@@ -33,18 +34,21 @@ def _activity():
     return autoclass("org.kivy.android.PythonActivity").mActivity
 
 
-def _dp(activity, value):
-    return int(round(activity.getResources().getDisplayMetrics().density * value))
+def _metrics(activity):
+    m = activity.getResources().getDisplayMetrics()
+    return float(m.density), int(m.heightPixels)
 
 
-def available():
-    """当前环境能不能用内嵌浏览器（桌面调试时为 False）。"""
+def precheck():
+    """返回 (是否可用, 原因)。在真正开网页前先探测，失败原因能直接显示给用户。"""
     try:
         _activity()
         from jnius import autoclass  # noqa: F401
-        return True
-    except Exception:
-        return False
+        autoclass("android.webkit.WebView")
+        autoclass("android.widget.LinearLayout")
+        return True, ""
+    except Exception as e:
+        return False, "%s: %s" % (type(e).__name__, str(e)[:120])
 
 
 class WebOverlay(object):
@@ -57,6 +61,8 @@ class WebOverlay(object):
         self._listener = None
         self._visible = False
         self._last_url = ""
+        self._warn = ""             # 非致命警告（顶栏没做出来等）
+        self.last_error = ""        # 致命错误，交给界面显示
 
     # ---------------------------------------------------------------- 对外
     def is_open(self):
@@ -65,16 +71,23 @@ class WebOverlay(object):
     def open(self, url):
         if not url:
             raise ValueError("url 为空")
-        if self._root is not None:
-            self._show(url)
-        else:
-            # 首次创建 WebView 时系统要初始化浏览器内核，给足时间（含冷启动约 1 秒）
-            self._run_ui(lambda: self._build(url), timeout=6.0)
-        self._visible = True
-        self._last_url = url
+        self.last_error = ""
+        try:
+            ok, why = precheck()
+            if not ok:
+                raise RuntimeError("环境不支持：%s" % why)
+            if self._root is not None:
+                self._show(url)
+            else:
+                self._run_ui(lambda: self._build(url), timeout=6.0)
+            self._visible = True
+            self._last_url = url
+        except Exception as e:
+            self.last_error = "%s: %s" % (type(e).__name__, str(e)[:160])
+            raise
 
     def close(self):
-        """从 Kivy 线程调用（返回键）。点击关闭按钮走 _hide_now，不重复投递。"""
+        """从 Kivy 线程调用（返回键）。"""
         if self._root is None:
             self._visible = False
             return
@@ -83,7 +96,7 @@ class WebOverlay(object):
         self._run_ui(self._hide_now)
 
     def _hide_now(self):
-        """必须在 UI 线程执行。点击回调本身就在 UI 线程，直接改可见性即可。"""
+        """必须在 UI 线程执行。点击回调本身就在 UI 线程，直接改可见性。"""
         try:
             self._root.setVisibility(_GONE)
         except Exception:
@@ -92,17 +105,11 @@ class WebOverlay(object):
 
     def reload(self):
         if self._web is not None and self._last_url:
-            web = self._web
-            url = self._last_url
+            web, url = self._web, self._last_url
             self._run_ui(lambda: web.loadUrl(url))
 
     # ---------------------------------------------------------------- 内部
-    def _run_ui(self, fn, timeout=3.0):
-        """把 fn 投递到安卓 UI 线程执行，并等它跑完；出错就原样抛回。
-
-        必须等：View 创建失败时要能让调用方知道，好回退到系统浏览器。
-        阻塞时间按毫秒计（创建几个 View），不会卡住界面。
-        """
+    def _run_ui(self, fn, timeout=6.0):
         from jnius import PythonJavaClass, java_method
 
         activity = _activity()
@@ -117,14 +124,19 @@ class WebOverlay(object):
             def run(self):
                 try:
                     fn()
-                except Exception as e:      # 不能抛回 Java
+                except Exception as e:
                     box["err"] = e
                 finally:
                     done.set()
 
-        activity.runOnUiThread(_Task())
+        try:
+            activity.runOnUiThread(_Task())
+        except TypeError:
+            # 部分 pyjnius 版本需要显式 cast 才能把 Python 代理当 Runnable 传进去
+            from jnius import cast
+            activity.runOnUiThread(cast("java/lang/Runnable", _Task()))
         if not done.wait(timeout):
-            raise RuntimeError("UI 线程无响应")
+            raise RuntimeError("UI 线程 %s 秒内无响应" % timeout)
         if "err" in box:
             raise box["err"]
 
@@ -133,70 +145,93 @@ class WebOverlay(object):
 
         activity = _activity()
         LinearLayout = autoclass("android.widget.LinearLayout")
-        LayoutParams = autoclass("android.widget.LinearLayout$LayoutParams")
         ViewGroupLP = autoclass("android.view.ViewGroup$LayoutParams")
-        TextView = autoclass("android.widget.TextView")
-        Button = autoclass("android.widget.Button")
         WebView = autoclass("android.webkit.WebView")
         WebViewClient = autoclass("android.webkit.WebViewClient")
         Color = autoclass("android.graphics.Color")
-        TypedValue = autoclass("android.util.TypedValue")
-        Gravity = autoclass("android.view.Gravity")
+
+        density, screen_h = _metrics(activity)
+        bar_h = int(round(density * 50))
 
         root = LinearLayout(activity)
         root.setOrientation(_VERTICAL)
-        root.setBackgroundColor(Color.WHITE)
+        try:
+            root.setBackgroundColor(Color.WHITE)
+        except Exception:
+            pass
 
-        # ---- 顶栏：标题 + 关闭 ----
-        bar = LinearLayout(activity)
-        bar.setOrientation(_HORIZONTAL)
-        bar.setBackgroundColor(Color.parseColor("#8C2F28"))
-        bar.setGravity(Gravity.CENTER_VERTICAL)
-        pad = _dp(activity, 12)
-        bar.setPadding(pad, _dp(activity, 6), pad // 2, _dp(activity, 6))
-
-        title = TextView(activity)
-        title.setText("高手榜")
-        title.setTextColor(Color.WHITE)
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16)
-        bar.addView(title, LayoutParams(0, _WRAP, 1.0))
-
-        btn = Button(activity)
-        btn.setText("关闭")
-        btn.setTextColor(Color.WHITE)
-        btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15)
-        btn.setBackgroundColor(Color.TRANSPARENT)
-        btn.setPadding(_dp(activity, 14), 0, _dp(activity, 14), 0)
-        # 注意：回调在 UI 线程执行，只能调 _hide_now，不能再往 UI 线程投递（会死锁）
-        self._listener = self._make_click_listener(self._hide_now)
-        btn.setOnClickListener(self._listener)
-        bar.addView(btn, LayoutParams(_WRAP, _WRAP))
-
-        # ---- WebView ----
+        # ---- WebView（核心，失败就必须整体回退） ----
         web = WebView(activity)
-        settings = web.getSettings()
-        settings.setJavaScriptEnabled(True)
-        settings.setDomStorageEnabled(True)
-        settings.setUseWideViewPort(True)
-        settings.setLoadWithOverviewMode(True)
-        settings.setBuiltInZoomControls(False)
-        settings.setDisplayZoomControls(False)
-        settings.setSupportZoom(False)
-        self._client = WebViewClient()          # 强引用，防 GC
+        try:
+            st = web.getSettings()
+            st.setJavaScriptEnabled(True)
+            st.setDomStorageEnabled(True)
+            st.setUseWideViewPort(True)
+            st.setLoadWithOverviewMode(True)
+        except Exception as e:
+            self._warn = "设置项跳过 %s" % type(e).__name__
+        self._client = WebViewClient()        # 强引用，防 GC
         web.setWebViewClient(self._client)
-        web.setBackgroundColor(Color.WHITE)
+        try:
+            web.setBackgroundColor(Color.WHITE)
+        except Exception:
+            pass
         web.loadUrl(url)
 
-        root.addView(bar, LayoutParams(_MATCH, _WRAP))
-        root.addView(web, LayoutParams(_MATCH, 0, 1.0))
+        # ---- 顶栏（装饰，失败也不影响网页显示） ----
+        made_bar = False
+        try:
+            bar = self._make_bar(activity, bar_h)
+            root.addView(bar, ViewGroupLP(_MATCH, bar_h))
+            made_bar = True
+        except Exception as e:
+            self._warn = "顶栏失败 %s: %s" % (type(e).__name__, str(e)[:80])
 
+        # 不用权重：给 WebView 显式像素高度，避免 jnius 匹配三参构造失败
+        web_h = max(200, screen_h - (bar_h if made_bar else 0))
+        root.addView(web, ViewGroupLP(_MATCH, web_h))
         activity.addContentView(root, ViewGroupLP(_MATCH, _MATCH))
+
         self._root = root
         self._web = web
 
+    def _make_bar(self, activity, bar_h):
+        """顶栏只放一个关闭按钮——网页本身已有标题，少一个控件少一处失败点。"""
+        from jnius import autoclass
+
+        LinearLayout = autoclass("android.widget.LinearLayout")
+        ViewGroupLP = autoclass("android.view.ViewGroup$LayoutParams")
+        Button = autoclass("android.widget.Button")
+        Color = autoclass("android.graphics.Color")
+        Gravity = autoclass("android.view.Gravity")
+
+        bar = LinearLayout(activity)
+        bar.setOrientation(_HORIZONTAL)
+        try:
+            bar.setBackgroundColor(Color.parseColor("#8C2F28"))
+            bar.setGravity(Gravity.END | Gravity.CENTER_VERTICAL)
+        except Exception:
+            pass
+
+        btn = Button(activity)
+        # pyjnius 1.7 不会把 python str 自动转成 CharSequence，setText 会抛
+        # "No methods called setText ... matching your arguments"。
+        # 必须显式构造 java.lang.String，这是 v14 内嵌打开失败的真正原因。
+        JavaString = autoclass("java.lang.String")
+        btn.setText(JavaString("关闭"))
+        try:
+            btn.setTextColor(Color.WHITE)
+            btn.setTextSize(2, 15.0)          # (unit, float)
+            btn.setBackgroundColor(Color.TRANSPARENT)
+        except Exception:
+            pass
+        self._listener = self._make_click_listener(self._hide_now)
+        btn.setOnClickListener(self._listener)
+        bar.addView(btn, ViewGroupLP(_WRAP, bar_h))
+        return bar
+
     def _show(self, url):
-        root = self._root
-        web = self._web
+        root, web = self._root, self._web
         self._run_ui(lambda: root.setVisibility(_VISIBLE))
         if url != self._last_url:
             self._run_ui(lambda: web.loadUrl(url))
