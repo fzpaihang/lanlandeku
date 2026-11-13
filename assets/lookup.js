@@ -388,6 +388,7 @@
     }
 
     var bits = [];
+    if (m.stale) bits.push('榜单快照（非实时）');
     if (m.fetchedAt || m.at) bits.push('数据时间 ' + (m.fetchedAt || m.at));
     if (m.ms) bits.push('耗时 ' + (m.ms / 1000).toFixed(1) + ' 秒');
 
