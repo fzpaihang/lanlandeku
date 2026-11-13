@@ -30,7 +30,7 @@
     </div>
     <div id="server-switch" class="srv-switch" hidden></div>
     <div class="meta">
-      <span id="state" class="pill ghost">待查询</span>
+      <span id="state" class="pill ghost">已暂停</span>
       <a class="navbtn" href="./index.html">高手榜 ›</a>
     </div>
   </div>
@@ -55,30 +55,35 @@
       </div>
       <button id="go" class="lk-btn" type="button" disabled>已暂停</button>
     </div>
-    <p class="lk-hint" id="mode"></p>
-    <p class="lk-hint">可以输入 <b>UID</b>（5–12 位纯数字），也可以输入 <b>昵称</b>——昵称从五区排行榜的档案里匹配，重名会列出候选让你选。查榜外玩家只能用 UID。</p>
-    <p class="lk-hint">为避免接口限流：<b>同一角色 10 分钟内复用上次结果</b>（不再发请求，秒回）；<b>两次查询至少间隔 30 秒</b>，按钮会倒计时。</p>
+    <p class="lk-hint" id="mode">服务恢复后支持两种输入：<b>UID</b>（5–12 位纯数字），或<b>昵称</b>（从五区排行榜匹配，重名会列出候选）。</p>
   </section>
 
   <section id="result" class="lk-result" aria-live="polite" hidden></section>
 
-  <div id="tips" class="lk-empty">
+  <div id="tips" class="lk-empty" hidden>
     <p>查过的角色</p>
     <div id="recent" class="lk-recent"></div>
   </div>
 
   <p class="foot">
-    只在点击「查询」时才请求游戏接口，不做后台采集。同一角色 10 分钟内复用结果，两次查询至少间隔 30 秒——游戏接口限流很紧，超了会返回「接口繁忙」。<br />
+    查询功能已关闭，本页仅作说明保留；排行榜与玩家档案在高手榜里可正常浏览。<br />
     档案是<b>实时</b>数据，和排行榜的快照可能有出入（排行榜只在玩家活跃时刷新）。
   </p>
 </main>
 
+<!-- 实时查询后端已停用：暂停期间不加载任何脚本，避免分区条、最近查询这些元素
+     看起来还能点。恢复步骤：
+       ① 重新部署后端并拿到新地址；
+       ② 把下面整段取消注释；
+       ③ 去掉输入框和按钮上的 disabled，并把 #state 改回「待查询」。
+-->
+<!--
 <script>
-  /* 腾讯云函数地址；部署完把 URL 填进来（留空则用同源 /api/query，便于本地联调） */
   window.FZJH_API_BASE = 'https://fzjh-lookup-jxsklntlvl.cn-hangzhou.fcapp.run';
 </script>
 <script src="./assets/servers.js?v=160621b8"></script>
 <script src="./assets/profile.js?v=2bfa3a8a"></script>
 <script src="./assets/lookup.js?v=3b1f2cee"></script>
+-->
 </body>
 </html>
