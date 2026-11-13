@@ -40,15 +40,23 @@
 
   <p id="notice" class="banner" role="status" hidden></p>
 
-  <section class="lk" aria-label="按 UID 查询">
+  <p class="banner" role="status">
+    实时查询服务已暂停：按 UID 实时拉取档案需要常驻后端，目前先关闭。排行榜与玩家档案仍可正常浏览。
+  </p>
+
+  <section class="lk" aria-label="按 UID 或昵称查询">
     <div class="lk-row">
-      <input id="uid" class="lk-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="12"
-             placeholder="输入游戏内 UID" aria-label="游戏内 UID"
-             autocomplete="off" enterkeyhint="search" />
-      <button id="go" class="lk-btn" type="button">查询</button>
+      <div class="lk-field">
+        <input id="uid" class="lk-input" type="text" maxlength="20"
+               placeholder="实时查询已暂停" aria-label="游戏内昵称或 UID"
+               autocomplete="off" enterkeyhint="search" disabled
+               role="combobox" aria-autocomplete="list" aria-controls="suggest" aria-expanded="false" />
+        <div id="suggest" class="lk-suggest" role="listbox" aria-label="昵称候选" hidden></div>
+      </div>
+      <button id="go" class="lk-btn" type="button" disabled>已暂停</button>
     </div>
     <p class="lk-hint" id="mode"></p>
-    <p class="lk-hint">UID 是游戏「个人信息」页里的角色 ID（5–12 位纯数字），不是登录账号。查询走游戏接口实时拉取，通常 3–5 秒。</p>
+    <p class="lk-hint">可以输入 <b>UID</b>（5–12 位纯数字），也可以输入 <b>昵称</b>——昵称从五区排行榜的档案里匹配，重名会列出候选让你选。查榜外玩家只能用 UID。</p>
     <p class="lk-hint">为避免接口限流：<b>同一角色 10 分钟内复用上次结果</b>（不再发请求，秒回）；<b>两次查询至少间隔 30 秒</b>，按钮会倒计时。</p>
   </section>
 
