@@ -38,6 +38,13 @@ try:
     import archive_local as AL
 except Exception:
     AL = None
+try:
+    import webview_overlay as WV
+except Exception:
+    WV = None
+
+# 安卓返回键的两种 keycode：老版本 SDL 给 27(ESC)，新版本给 AC_BACK
+_BACK_KEYS = (27, 1073742094)
 
 _CN_CANDIDATES = [
     "/system/fonts/DroidSansFallback.ttf",
@@ -403,6 +410,7 @@ class PlayerLookup(App):
         self.mode = "query"
         self._hits = []
         self._sug_ev = None
+        self._web = None
 
         root = Root(orientation="vertical", padding=(dp(20), dp(16), dp(20), dp(12)),
                     spacing=dp(12))
@@ -421,6 +429,13 @@ class PlayerLookup(App):
         self._build_query_widgets()
         self._build_result_summary()
         self.show_query()
+
+        # 内嵌浏览器打开时，返回键先关网页，而不是退出 App
+        try:
+            from kivy.core.window import Window
+            Window.bind(on_keyboard=self._on_key)
+        except Exception:
+            pass
 
         # 昵称索引后台加载，绝不阻塞界面；加载完只更新一行提示
         if NI:
@@ -538,6 +553,8 @@ class PlayerLookup(App):
         if uid:
             q.append("me=" + str(uid))
         url = WEB_BASE + ("?" + "&".join(q) if q else "")
+        if self._open_in_app(url):
+            return
         if open_url(url):
             return
         msg = "没有可用的浏览器，打不开网页"
@@ -546,6 +563,29 @@ class PlayerLookup(App):
             keep = self.summary.text
             self.summary.text = msg
             Clock.schedule_once(lambda dt: setattr(self.summary, "text", keep), 3)
+
+    def _open_in_app(self, url):
+        """优先用内嵌 WebView 打开；不支持或失败返回 False，由调用方回退外部浏览器。"""
+        if not WV:
+            return False
+        try:
+            if self._web is None:
+                self._web = WV.WebOverlay()
+            self._web.open(url)
+            return True
+        except Exception:
+            self._web = None          # 下次重新尝试创建
+            return False
+
+    def _on_key(self, _win, key, *args):
+        """返回键：网页开着就先关网页，其它情况交回 Kivy 默认处理。"""
+        if key in _BACK_KEYS and self._web is not None and self._web.is_open():
+            try:
+                self._web.close()
+            except Exception:
+                self._web = None
+            return True
+        return False
 
     def show_query(self):
         self.mode = "query"
