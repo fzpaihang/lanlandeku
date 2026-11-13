@@ -1,0 +1,6 @@
+# 只上传函数运行必需的文件，减少上传体积
+worker/
+apk/update/
+scripts/
+.github/
+api/build/
