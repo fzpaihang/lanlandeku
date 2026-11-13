@@ -107,25 +107,50 @@ def main():
         return 0
 
     uid = int(m.group(1))
-    server = (m.group(2) or L.AUTO_SERVER).lower()
-    print("解析：uid=%s server=%s issue=#%s" % (uid, server, number))
+    server = (m.group(2) or "").strip().lower()
+    print("解析：uid=%s server=%r issue=#%s" % (uid, server, number))
 
     t0 = time.time()
+
+    servers, cfg_err = [], None
     try:
         servers = F.load_servers()
-        by_key = {s["key"]: s for s in servers}
-        if server not in ("auto", "all") and server not in by_key:
-            server = L.AUTO_SERVER
-        cfg = {"servers": servers, "hotver": int(os.environ.get("FZJH_HOTVER") or 18464)}
-        prof = L.lookup(uid, server=server, cfg=cfg, cache={})
     except SystemExit as e:
-        prof = None
-        err = "配置缺失：%s" % e
+        cfg_err = "配置缺失：%s" % e
     except Exception as e:
-        prof = None
-        err = "%s: %s" % (type(e).__name__, e)
-    else:
-        err = None
+        cfg_err = "%s: %s" % (type(e).__name__, e)
+    by_key = {s["key"]: s for s in servers}
+
+    def post(body):
+        with open("/tmp/issue-comment.md", "w", encoding="utf-8") as f:
+            f.write(body)
+        gh("issue", "comment", str(number), "--body-file", "/tmp/issue-comment.md")
+        print("已回帖")
+
+    # 自动匹配已停用：标题必须带 @分区，否则不发起任何请求
+    if not cfg_err and (not server or server in ("auto", "all") or server not in by_key):
+        lines = [
+            "## 请先选择分区",
+            "",
+            "自动匹配已停用，标题需要带上分区，例如：",
+            "",
+            "`[QUERY] %s @taptap_3`" % uid,
+            "",
+            "可选分区：",
+            "",
+        ]
+        lines += ["- `%s` %s" % (s["key"], s["name"]) for s in servers]
+        lines += ["", "---", "GitHub Actions 实时查询"]
+        post("\n".join(lines))
+        return 0
+
+    prof, err = None, cfg_err
+    if not err:
+        try:
+            cfg = {"servers": servers, "hotver": int(os.environ.get("FZJH_HOTVER") or 18464)}
+            prof = L.lookup(uid, server=server, cfg=cfg, cache={})
+        except Exception as e:
+            err = "%s: %s" % (type(e).__name__, e)
 
     elapsed = time.time() - t0
 
@@ -138,16 +163,14 @@ def main():
     else:
         body = (
             "## 没查到\n\n"
-            "UID `%s` 在自动模式下没有命中。可能是：\n\n"
-            "- UID 写错（应为游戏个人信息页里的 5–12 位角色 ID）\n"
-            "- 角色在其他分区，换个分区再试（在标题后加 `@taptap_3` 这种后缀）\n\n"
-            "---\nGitHub Actions 实时查询" % uid
+            "UID `%s` 在「%s」没有查到。可能是：\n\n"
+            "- **分区选错了**——换个区再试（自动匹配已停用，必须选对区）\n"
+            "- UID 写错（应为游戏个人信息页里的 5–12 位角色 ID）\n\n"
+            "---\nGitHub Actions 实时查询"
+            % (uid, (by_key.get(server) or {}).get("name") or server)
         )
 
-    with open("/tmp/issue-comment.md", "w", encoding="utf-8") as f:
-        f.write(body)
-    gh("issue", "comment", str(number), "--body-file", "/tmp/issue-comment.md")
-    print("已回帖")
+    post(body)
     return 0
 
 
