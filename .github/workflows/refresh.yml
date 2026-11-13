@@ -146,6 +146,12 @@ jobs:
           if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/merge_exp.py
           else python scripts/merge_exp.py --server "$T"; fi
 
+      - name: 重建昵称索引
+        # 榜单变了索引就得跟着变，否则查询页搜到的还是上一次的昵称。
+        # 会在 5 转玩家（data/cangsong-5zhuan.json）基础上合并，不影响那部分。
+        if: (github.event_name == 'schedule') || (inputs.mode == 'full')
+        run: python scripts/build_lookup_index.py
+
       - name: 提交数据
         env:
           LABEL: ${{ steps.t.outputs.label }}
