@@ -1,0 +1,73 @@
+name: 合并档案经验
+
+# 只做合并，不请求游戏接口：把已有 profiles 的经验写回榜单，并重写当天经验快照。
+# 用来在两次定时抓取之间手动生效，或切换口径后立即修正历史展示。
+on:
+  workflow_dispatch:
+    inputs:
+      server:
+        description: '目标分区'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - taptap
+          - taptap_2
+          - taptap_3
+          - taptap_4
+          - 4399
+
+permissions:
+  contents: write
+
+concurrency:
+  group: merge-exp
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 合并经验
+        env:
+          T: ${{ inputs.server }}
+        run: |
+          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/merge_exp.py
+          else python scripts/merge_exp.py --server "$T"; fi
+
+      - name: 提交数据
+        run: |
+          set -e
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data
+          if git diff --staged --quiet; then
+            echo "数据无变化，跳过提交"
+            exit 0
+          fi
+          git commit -m "合并档案经验 $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')"
+          for i in 1 2 3; do
+            git fetch origin main
+            if ! git rebase FETCH_HEAD; then
+              git rebase --abort 2>/dev/null || true
+              echo "rebase 冲突，放弃本次提交"
+              exit 1
+            fi
+            if git push; then
+              echo "已推送"
+              exit 0
+            fi
+            echo "第 $i 次推送失败，5 秒后重试…"
+            sleep 5
+          done
+          exit 1
