@@ -136,6 +136,16 @@ jobs:
           if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch_profiles.py
           else python scripts/fetch_profiles.py --server "$T"; fi
 
+      - name: 合并档案经验
+        # 档案抓完再合并：get_board 对不活跃玩家会返回旧经验，用 get_user_info 的值覆盖，
+        # 让表格、详情、增长曲线统一口径。名次仍是游戏原始名次，不重排。
+        if: (github.event_name == 'schedule') || (inputs.mode == 'full')
+        env:
+          T: ${{ steps.t.outputs.target }}
+        run: |
+          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/merge_exp.py
+          else python scripts/merge_exp.py --server "$T"; fi
+
       - name: 提交数据
         env:
           LABEL: ${{ steps.t.outputs.label }}
