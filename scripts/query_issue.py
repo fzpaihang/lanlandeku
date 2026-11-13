@@ -36,7 +36,26 @@ def fmt(v, suffix=""):
 
 
 def build_markdown(prof, elapsed, arch="off"):
+    # 机器可读的摘要（HTML 注释，页面上看不见），查询页靠它回显结果
+    meta = {
+        "uid": prof.get("uid"),
+        "n": prof.get("name"),
+        "s": prof.get("server"),
+        "sn": prof.get("serverName"),
+        "lv": prof.get("lv"),
+        "m": prof.get("menpai"),
+        "exp": prof.get("exp"),
+        "k": prof.get("kongfu"),
+        "fy": prof.get("fuyuan"),
+        "r": prof.get("rank"),
+        "ic": prof.get("inheritCount"),
+        "sk": len(prof.get("skills") or []),
+        "eq": len(prof.get("equips") or []),
+        "at": prof.get("fetchedAt"),
+        "ms": int((elapsed or 0) * 1000),
+    }
     lines = [
+        "<!--FZJHJSON %s-->" % json.dumps(meta, ensure_ascii=False, separators=(",", ":")),
         "## 查询成功",
         "",
         "| 项目 | 值 |",
