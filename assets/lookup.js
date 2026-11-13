@@ -247,8 +247,9 @@
 
   var PEND_KEY = 'fzjh_lookup_pending';
   var API = 'https://api.github.com/repos/' + REPO;
-  var POLL_MS = 7000;
-  var POLL_MAX = 26;          // 约 3 分钟
+  var POLL_MS = 5000;
+  var POLL_MAX = 40;          // 约 3 分钟
+  var WAIT_CREATE_MS = 90000; // 90 秒还没出现新 Issue，说明可能没点 Create
   var pollTimer = null;
   var pollLeft = 0;
 
@@ -287,13 +288,20 @@
       return;
     }
 
+    // 90 秒还没出现新 Issue，多半是没点 Create，不再空耗接口额度
+    if (!p.issue && p.at && Date.now() - p.at > WAIT_CREATE_MS) {
+      stopPolling();
+      setState('未检测到提交', 'warn');
+      notice('90 秒内没检测到新 Issue——可能没在 GitHub 点「Create」。点上面的链接重试，或刷新本页继续等。');
+      return;
+    }
+
     var found = p.issue
       ? Promise.resolve({ number: p.issue })
       : findIssue(p).then(function (it) {
           if (it) { p.issue = it.number; savePending(p); }
           return it;
         });
-
     found.then(function (it) {
       if (!it) return null;
       return fetchJson(API + '/issues/' + it.number + '/comments').then(function (cs) {
