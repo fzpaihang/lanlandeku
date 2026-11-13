@@ -27,6 +27,8 @@ FILES = [
     "aes_pure.py",
     "names_index.py",
     "archive_local.py",
+    "webview_overlay.py",
+    "skill_groups.py",
 ]
 
 

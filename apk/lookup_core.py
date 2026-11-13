@@ -265,12 +265,15 @@ def parse_profile(data, board_row=None):
     skills.sort(key=lambda x: (-x["lv"], x["n"]))
 
     # 准备位
+    # 值从「技能名」改成 {n: 名称, lv: 等级}：界面要显示「1099 级」，
+    # 在这里一次解析好，省得每次渲染再去 skills 里反查。
+    lv_by_id = {s["id"]: s["lv"] for s in skills}
     prepared = {}
     for slot, sid in (data.get("skillPrepare") or {}).items():
         if not sid or not isinstance(sid, str):
             continue
         nm = sk_map.get(sid) or ("自创武学" if "selfCreatedSkill" in str(sid) else str(sid))
-        prepared[SLOT_CN.get(slot, slot)] = nm
+        prepared[SLOT_CN.get(slot, slot)] = {"n": nm, "lv": lv_by_id.get(sid)}
 
     # 装备
     equips = []

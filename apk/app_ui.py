@@ -42,6 +42,10 @@ try:
     import webview_overlay as WV
 except Exception:
     WV = None
+try:
+    import skill_groups as SG          # 武学分类表，缺失时退化成不分组
+except Exception:
+    SG = None
 
 # 安卓返回键的两种 keycode：老版本 SDL 给 27(ESC)，新版本给 AC_BACK
 _BACK_KEYS = (27, 1073742094)
@@ -403,7 +407,8 @@ class Chip(BoxLayout):
             Color(*C_ACCENT_SOFT)
             self._bg = RoundedRectangle(radius=[dp(15)], pos=self.pos, size=self.size)
         self.bind(pos=self._sync, size=self._sync)
-        self.label = lab(text, 13.5, C_ACCENT, bold=True, height=30, halign="center")
+        self.label = lab(text, 11.5, C_ACCENT, bold=True, height=30, halign="center",
+                         shorten=True)
         self.add_widget(self.label)
 
     def _sync(self, *a):
@@ -412,6 +417,29 @@ class Chip(BoxLayout):
 
     def set_text(self, t):
         self.label.text = t
+
+
+class KVRow(BoxLayout):
+    """键值对行：槽位（固定 56dp 灰字）+ 技能名 + 右侧等级。
+
+    替掉准备位的粉色胶囊：胶囊有底色又装在白卡里是双层容器，宽度还随名字变，
+    12 项只露 4 项；改成一列一行后同样高度能放 6 行、完全对齐。
+    """
+
+    def __init__(self, key, val, tail="", **kw):
+        kw.setdefault("size_hint_y", None)
+        kw.setdefault("height", dp(44))
+        kw.setdefault("spacing", dp(10))
+        super(KVRow, self).__init__(orientation="horizontal", **kw)
+        k = lab(str(key), 11, C_INK2, height=44, shorten=True)
+        k.size_hint_x = None
+        k.width = dp(56)
+        self.add_widget(k)
+        self.add_widget(lab(str(val), 13, C_INK, height=44, shorten=True))
+        t = lab(str(tail or ""), 11, C_MUTED, height=44, halign="right", shorten=True)
+        t.size_hint_x = None
+        t.width = dp(72)
+        self.add_widget(t)
 
 
 class Pill(BoxLayout):
@@ -428,12 +456,12 @@ class Pill(BoxLayout):
             Color(*(C_ACCENT if accent else C_ACCENT_SOFT))
             self._bg = RoundedRectangle(radius=[dp(20)], pos=self.pos, size=self.size)
         self.bind(pos=self._sync, size=self._sync)
-        k = lab(str(key), 11, (1, 1, 1, 1) if accent else C_MUTED, height=40)
+        k = lab(str(key), 11, (1, 1, 1, 1) if accent else C_MUTED, height=40, shorten=True)
         k.size_hint_x = None
         k.width = dp(46)
         self.add_widget(k)
         self.add_widget(lab(str(val), 13, (1, 1, 1, 1) if accent else C_INK,
-                            bold=True, height=40))
+                            bold=True, height=40, shorten=True))
         self.key_text = str(key)
         self.val_text = str(val)
 
@@ -495,6 +523,8 @@ class PlayerLookup(App):
         self.prep_open = False
         self.skill_open = False
         self.skill_query = ""
+        self.skill_open_groups = set()   # 展开的武学分组
+        self.skill_group_limit = {}      # 分组内已显示条数
         self.mode = "query"
         self._hits = []
         self._sug_ev = None
@@ -542,10 +572,9 @@ class PlayerLookup(App):
             self._do_search(self.inp.text)
 
     def _build_query_widgets(self):
-        # 顶部：印章 + 标题 + 副标题（对应网页 .hero 里的 .brand）
+        # 顶部一行：标题 + 副标题。去掉原来的朱砂印章——一个屏幕不要两个标题。
         head = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(46),
                          spacing=dp(12))
-        head.add_widget(Seal("查\n询", 44))
         title_col = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(46),
                               size_hint_x=1, spacing=dp(0))
         t = lab("玩家查询", 22, C_INK, bold=True, height=30, serif=True, shorten=True)
@@ -564,6 +593,23 @@ class PlayerLookup(App):
 
         form = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(10))
         form.bind(minimum_height=form.setter("height"))
+
+        # 顺序：分区 → 输入 → 查询。分区是查询的前提，不能排在按钮后面。
+        row_srv = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(52),
+                            spacing=dp(10))
+        pre = lab("分区", 14.5, C_INK2, bold=True, height=52)
+        pre.size_hint_x = None
+        pre.width = dp(42)
+        row_srv.add_widget(pre)
+        self.spin = RoundSpinner(
+            text=self._name_of(self._picked_key()) or names[0], values=names,
+            font_name=FONT, font_size=sp(16), color=C_INK, halign="left",
+            size_hint_y=None, height=dp(52), option_cls=CnSpinnerOption,
+        )
+        self.spin.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(30), None)))
+        self.spin.bind(text=lambda inst, v: self._save_pick(v))
+        row_srv.add_widget(self.spin)
+        form.add_widget(row_srv)
 
         self.inp = RoundInput(
             text="", hint_text="输入昵称或 UID", font_name=FONT, font_size=sp(17),
@@ -592,39 +638,21 @@ class PlayerLookup(App):
         self.btn.bind(on_release=lambda *a: self.start())
         form.add_widget(self.btn)
 
-        row_srv = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(52),
-                            spacing=dp(10))
-        pre = lab("分区", 14.5, C_INK2, bold=True, height=52)
-        pre.size_hint_x = None
-        pre.width = dp(46)
-        row_srv.add_widget(pre)
-        self.spin = RoundSpinner(
-            text=self._name_of(self._picked_key()) or names[0], values=names,
-            font_name=FONT, font_size=sp(16), color=C_INK, halign="left",
-            size_hint_y=None, height=dp(52), option_cls=CnSpinnerOption,
-        )
-        self.spin.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(30), None)))
-        self.spin.bind(text=lambda inst, v: self._save_pick(v))
-        row_srv.add_widget(self.spin)
-        form.add_widget(row_srv)
-
-        self.q_status = lab("", 13.5, C_INK2, height=0)
+        self.q_status = lab("", 13.5, C_INK2, height=0, shorten=True)
         form.add_widget(self.q_status)
 
-        form.add_widget(lab("输入昵称命中时会自动切到该角色所在区；UID 为 5–12 位数字。",
-                            13, C_INK2, height=24))
-        form.add_widget(lab("当前代码版本：%s" % code_version(), 12.5, C_MUTED, height=22))
+        # 三段说明合并成一行；版本号挪进底部的「?」弹层，不再占主流程
+        form.add_widget(lab("UID 5–12 位数字 · 输入昵称自动切到该角色所在区",
+                            11, C_MUTED, height=20, shorten=True))
 
         self.query_widgets = [head, form]
 
     def _build_result_summary(self):
-        bar = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(12))
-        self.summary = lab("", 14, C_INK2, height=48)
+        bar = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(12))
+        # 摘要只留「分区 · UID」，榜单挪进内容区，一个动作一个位置
+        self.summary = lab("", 13, C_INK2, height=44, shorten=True)
         bar.add_widget(self.summary)
-        web = txt_button("榜单", C_INK2, width=52, height=48, size=12.5)
-        web.bind(on_release=lambda *a: self._open_web(self._result_uid()))
-        bar.add_widget(web)
-        edit = txt_button("修改", C_ACCENT, width=52, height=48)
+        edit = txt_button("修改", C_ACCENT, width=52, height=44, size=13)
         edit.bind(on_release=lambda *a: self.show_query())
         bar.add_widget(edit)
         self.result_widgets = [bar, HLine()]
@@ -723,6 +751,8 @@ class PlayerLookup(App):
         self.prep_open = False
         self.skill_open = False
         self.skill_query = ""
+        self.skill_open_groups = set()
+        self.skill_group_limit = {}
         self._render(p)
 
     # ---------- 分区 ----------
@@ -804,27 +834,29 @@ class PlayerLookup(App):
     def _show_idle(self):
         self._set_body_card(False)
         self.body.clear_widgets()
-        self.body.add_widget(self._hint_widget())
+        # 空态承担引导：先给能直接点的示例/历史，再把「关于」弱化放到底部
         self.body.add_widget(self._recent_widget())
+        self.body.add_widget(HLine())
+        self.body.add_widget(self._hint_widget())
 
     def _hint_widget(self):
         box = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(6))
         box.bind(minimum_height=box.setter("height"))
         row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
-        row.add_widget(lab("UID 是游戏内角色 ID，不是登录账号", 14.5, C_INK2, height=40))
-        q = lab("？", 14, C_ACCENT, bold=True, height=40, halign="center")
+        row.add_widget(lab("UID 是游戏内角色 ID，不是登录账号", 12, C_MUTED,
+                           height=40, shorten=True))
+        q = lab("？", 13, C_ACCENT, bold=True, height=40, halign="center")
         q.size_hint_x = None
         q.width = dp(32)
         row.add_widget(q)
         box.add_widget(row)
         if self.hint_open:
             box.add_widget(lab("默认只查选中的分区，速度快、不易被限流；分区选择会被记住。",
-                               13.5, C_INK2, height=38))
+                               12.5, C_INK2, height=36, shorten=True))
             box.add_widget(lab("不确定在哪个区时，用列表最后的「自动探测」逐区尝试。",
-                               13.5, C_INK2, height=38))
-            box.add_widget(lab("关于 · 当前 %s · 数据来自游戏接口" % code_version(),
-                               13, C_MUTED, height=26))
-        box.add_widget(HLine())
+                               12.5, C_INK2, height=36, shorten=True))
+            box.add_widget(lab("当前代码版本：%s · 数据来自游戏接口" % code_version(),
+                               12, C_MUTED, height=24))
         box.bind(on_touch_down=lambda inst, t: self._hint_touch(inst, t))
         return box
 
@@ -842,17 +874,25 @@ class PlayerLookup(App):
         box = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(4))
         box.bind(minimum_height=box.setter("height"))
         box.add_widget(lab("最近查询" if has else "试试示例 UID", 14, C_INK,
-                           bold=True, height=28))
+                           bold=True, height=28, shorten=True))
         if not has:
-            box.add_widget(lab("下面是丹凤朝阳的示例角色，点一下自动填入",
-                               13.5, C_INK2, height=26))
+            box.add_widget(lab("下面是丹凤朝阳的示例角色，点右侧「填入」", 12.5, C_INK2,
+                               height=24, shorten=True))
         for r in rows:
-            b = txt_button("%s  ·  %s" % (r.get("uid"), r.get("name") or r.get("serverName") or ""),
+            row = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
+            b = txt_button("%s  ·  %s" % (r.get("uid"),
+                                          r.get("name") or r.get("serverName") or ""),
                            color=C_INK2, height=48, size=13)
             b.halign = "left"
+            b.shorten = True
             b.bind(width=lambda inst, v: setattr(inst, "text_size", (v, None)))
             b.bind(on_release=lambda inst, u=r.get("uid"), k=r.get("server"): self._fill(u, k))
-            box.add_widget(b)
+            row.add_widget(b)
+            # 可点感来自按钮，不靠猜：每行右侧给一个明确的「填入」
+            fill = txt_button("填入", C_ACCENT, width=44, height=48, size=12)
+            fill.bind(on_release=lambda inst, u=r.get("uid"), k=r.get("server"): self._fill(u, k))
+            row.add_widget(fill)
+            box.add_widget(row)
             box.add_widget(HLine())
         return box
 
@@ -1074,14 +1114,19 @@ class PlayerLookup(App):
         self._set_body_card(True)
         self.body.clear_widgets()
 
-        head = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(12))
-        head.add_widget(lab(p["name"], 24, C_INK, bold=True, height=44, serif=True,
-                              shorten=True))
+        # 名字是主角，名次徽章退到 11sp，右侧留一个「榜单 ›」入口
+        head = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+        head.add_widget(lab(p["name"], 24, C_INK, bold=True, height=40, serif=True,
+                            shorten=True))
         rank_txt = ("榜上第 %s 名" % p["rank"]) if p.get("rank") else "未上榜"
-        head.add_widget(Chip(rank_txt, width=dp(120)))
+        head.add_widget(Chip(rank_txt, width=88))
+        go = txt_button("榜单 ›", C_INK2, width=56, height=40, size=12)
+        go.bind(on_release=lambda *a: self._open_web(self._result_uid()))
+        head.add_widget(go)
         self.body.add_widget(head)
 
-        parts = [p["serverName"], p["menpai"],
+        # 分区已经在顶栏，这里不重复
+        parts = [p["menpai"],
                  (p["sex"] + " " if p["sex"] else "") +
                  (str(p["age"]) + " 岁" if p["age"] else "")]
         if p.get("looks") is not None:
@@ -1089,14 +1134,24 @@ class PlayerLookup(App):
                 parts.append("容貌 %s" % format(int(p["looks"]), ",d"))
             except (TypeError, ValueError):
                 pass
-        self.body.add_widget(lab(" · ".join([x for x in parts if x]),
-                                14, C_INK2, height=26))
+        self.body.add_widget(lab(" · ".join([x for x in parts if x]), 13, C_INK2,
+                                 height=24, shorten=True))
         self.body.add_widget(HLine())
 
-        grid = GridLayout(cols=2, size_hint_y=None, spacing=(dp(12), dp(14)))
+        # 主指标：等级 / 武学造诣 —— 判断战力就看这两个，单独一行、20sp
+        pri = BoxLayout(size_hint_y=None, height=dp(58), spacing=dp(12))
+        lv_txt = ("%s" % p["lv"] + ("（估）" if p.get("lvEstimated") else "")) if p["lv"] else "—"
+        kf_txt = ("%.2f" % p["kongfu"]) if p.get("kongfu") is not None else "—"
+        for k, v in (("等级", lv_txt), ("武学造诣", kf_txt)):
+            cell = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(58))
+            cell.add_widget(lab(k, 11, C_MUTED, height=18))
+            cell.add_widget(lab(v, 20, C_INK, height=36, shorten=True))
+            pri.add_widget(cell)
+        self.body.add_widget(pri)
+
+        # 次指标：6 项 16sp，单位 12sp 与数字同基线
+        grid = GridLayout(cols=2, size_hint_y=None, spacing=(dp(12), dp(10)))
         vals = [
-            ("等级", "%s" % p["lv"] + ("（估）" if p.get("lvEstimated") else "") if p["lv"] else "—"),
-            ("武学造诣", ("%.2f" % p["kongfu"]) if p.get("kongfu") is not None else "—"),
             ("经验", L.fmt_big(p["exp"])),
             ("福缘", p["fuyuan"] if p.get("fuyuan") is not None else "—"),
             ("气血", L.fmt_big(p.get("qiMax"))),
@@ -1106,42 +1161,68 @@ class PlayerLookup(App):
         ]
         for k, v in vals:
             cell = BoxLayout(orientation="vertical", size_hint_y=None,
-                             height=dp(48), spacing=0)
+                             height=dp(46), spacing=0)
             cell.add_widget(lab(k, 11, C_MUTED, height=16))
             num, unit = split_num(v)
-            big = 20 if k == "武学造诣" else 18
             markup = num
             if unit:
-                markup += "[size=12][color=%s]%s[/color][/size]" % (hex_of(C_MUTED), unit)
-            cell.add_widget(lab(markup, big, C_INK, height=30, markup=True))
+                markup += "[size=12][color=%s]%s[/color][/size]" % (hex_of(C_INK2), unit)
+            cell.add_widget(lab(markup, 16, C_INK, height=30, markup=True, shorten=True))
             grid.add_widget(cell)
-        grid.height = dp(48) * 4 + dp(14) * 3
+        grid.height = dp(46) * 3 + dp(10) * 2
         self.body.add_widget(grid)
-        self.body.add_widget(HLine())
 
         prep = list((p["prepared"] or {}).items())
         if prep:
-            self._pill_section("准备位 %d 个" % len(prep), prep, p, collapsible=True)
+            self.body.add_widget(HLine())
+            rows = []
+            for k, v in prep:
+                info = v if isinstance(v, dict) else {"n": v, "lv": None}
+                rows.append((k, info.get("n") or "",
+                             ("%s 级" % info["lv"]) if info.get("lv") else ""))
+            self._kv_section("准备位 %d 个" % len(prep), rows, collapsible=True)
         if p["equips"]:
+            self.body.add_widget(HLine())
             self._pill_section("装备 %d 件" % len(p["equips"]),
                                [(e["slot"], e["n"]) for e in p["equips"]])
-        self._timeline_section(p)
+        if p["history"]:
+            self.body.add_widget(HLine())
+            self._timeline_section(p)
+        self.body.add_widget(HLine())
         self._skill_section(p)
 
-        foot = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(12))
-        b1 = txt_button("复制 UID")
+        # 底栏：只留一个主操作，复制/保存降为文字按钮
+        self.body.add_widget(HLine())
+        foot = BoxLayout(size_hint_y=None, height=dp(52), spacing=dp(10))
+        again = PrimaryButton(text="再查一个", font_name=FONT, font_size=sp(15.5),
+                              bold=True, size_hint_y=None, height=dp(52))
+        again.bind(on_release=lambda *a: self.again())
+        foot.add_widget(again)
+        b1 = txt_button("复制 UID", C_INK2, width=68, height=52, size=13)
         b1.bind(on_release=lambda *a: self.copy_uid())
-        b2 = txt_button("保存数据", color=C_INK2)
+        foot.add_widget(b1)
+        b2 = txt_button("保存", C_INK2, width=44, height=52, size=13)
         b2.bind(on_release=lambda *a: self.save())
-        b3 = txt_button("再查一个")
-        b3.bind(on_release=lambda *a: self.again())
-        for b in (b1, b2, b3):
-            foot.add_widget(b)
+        foot.add_widget(b2)
         self.body.add_widget(foot)
 
-    # ---------- 短标签胶囊（准备位 / 装备） ----------
+    # ---------- 键值对行（准备位） ----------
+    def _kv_section(self, title, rows, collapsible=False, limit=6):
+        self.body.add_widget(lab(title, 14, C_INK, bold=True, height=30, shorten=True))
+        show = rows if (not collapsible or self.prep_open) else rows[:limit]
+        for i, (k, v, tail) in enumerate(show):
+            self.body.add_widget(KVRow(k, v, tail))
+            if i < len(show) - 1:
+                self.body.add_widget(HLine())
+        if collapsible and len(rows) > limit:
+            b = txt_button("收起" if self.prep_open else "展开全部 %d 项" % len(rows),
+                           color=C_ACCENT, height=44, size=13)
+            b.bind(on_release=lambda *a: self._toggle_prep())
+            self.body.add_widget(b)
+
+    # ---------- 短标签胶囊（装备） ----------
     def _pill_section(self, title, rows, p=None, collapsible=False):
-        self.body.add_widget(lab(title, 14, C_INK, bold=True, height=28))
+        self.body.add_widget(lab(title, 14, C_INK, bold=True, height=30, shorten=True))
         show = rows if (not collapsible or self.prep_open) else rows[:4]
         grid = GridLayout(cols=2, size_hint_y=None, spacing=(dp(8), dp(8)))
         for k, v in show:
@@ -1151,14 +1232,14 @@ class PlayerLookup(App):
         self.body.add_widget(grid)
         if collapsible and len(rows) > 4:
             b = txt_button("展开全部 %d 项" % len(rows) if not self.prep_open else "收起",
-                           color=C_ACCENT, height=48, size=13)
-            b.bind(on_release=lambda *a: self._toggle_prep(p))
+                           color=C_ACCENT, height=44, size=13)
+            b.bind(on_release=lambda *a: self._toggle_prep())
             self.body.add_widget(b)
-        self.body.add_widget(HLine())
 
-    def _toggle_prep(self, p):
+    def _toggle_prep(self, *a):
         self.prep_open = not self.prep_open
-        self._render(p)
+        if self.prof:
+            self._render(self.prof)
 
     # ---------- 传承竖向时间线 ----------
     def _timeline_section(self, p):
@@ -1166,7 +1247,7 @@ class PlayerLookup(App):
         if not rows:
             return
         self.body.add_widget(lab("传承历程 · %d 转" % len(rows), 14, C_INK,
-                                bold=True, height=28))
+                                bold=True, height=30, shorten=True))
         for i, h in enumerate(rows, 1):
             last = i == len(rows)   # 末项就是当前角色
             row = BoxLayout(size_hint_y=None, height=dp(34), spacing=dp(10))
@@ -1182,23 +1263,21 @@ class PlayerLookup(App):
             row.add_widget(dt)
             self.body.add_widget(row)
             self.body.add_widget(HLine(color=C_ACCENT if last else C_LINE))
-        self.body.add_widget(HLine())
 
-    # ---------- 武学：默认 10 条 + 展开全部 + 仅展开后的搜索 ----------
+    # ---------- 武学：按类型分组折叠 + 常驻搜索 ----------
     def _skill_section(self, p):
         skills = p["skills"] or []
         if not skills:
             return
         box = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(6))
         box.bind(minimum_height=box.setter("height"))
-        head = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(8))
+        head = BoxLayout(size_hint_y=None, height=dp(32), spacing=dp(8))
         head.add_widget(lab("武学 %d 门" % len(skills), 14, C_INK, bold=True,
-                            height=36, shorten=True))
-        # txt_button 内部会再乘一次 dp，这里只能传纯数字：以前写 width=dp(150)，
-        # 实际变成 337px，比整行还宽，标题宽度被挤到 0 → 每个汉字各占一行。
-        self.skill_toggle = txt_button("", C_ACCENT, width=104, height=36, size=12)
-        self.skill_toggle.bind(on_release=lambda *a: self._toggle_skill(p))
-        head.add_widget(self.skill_toggle)
+                            height=32, shorten=True))
+        hint = lab("点分组展开", 11.5, C_MUTED, height=32, halign="right", shorten=True)
+        hint.size_hint_x = None
+        hint.width = dp(72)
+        head.add_widget(hint)
         box.add_widget(head)
 
         self.skill_search = TextInput(
@@ -1216,45 +1295,75 @@ class PlayerLookup(App):
         self.skill_list.bind(minimum_height=self.skill_list.setter("height"))
         box.add_widget(self.skill_list)
         self.body.add_widget(box)
-        self._sync_skill_ui(p)
+        self._render_skill_list(p)
 
-    def _sync_skill_ui(self, p):
-        n = len(p["skills"] or [])
-        self.skill_toggle.text = "收起" if self.skill_open else "展开全部"
-        self.skill_search.height = dp(44) if self.skill_open else dp(0)
-        self.skill_search.opacity = 1.0 if self.skill_open else 0.0
-        self.skill_search.disabled = not self.skill_open
+    def _skill_row(self, s):
+        row = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(10))
+        row.add_widget(lab(s["n"], 13, C_INK2, height=44, shorten=True))
+        lv = lab("%s 级" % s["lv"], 11, C_MUTED, height=44, halign="right")
+        lv.size_hint_x = None
+        lv.width = dp(72)
+        row.add_widget(lv)
+        return row
+
+    def _group_head(self, cat, n):
+        opened = cat in self.skill_open_groups
+        row = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(6))
+        a = lab("▼" if opened else "▶", 11, C_MUTED, height=44, halign="center")
+        a.size_hint_x = None
+        a.width = dp(18)
+        row.add_widget(a)
+        row.add_widget(lab(cat, 13.5, C_INK, bold=True, height=44, shorten=True))
+        t = lab("%d 门" % n, 11.5, C_MUTED, height=44, halign="right")
+        t.size_hint_x = None
+        t.width = dp(48)
+        row.add_widget(t)
+        row.bind(on_touch_down=lambda inst, touch, c=cat: self._group_touch(inst, touch, c))
+        return row
+
+    def _group_touch(self, inst, touch, cat):
+        if inst.collide_point(*touch.pos):
+            if cat in self.skill_open_groups:
+                self.skill_open_groups.discard(cat)
+            else:
+                self.skill_open_groups.add(cat)
+            if self.prof:
+                self._render_skill_list(self.prof)
+            return True
+        return False
+
+    def _more_group(self, cat, p):
+        self.skill_group_limit[cat] = self.skill_group_limit.get(cat, 8) + 20
         self._render_skill_list(p)
 
     def _render_skill_list(self, p):
         self.skill_list.clear_widgets()
-        items = list(p["skills"] or [])
         q = (self.skill_query or "").strip()
         if q:
-            items = [s for s in items if q in str(s["n"])]
-        elif not self.skill_open:
-            items = items[:10]
-        if not items:
-            self.skill_list.add_widget(lab("没有匹配的武学", 12, C_MUTED, height=34))
+            # 搜索时跨组平铺，不分组；上限 200 条防止一次建太多控件
+            items = [s for s in (p["skills"] or []) if q in str(s["n"])][:200]
+            if not items:
+                self.skill_list.add_widget(lab("没有匹配的武学", 12, C_MUTED, height=44))
+                return
+            for s in items:
+                self.skill_list.add_widget(self._skill_row(s))
+                self.skill_list.add_widget(HLine())
             return
-        for s in items:
-            row = BoxLayout(size_hint_y=None, height=dp(34), spacing=dp(10))
-            row.add_widget(lab(s["n"], 13, C_INK2, height=34, shorten=True))
-            lv = lab("%s 级" % s["lv"], 11, C_MUTED, height=34, halign="right")
-            lv.size_hint_x = None
-            lv.width = dp(72)
-            row.add_widget(lv)
-            self.skill_list.add_widget(row)
-            self.skill_list.add_widget(HLine())
-        # 高度交给 minimum_height 绑定，别再拿 dp(35)*条数 估：
-        # 搜索过滤后条数变了，估算值会和真实内容错位。
 
-    def _toggle_skill(self, p):
-        self.skill_open = not self.skill_open
-        if not self.skill_open:
-            self.skill_query = ""
-            self.skill_search.text = ""
-        self._sync_skill_ui(p)
+        groups = SG.group(p["skills"]) if SG else [("全部", p["skills"] or [])]
+        for cat, items in groups:
+            self.skill_list.add_widget(self._group_head(cat, len(items)))
+            if cat in self.skill_open_groups:
+                limit = self.skill_group_limit.get(cat, 8)
+                for s in items[:limit]:
+                    self.skill_list.add_widget(self._skill_row(s))
+                    self.skill_list.add_widget(HLine())
+                if limit < len(items):
+                    b = txt_button("显示更多（还剩 %d 门）" % (len(items) - limit),
+                                   color=C_ACCENT, height=44, size=12.5)
+                    b.bind(on_release=lambda inst, c=cat: self._more_group(c, p))
+                    self.skill_list.add_widget(b)
+            self.skill_list.add_widget(HLine())
 
     def _on_skill_search(self, v, p):
         self.skill_query = v
