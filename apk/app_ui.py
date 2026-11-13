@@ -90,7 +90,24 @@ for _p in _SERIF_CANDIDATES:
         except Exception:
             pass
 
-print("[font] FONT=%s SERIF=%s" % (FONT, SERIF))
+# 「江湖」两个字要有一点印章的笔锋，所以单独用衬线体渲染。
+# 系统里唯一可用的中文衬线是 NotoSerifCJK 的 .ttc（face 0 是日文），
+# 但「江」「湖」这两字的日文与简体字形完全一致，只在这里用不会出问题。
+SEAL = FONT
+_SEAL_CANDIDATES = [
+    "/system/fonts/NotoSerifCJK-Regular.ttc",
+    "/system/fonts/NotoSerifSC-Regular.otf",
+]
+for _p in _SEAL_CANDIDATES:
+    if os.path.exists(_p):
+        try:
+            LabelBase.register(name="CNSeal", fn_regular=_p)
+            SEAL = "CNSeal"
+            break
+        except Exception:
+            pass
+
+print("[font] FONT=%s SERIF=%s SEAL=%s" % (FONT, SERIF, SEAL))
 
 # 色板：以「高手榜」那页为基准统一（暖米底 + 深绛红），三页共用同一套。
 # 原先主色 #8C2F28 偏橙、详情页顶栏又是另一种红，两个红放在一起就散了。
@@ -103,7 +120,8 @@ C_INK2 = (0.376, 0.337, 0.302, 1)        # #60564D 次文字
 C_MUTED = (0.545, 0.498, 0.455, 1)       # #8B7F74 弱文字 / 标签
 # 顶栏和按钮拆成两个色：原来是同一个 #7B2D26，整页像一大块暗红。
 # 顶栏压到浅一档的绛棕当框架，按钮提亮成朱砂当行动点，强调文字单独留深色。
-C_BAR = (0.549, 0.290, 0.243, 1)         # #8C4A3E 顶栏
+C_BAR = (0.549, 0.290, 0.243, 1)         # #8C4A3E 原顶栏底色（v24 起顶栏改浅底，保留备用）
+C_SEAL = (0.482, 0.176, 0.149, 1)        # #7B2D26 「江湖」印章底色
 C_BTN = (0.761, 0.353, 0.227, 1)         # #C25A3A 主按钮
 C_BTN_DK = (0.678, 0.290, 0.180, 1)      # #AD4A2E 按钮按下
 C_ACCENT = (0.659, 0.282, 0.173, 1)      # #A8482C 强调文字 / 聚焦描边
@@ -147,7 +165,7 @@ def split_num(v):
 
 
 def lab(text, size=13, color=C_INK, bold=False, height=None, halign="left",
-        markup=False, serif=False, shorten=False):
+        markup=False, serif=False, shorten=False, font=None):
     """单行文本。shorten=True 时宽度不够用省略号，而不是折行溢出到控件外面。
 
     Kivy 的 Label **不会裁切超出高度的文字**：text_size 的宽一旦塌到 0，
@@ -155,7 +173,7 @@ def lab(text, size=13, color=C_INK, bold=False, height=None, halign="left",
     把下面的列表盖住（「武学 206 门」被压成竖排就是这么来的）。
     """
     w = Label(
-        text=text, font_name=(SERIF if serif else FONT), font_size=sp(size), color=color,
+        text=text, font_name=(font or (SERIF if serif else FONT)), font_size=sp(size), color=color,
         bold=bold, halign=halign, valign="middle", markup=markup,
         shorten=shorten, shorten_from="right",
         size_hint_y=None, height=dp(height if height is not None else size * 1.9),
@@ -293,43 +311,60 @@ def gap(h=8):
 
 
 class AppBar(BoxLayout):
-    """深绛红顶栏，三页共用。
+    """浅米底顶栏 + 红印章，复刻网页高手榜的头部。
 
-    原来查询页没有顶栏（大标题直接贴在状态栏下面）、结果页是一条浅色摘要条，
-    两页不像同一个 App。顶栏统一之后，页面才有「壳」。
+    原来这里是整条深绛红，和下面的米色内容各自成块。改成浅底之后，
+    页面只有一个视觉焦点——左边那枚「江湖」印章，和高手榜一致。
     """
 
     def __init__(self, **kw):
         kw.setdefault("size_hint_y", None)
-        kw.setdefault("height", dp(50))
-        kw.setdefault("padding", (dp(10), 0, dp(8), 0))
-        kw.setdefault("spacing", dp(2))
+        kw.setdefault("height", dp(58))
+        kw.setdefault("padding", (dp(14), 0, dp(10), 0))
+        kw.setdefault("spacing", dp(10))
         super(AppBar, self).__init__(orientation="horizontal", **kw)
         from kivy.graphics import Color, Rectangle
         with self.canvas.before:
-            Color(*C_BAR)
+            Color(*C_BG)
             self._bg = Rectangle(pos=self.pos, size=self.size)
+            Color(*C_LINE)
+            self._ln = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._sync, size=self._sync)
 
         # 返回键常驻，通过宽度/透明度切显隐，避免反复增删控件
         self.back = Button(
             text="‹", font_name=FONT, font_size=sp(26), bold=True,
-            color=(1, 1, 1, 0.92), size_hint_x=None, width=0, opacity=0,
+            color=C_INK, size_hint_x=None, width=0, opacity=0,
             background_color=(0, 0, 0, 0), background_normal="",
         )
         self.add_widget(self.back)
 
-        col = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(50),
-                        spacing=0, size_hint_x=1)
-        self.title_lab = lab("", 15.5, (1, 1, 1, 0.97), bold=True, height=30,
-                             serif=True, shorten=True)
-        self.sub_lab = lab("", 10.5, (1, 1, 1, 0.72), height=18, shorten=True)
-        col.add_widget(self.title_lab)
-        col.add_widget(self.sub_lab)
-        self.add_widget(col)
+        # 红印章：44×44、圆角 10、绛红底白字，竖排「江湖」
+        self.seal = BoxLayout(orientation="vertical", size_hint=(None, None),
+                              size=(0, 0), spacing=0, opacity=0)
+        from kivy.graphics import Color as _C, RoundedRectangle
+        with self.seal.canvas.before:
+            _C(*C_SEAL)
+            self._seal_bg = RoundedRectangle(radius=[dp(10)], pos=self.seal.pos,
+                                             size=self.seal.size)
+        self.seal.bind(pos=self._seal_sync, size=self._seal_sync)
+        self.seal.add_widget(lab("江", 13, (1, 1, 1, 1), height=22, halign="center",
+                                 bold=True, font=SEAL))
+        self.seal.add_widget(lab("湖", 13, (1, 1, 1, 1), height=22, halign="center",
+                                 bold=True, font=SEAL))
+        self.add_widget(self.seal)
+
+        self.col = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(58),
+                             spacing=0, size_hint_x=1)
+        self.title_lab = lab("", 16, C_INK, bold=True, height=30, serif=True,
+                             shorten=True)
+        self.sub_lab = lab("", 11, C_MUTED, height=20, shorten=True)
+        self.col.add_widget(self.title_lab)
+        self.col.add_widget(self.sub_lab)
+        self.add_widget(self.col)
 
         self.right_btn = Button(
-            text="", font_name=FONT, font_size=sp(12), color=(1, 1, 1, 0.90),
+            text="", font_name=FONT, font_size=sp(12.5), color=C_ACCENT,
             size_hint_x=None, width=0, opacity=0,
             background_color=(0, 0, 0, 0), background_normal="",
         )
@@ -338,16 +373,44 @@ class AppBar(BoxLayout):
     def _sync(self, *a):
         self._bg.pos = self.pos
         self._bg.size = self.size
+        self._ln.pos = (self.x, self.y)
+        self._ln.size = (self.width, dp(1))
 
-    def set_content(self, title="", sub="", right="", back=False):
+    def _seal_sync(self, *a):
+        self._seal_bg.pos = self.seal.pos
+        self._seal_bg.size = self.seal.size
+
+    def set_content(self, title="", sub="", right="", back=False, seal=False):
         self.title_lab.text = title or ""
         self.sub_lab.text = sub or ""
-        self.sub_lab.height = dp(18) if sub else dp(0)
-        self.title_lab.height = dp(50 - 18) if sub else dp(50)
+        if seal:
+            # 查询页：不放主标题，只留一行说明，和印章一起垂直居中
+            self.seal.size = (dp(44), dp(44))
+            self.seal.opacity = 1
+            self.title_lab.height = dp(0)
+            self.sub_lab.font_size = sp(13)
+            self.sub_lab.color = C_INK2
+            self.sub_lab.height = dp(24)
+            self.col.padding = (0, dp(17), 0, dp(17))
+        else:
+            self.seal.size = (0, 0)
+            self.seal.opacity = 0
+            self.title_lab.font_size = sp(16)
+            self.title_lab.color = C_INK
+            self.sub_lab.font_size = sp(11)
+            self.sub_lab.color = C_MUTED
+            if sub:
+                self.title_lab.height = dp(30)
+                self.sub_lab.height = dp(20)
+                self.col.padding = (0, dp(4), 0, dp(4))
+            else:
+                self.title_lab.height = dp(58)
+                self.sub_lab.height = dp(0)
+                self.col.padding = (0, 0, 0, 0)
         self.back.width = dp(26) if back else dp(0)
         self.back.opacity = 1 if back else 0
         self.right_btn.text = right or ""
-        self.right_btn.width = dp(76) if right else dp(0)
+        self.right_btn.width = dp(72) if right else dp(0)
         self.right_btn.opacity = 1 if right else 0
 
     def bind_back(self, fn):
@@ -890,9 +953,9 @@ class PlayerLookup(App):
         self.mode = "query"
         self.prof = None
         self._set_foot(False)
-        # 顶部不再放「高手榜」：页面底部已经有入口卡，一个动作不占两个位置
-        self.appbar.set_content(title="玩家查询", sub="放置江湖 · 昵称 / UID",
-                                right="", back=False)
+        # 顶部不放「高手榜」：页面底部已经有入口卡，一个动作不占两个位置
+        self.appbar.set_content(title="", sub="放置江湖 · 多平台自助查询",
+                                right="", back=False, seal=True)
         self.body.padding = (dp(16), dp(14), dp(16), dp(18))
         self.body.spacing = dp(12)
         self._set_body_card(False)
