@@ -1,26 +1,19 @@
-/* 玩家查询页：输入 UID → 调后端实时拉档案 → 复用 profile.js 渲染
- * 后端停用期间页面会把输入框和按钮标成 disabled，此时整段逻辑不启动。 */
+/* 玩家查询页：把 UID 拼成 GitHub Issue，由 Actions 实时查询并回帖
+ * GitHub 没有匿名写入口，所以「提交」这一步必须登录 GitHub。 */
 (function () {
   'use strict';
 
-  var FZJH = window.FZJH || {};
-  var API_BASE = (window.FZJH_API_BASE || '').replace(/\/+$/, '');
-  var ENDPOINT = API_BASE || '/api/query';     // 本地联调走同源 /api/query
+  var REPO = 'fzpaihang/lanlandeku';
   var RECENT_KEY = 'fzjh_lookup_recent';
-  var RECENT_MAX = 3;
-  var TIMEOUT_MS = 15000;
-
-  var state = { server: 'auto', busy: false };
+  var RECENT_MAX = 5;
 
   var el = {
     uid: document.getElementById('uid'),
     go: document.getElementById('go'),
-    mode: document.getElementById('mode'),
     state: document.getElementById('state'),
-    result: document.getElementById('result'),
-    tips: document.getElementById('tips'),
+    notice: document.getElementById('notice'),
     recent: document.getElementById('recent'),
-    notice: document.getElementById('notice')
+    tips: document.getElementById('tips')
   };
 
   function h(tag, cls, text) {
@@ -30,11 +23,6 @@
     return n;
   }
 
-  function setState(text, kind) {
-    el.state.textContent = text;
-    el.state.className = 'pill' + (kind === 'warn' ? '' : kind === 'ok' ? '' : ' ghost');
-  }
-
   function notice(msg) {
     if (!el.notice) return;
     if (!msg) { el.notice.hidden = true; el.notice.textContent = ''; return; }
@@ -42,77 +30,26 @@
     el.notice.hidden = false;
   }
 
-  function busy(on) {
-    state.busy = on;
-    el.go.disabled = on;
-    el.go.textContent = on ? '查询中…' : '查询';
+  function setState(text, kind) {
+    if (!el.state) return;
+    el.state.textContent = text;
+    el.state.className = 'pill' + (kind === 'warn' ? '' : ' ghost');
   }
 
-  /* 两次查询之间强制 30 秒间隔：游戏接口按请求总量限流，且冷却恢复很慢 */
-  var COOLDOWN_SEC = 30;
-  var cdEnd = 0;
-  var cdTimer = null;
-
-  function cooldownLeft() {
-    return Math.max(0, Math.ceil((cdEnd - Date.now()) / 1000));
+  function issueUrl(uid) {
+    var title = '[QUERY] ' + uid;
+    var body = [
+      '由网页提交的实时查询，**请勿修改标题**（机器人靠标题识别 UID）。',
+      '',
+      '- UID：' + uid,
+      '- 分区：自动',
+      ''
+    ].join('\n');
+    return 'https://github.com/' + REPO + '/issues/new?title=' +
+      encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
   }
 
-  function startCooldown() {
-    cdEnd = Date.now() + COOLDOWN_SEC * 1000;
-    if (cdTimer) clearInterval(cdTimer);
-    cdTimer = setInterval(function () {
-      var left = cooldownLeft();
-      if (left <= 0) {
-        clearInterval(cdTimer);
-        cdTimer = null;
-        el.go.disabled = false;
-        el.go.textContent = '查询';
-      } else {
-        el.go.disabled = true;
-        el.go.textContent = '等 ' + left + 's';
-      }
-    }, 250);
-    var left = cooldownLeft();
-    el.go.disabled = true;
-    el.go.textContent = '等 ' + left + 's';
-  }
-
-  /* 当前分区模式说明：自动 / 指定某区 */
-  function renderMode(fz) {
-    paintSwitcher();
-    if (!el.mode) return;
-    if (state.server === 'auto') {
-      el.mode.textContent = '分区：自动（按 UID 位数猜 2 个最可能的区；查不到就点上方分区指定）';
-    } else {
-      var name = (fz && fz.name) || state.server;
-      el.mode.textContent = '分区：' + name + '（点上方分区可切换）';
-    }
-  }
-
-  /* 分区条高亮跟随实际模式：自动时不要假装选中了某个区 */
-  function paintSwitcher() {
-    var host = document.getElementById('server-switch');
-    if (!host) return;
-    var fake = host.querySelector('.srv.auto-mode');
-    if (fake) host.removeChild(fake);
-    Array.prototype.forEach.call(host.querySelectorAll('a.srv'), function (a) {
-      var key = new URLSearchParams((a.getAttribute('href') || '').split('?')[1] || '').get('s');
-      var on = key === state.server;
-      a.classList.toggle('active', on);
-      if (on) a.setAttribute('aria-current', 'page');
-      else a.removeAttribute('aria-current');
-    });
-    if (state.server === 'auto') {
-      var chip = document.createElement('span');
-      chip.className = 'srv active auto-mode';
-      chip.textContent = '自动';
-      var label = host.querySelector('.srv-label');
-      if (label && label.nextSibling) host.insertBefore(chip, label.nextSibling);
-      else host.appendChild(chip);
-    }
-  }
-
-  /* ---------- 最近查询 ---------- */
+  /* ---------- 最近提交 ---------- */
 
   function readRecent() {
     try {
@@ -127,15 +64,9 @@
     try { localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, RECENT_MAX))); } catch (e) { }
   }
 
-  function pushRecent(prof) {
-    var item = {
-      uid: String(prof.uid),
-      name: prof.name || '',
-      server: prof.server || state.server,
-      serverName: prof.serverName || ''
-    };
-    var list = readRecent().filter(function (x) { return String(x.uid) !== item.uid; });
-    list.unshift(item);
+  function pushRecent(uid) {
+    var list = readRecent().filter(function (x) { return String(x.uid) !== uid; });
+    list.unshift({ uid: uid, at: Date.now() });
     writeRecent(list);
     renderRecent();
   }
@@ -145,165 +76,52 @@
     var list = readRecent();
     el.recent.textContent = '';
     if (!list.length) {
-      el.tips.hidden = false;
-      el.recent.appendChild(h('span', 'lk-hint', '还没有查过谁，试试榜上第一名的 UID：21079729670'));
+      if (el.tips) el.tips.hidden = true;
       return;
     }
-    el.tips.hidden = false;
+    if (el.tips) el.tips.hidden = false;
     list.forEach(function (x) {
-      var b = h('button', 'lk-chip', (x.name || 'UID ' + x.uid) + ' · ' + x.uid);
+      var b = h('button', 'lk-chip', 'UID ' + x.uid);
       b.type = 'button';
       b.addEventListener('click', function () {
         el.uid.value = x.uid;
-        if (x.server) { state.server = x.server; renderMode({ name: x.serverName || x.server }); }
-        query();
+        openIssue(x.uid);
       });
       el.recent.appendChild(b);
     });
   }
 
-  /* ---------- 渲染结果 ---------- */
+  /* ---------- 提交 ---------- */
 
-  function showProfile(prof, meta) {
-    el.result.hidden = false;
-    el.result.textContent = '';
-
-    var head = h('div', 'lk-head');
-    head.appendChild(h('h2', null, prof.name || '—'));
-
-    var bits = [];
-    if (prof.serverName) bits.push(prof.serverName);
-    bits.push(prof.rank ? ('第 ' + prof.rank + ' 名') : '未上榜');
-    bits.push('UID ' + prof.uid);
-    head.appendChild(h('span', 'lk-sub', bits.join(' · ')));
-    head.appendChild(h('span', 'lk-tag', '实时'));
-    el.result.appendChild(head);
-
-    var body = h('div', 'lk-body');
-    el.result.appendChild(body);
-    if (FZJH.renderProfile) FZJH.renderProfile(body, prof);
-
-    var foot = [];
-    if (meta && meta.cached) foot.push('10 分钟内查过同一个角色，直接复用上次结果');
-    else if (meta && meta.elapsed) foot.push('用时 ' + (meta.elapsed / 1000).toFixed(1) + ' 秒');
-    if (prof.lvEstimated) foot.push('等级由经验反算（该角色不在榜上）');
-    if (foot.length) el.result.appendChild(h('p', 'lk-hint', foot.join(' · ')));
+  function openIssue(uid) {
+    pushRecent(uid);
+    setState('等待提交', 'warn');
+    notice('已打开 GitHub 提交页：点「Submit new issue」后约 30–90 秒出结果，结果会作为评论出现在该 Issue 里。');
+    var w = window.open(issueUrl(uid), '_blank', 'noopener');
+    if (!w) notice('弹窗被拦截了，请允许弹窗后重试，或手动打开：' + issueUrl(uid));
   }
 
-  function showFail(msg) {
-    el.result.hidden = false;
-    el.result.textContent = '';
-    var head = h('div', 'lk-head');
-    head.appendChild(h('h2', null, '没查到'));
-    el.result.appendChild(head);
-    el.result.appendChild(h('p', 'lk-hint', msg));
-  }
-
-  /* ---------- 查询 ---------- */
-
-  function query() {
-    if (state.busy) return;
-
-    var wait = cooldownLeft();
-    if (wait > 0) {
-      setState('请稍候', 'warn');
-      notice('为避开游戏接口限流，两次查询至少间隔 ' + COOLDOWN_SEC + ' 秒，还要等 ' + wait + ' 秒。');
-      return;
-    }
-
+  function submit() {
     var raw = el.uid.value.replace(/\D/g, '');
-    if (raw !== el.uid.value) el.uid.value = raw;
+    el.uid.value = raw;
     if (!/^[0-9]{5,12}$/.test(raw)) {
       setState('UID 格式不对', 'warn');
-      el.result.hidden = true;
       notice('UID 应该是 5–12 位纯数字。');
       el.uid.focus();
       return;
     }
     notice('');
-
-    var ctrl = null;
-    var timer = null;
-    var opts = { cache: 'no-store', method: 'POST' };
-    if (typeof AbortController === 'function') {
-      ctrl = new AbortController();
-      opts.signal = ctrl.signal;
-      timer = setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS);
-    }
-
-    busy(true);
-    setState('查询中…', 'warn');
-    el.result.hidden = true;
-
-    // 用 POST + text/plain 传参：阿里云函数只能从 body 读到参数（GET 的 query 会被丢），
-    // text/plain 属于 CORS 简单请求，不会触发 OPTIONS 预检。
-    var t0 = Date.now();
-    opts.headers = { 'Content-Type': 'text/plain;charset=UTF-8' };
-    opts.body = JSON.stringify({ uid: raw, server: state.server });
-    fetch(ENDPOINT, opts)
-      .then(function (r) {
-        return r.text().then(function (txt) {
-          var body = null;
-          try { body = JSON.parse(txt); } catch (e) { body = null; }
-          if (!body) throw new Error('HTTP ' + r.status + '（返回的不是 JSON）');
-          return body;
-        });
-      })
-      .then(function (d) {
-        if (timer) clearTimeout(timer);
-        busy(false);
-        startCooldown();
-        if (d.ok && d.data) {
-          var ms = d.elapsedMs || (Date.now() - t0);
-          setState(d.cached ? '已完成 · 缓存' : '已完成 · ' + (ms / 1000).toFixed(1) + ' 秒', 'ok');
-          showProfile(d.data, { elapsed: ms, cached: d.cached });
-          pushRecent(d.data);
-          return;
-        }
-        var msg = d.message || '查询失败';
-        setState(d.code === 'NOT_FOUND' ? '没查到' : (d.code === 'BUSY' ? '接口繁忙' : '查询失败'), 'warn');
-        showFail(msg);
-      })
-      .catch(function (e) {
-        if (timer) clearTimeout(timer);
-        busy(false);
-        startCooldown();
-        setState('查询失败', 'warn');
-        var msg = (e && e.name === 'AbortError')
-          ? '等了 ' + (TIMEOUT_MS / 1000) + ' 秒还没回来，接口可能被限流，过一会儿再试。'
-          : '连不上查询服务（' + (e && e.message ? e.message : '网络错误') + '）。如果是刚部署，检查函数地址和跨域白名单。';
-        showFail(msg);
-      });
+    openIssue(raw);
   }
 
-  /* ---------- 启动 ---------- */
+  el.go.addEventListener('click', submit);
+  el.uid.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  });
+  el.uid.addEventListener('input', function () {
+    var v = el.uid.value.replace(/\D/g, '');
+    if (v !== el.uid.value) el.uid.value = v;
+  });
 
-  function boot(fz) {
-    // 输入框和按钮都是 disabled = 后端已停用，这里必须直接退出：
-    // 否则 URL 带 ?uid= 时会自动发起查询，busy() 会把「已暂停」改回「查询」并解除禁用。
-    if (el.go && el.go.disabled && el.uid && el.uid.disabled) return;
-
-    // 默认自动：只按 UID 位数猜最可能的 2 个区（7 位→苍松、10 位→4399、11 位→丹凤→白鹤），
-    // 不轮询五区——云函数连打五区必被限流。查不到就引导用户点分区条指定。
-    var pinned = new URLSearchParams(location.search).get('s');
-    state.server = pinned || 'auto';
-    if (!pinned) state.fallbackName = (fz && fz.name) || '';
-    renderMode(fz);
-    renderRecent();
-
-    el.go.addEventListener('click', query);
-    el.uid.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); query(); }
-    });
-    el.uid.addEventListener('input', function () {
-      var v = el.uid.value.replace(/\D/g, '');
-      if (v !== el.uid.value) el.uid.value = v;
-    });
-
-    var uid = new URLSearchParams(location.search).get('uid');
-    if (uid) { el.uid.value = uid.replace(/\D/g, ''); query(); }
-  }
-
-  if (FZJH && FZJH.init) FZJH.init(boot);
-  else boot(null);
+  renderRecent();
 })();
