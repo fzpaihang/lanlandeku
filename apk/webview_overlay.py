@@ -141,11 +141,18 @@ class WebOverlay(object):
         except Exception:
             removed = False
         try:
-            if web is not None:
+            if web is not None and not removed:
                 web.loadUrl("about:blank")     # 断开网页里的输入连接
         except Exception:
             pass
         if removed:
+            # 视图已经摘掉，顺手 destroy 释放 Chromium 资源（每次打开都是新 WebView，
+            # 不 destroy 的话连续开关十几次会持续吃内存）
+            try:
+                if web is not None:
+                    web.destroy()
+            except Exception:
+                pass
             # 下一次 open() 会因为 _root 为 None 而重新建一个 WebView
             self._root = None
             self._web = None
