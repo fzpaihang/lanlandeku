@@ -51,29 +51,34 @@ except Exception:
 # 安卓返回键的两种 keycode：老版本 SDL 给 27(ESC)，新版本给 AC_BACK
 _BACK_KEYS = (27, 1073742094)
 
-_CN_CANDIDATES = [
-    "/system/fonts/DroidSansFallback.ttf",
-    "/system/fonts/NotoSansCJK-Regular.ttc",
-    "/system/fonts/NotoSansSC-Regular.otf",
-    "/system/fonts/DroidSansChinese.ttf",
-    "/system/fonts/NotoSansHans-Regular.otf",
+# 中文字体：**必须优先「单体 + 含拉丁」的文件，别碰 .ttc，也别碰 NotoSansSC-*.otf**。
+# - .ttc 是字体集合，Kivy/FreeType 只能取第 0 个 face，NotoSansCJK-Regular.ttc 的
+#   第 0 个 face 是日文，中文会按日文字形渲染（连简体「门」都没有，直接变豆腐块）。
+# - NotoSansSC-*.otf 是纯 CJK 子集，不含拉丁，UID / 数字 / "/" / "·" 会全变方块。
+# NotoSansCJKsc-Regular.ttf 是完整族（拉丁 + 简体），单体，最稳。
+_CN_PAIRS = [
+    ("/system/fonts/NotoSansCJKsc-Regular.ttf", None),
+    ("/system/fonts/DroidSansFallback.ttf", None),
+    ("/system/fonts/NotoSansCJK-Regular.ttc", None),   # 最后兜底，可能是日文字形
 ]
 FONT = "Roboto"
-for _p in _CN_CANDIDATES:
-    if os.path.exists(_p):
+for _reg, _bold in _CN_PAIRS:
+    if os.path.exists(_reg):
         try:
-            LabelBase.register(name="CN", fn_regular=_p)
+            LabelBase.register(
+                name="CN", fn_regular=_reg,
+                fn_bold=_bold if (_bold and os.path.exists(_bold)) else None,
+            )
             FONT = "CN"
             break
         except Exception:
             pass
 
-# 网页的标题用宋体（--serif），安卓上优先找系统自带的衬线中文字体，没有就退回黑体
+# 标题的衬线体：只在存在「单体简体宋体」时才启用。
+# NotoSerifCJK-Regular.ttc 同样是集合、默认日文字形，宁可退回黑体也不要用它。
 _SERIF_CANDIDATES = [
-    "/system/fonts/NotoSerifCJK-Regular.ttc",
     "/system/fonts/NotoSerifSC-Regular.otf",
     "/system/fonts/SourceHanSerifSC-Regular.otf",
-    "/system/fonts/DroidSerif-Regular.ttf",
 ]
 SERIF = FONT
 for _p in _SERIF_CANDIDATES:
@@ -84,6 +89,8 @@ for _p in _SERIF_CANDIDATES:
             break
         except Exception:
             pass
+
+print("[font] FONT=%s SERIF=%s" % (FONT, SERIF))
 
 # 色板：以「高手榜」那页为基准统一（暖米底 + 深绛红），三页共用同一套。
 # 原先主色 #8C2F28 偏橙、详情页顶栏又是另一种红，两个红放在一起就散了。
@@ -883,8 +890,9 @@ class PlayerLookup(App):
         self.mode = "query"
         self.prof = None
         self._set_foot(False)
+        # 顶部不再放「高手榜」：页面底部已经有入口卡，一个动作不占两个位置
         self.appbar.set_content(title="玩家查询", sub="放置江湖 · 昵称 / UID",
-                                right="高手榜 ›", back=False)
+                                right="", back=False)
         self.body.padding = (dp(16), dp(14), dp(16), dp(18))
         self.body.spacing = dp(12)
         self._set_body_card(False)
