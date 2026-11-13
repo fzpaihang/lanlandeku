@@ -35,6 +35,7 @@ TITLE_RE = re.compile(r"^\[QUERY\]\s*(\d{5,12})(?:\s*@\s*([A-Za-z0-9_]+))?", re.
 ATTEMPT_TIMEOUT = 25.0    # 单次尝试（握手+查询）硬超时
 ATTEMPT_MAX = 3
 DEADLINE = 75.0           # 查询阶段总预算
+EMPTY_RETRY = 2           # errcode=0 但 data 为空时，先当作「可能被限流」再试几次
 
 _KEYS = {}
 KEYS_TTL = 180
@@ -87,14 +88,27 @@ def _fast_try_one(srv, uid, hotver):
 
 
 def _fast_single(uid, srv, cache, hotver, note):
-    """重试策略：最多 3 次，退避 1.2/2.4 秒，总时长不超过 DEADLINE。"""
+    """只查指定分区。
+
+    重要：账号被限流时游戏接口**不一定**回 20616，也可能回 errcode=0 + data 为空。
+    所以「空数据」不能立刻判定成「这个区没有这个人」，必须先多试一次，
+    否则会把限流误报成「分区选错了」。
+    """
     t0 = time.time()
+    empties = 0
     for attempt in range(ATTEMPT_MAX):
         data, ec = L.try_one(srv, uid, hotver)
         if data:
             return L._finish(uid, srv, data, cache, hotver, note)
         if ec == 0:
-            return None                       # 服务端明确回「没有这个角色」
+            empties += 1
+            cache["_empty"] = empties
+            if empties >= EMPTY_RETRY:
+                cache["_last_ec"] = 0
+                return None                   # 连续两次明确回「没有这个角色」
+            time.sleep(1.0)
+            continue
+        cache["_last_ec"] = ec
         if ec not in (20616, -1):
             break
         cache["_limited"] = ec
@@ -180,6 +194,24 @@ def gh(*args):
     subprocess.run(["gh"] + list(args), check=True)
 
 
+def board_snapshot(server, uid):
+    """本地榜单快照：接口拿不到数据时，用它验证「分区到底对不对」。
+
+    返回 (行, 榜单更新时间)；没命中返回 (None, 更新时间或 None)。
+    """
+    p = os.path.join(ROOT, "data", "servers", server, "gaoshoubang.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            b = json.load(f)
+    except Exception:
+        return None, None
+    at = b.get("updatedAt")
+    for r in b.get("rows") or []:
+        if str(r.get("userid")) == str(uid):
+            return r, at
+    return None, at
+
+
 def main():
     title = (os.environ.get("ISSUE_TITLE") or "").strip()
     number = os.environ.get("ISSUE_NUMBER") or ""
@@ -236,6 +268,7 @@ def main():
             err = "%s: %s" % (type(e).__name__, e)
 
     elapsed = time.time() - t0
+    srv_name = (by_key.get(server) or {}).get("name") or server
 
     if prof:
         arch = archive(prof)
@@ -243,22 +276,79 @@ def main():
         body = build_markdown(prof, elapsed, arch)
     elif err:
         body = "## 查询失败\n\n```\n%s\n```\n\n---\nGitHub Actions 执行异常，稍后重试或检查 Secrets。" % err
-    elif cache.get("_limited"):
-        body = (
-            "## 接口繁忙\n\n"
-            "游戏接口正在限流（errcode `%s`），这次没能拿到数据。\n\n"
-            "**等 30 秒后重新提交一次**即可，不是 UID 或分区的问题。\n\n"
-            "---\nGitHub Actions 实时查询" % cache.get("_limited")
-        )
     else:
-        body = (
-            "## 没查到\n\n"
-            "UID `%s` 在「%s」没有查到。可能是：\n\n"
-            "- **分区选错了**——换个区再试（自动匹配已停用，必须选对区）\n"
-            "- UID 写错（应为游戏个人信息页里的 5–12 位角色 ID）\n\n"
-            "---\nGitHub Actions 实时查询"
-            % (uid, (by_key.get(server) or {}).get("name") or server)
-        )
+        board, board_at = board_snapshot(server, uid)
+        ec = cache.get("_limited") or cache.get("_last_ec")
+        if cache.get("_limited"):
+            head = "## 接口繁忙（errcode `%s`）" % ec
+            why = "游戏接口正在限流，这次没能拿到实时数据。"
+        elif cache.get("_empty"):
+            head = "## 接口返回空数据"
+            why = "游戏接口回了 `errcode=0` 但内容是空的——这是账号被限流时的另一种表现，不代表查无此人。"
+        else:
+            head = "## 没查到"
+            why = "游戏接口没有返回这个角色的数据。"
+
+        if board:
+            # 榜单里有这个人 → 分区和 UID 都是对的，问题在接口
+            row = [
+                "",
+                "**分区和 UID 都是对的**：`%s` 确实在「%s」的榜单上（第 %s 名）。" % (
+                    board.get("name") or uid, srv_name, board.get("rank") or "—"),
+                "",
+                why,
+                "",
+                "**等 30 秒后重新提交一次**即可，不用换分区。",
+                "",
+                "下面是榜单快照（%s），仅供参考：" % (board_at or "时间未知"),
+                "",
+                "| 项目 | 值 |",
+                "|---|---|",
+                "| 昵称 | **%s** |" % (board.get("name") or "—"),
+                "| 分区 | %s（`%s`） |" % (srv_name, server),
+                "| UID | `%s` |" % uid,
+                "| 等级 | %s |" % fmt(board.get("lv")),
+                "| 门派 | %s |" % fmt(board.get("menpai")),
+                "| 经验 | %s |" % L.fmt_big(board.get("exp")),
+                "| 武学造诣 | %s |" % fmt(board.get("kongfu")),
+                "| 福缘 | %s |" % fmt(board.get("fuyuan")),
+                "| 排名 | %s |" % ("第 %s 名" % board["rank"] if board.get("rank") else "—"),
+                "| 传承 | %s |" % fmt(board.get("inheritCount"), " 世"),
+                "",
+                "---",
+                "GitHub Actions 实时查询",
+            ]
+            # 给查询页一个可渲染的摘要（不带 skills，前端会自动走摘要网格）
+            snap = {
+                "uid": uid,
+                "n": board.get("name"),
+                "s": server,
+                "sn": srv_name,
+                "lv": board.get("lv"),
+                "m": board.get("menpai"),
+                "exp": board.get("exp"),
+                "k": board.get("kongfu"),
+                "fy": board.get("fuyuan"),
+                "r": board.get("rank"),
+                "ic": board.get("inheritCount"),
+                "at": board_at,
+                "stale": True,
+                "ms": int(elapsed * 1000),
+            }
+            body = "<!--FZJHJSON %s-->\n%s" % (
+                json.dumps(snap, ensure_ascii=False, separators=(",", ":")),
+                "\n".join(row),
+            )
+        else:
+            body = (
+                "%s\n\n"
+                "UID `%s` 在「%s」没有查到。可能是：\n\n"
+                "- **分区选错了**——换个区再试（自动匹配已停用，必须选对区）\n"
+                "- UID 写错（应为游戏个人信息页里的 5–12 位角色 ID）\n"
+                "- 角色不在任何已收录的榜单里，且接口正忙\n\n"
+                "---\nGitHub Actions 实时查询"
+                % (head, uid, srv_name)
+            )
 
     post(body)
     return 0
