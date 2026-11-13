@@ -65,7 +65,7 @@ fzjh-rank/
 │  ├─ summary.py              输出刷新摘要（CI 用）
 │  ├─ serve.py                本地预览（正式站不需要）
 │  └─ serve_api.py            本地联调：静态站 + /api/query
-├─ apk/                       「输入 UID 查档案」安卓 App 源码 + 热更包（已停更）
+├─ apk/                       安卓 App：昵称/UID 查实时档案、结果回写昵称库、可跳高手榜
 ├─ .github/workflows/
 │  ├─ refresh.yml             五分区定时抓取
 │  └─ build-apk.yml           APK 构建（仅 apk/ 改动时触发）
@@ -171,7 +171,7 @@ lookup.html  →  云函数 /api/query  →  游戏接口（握手 + get_user_in
 | 阿里云 FC（杭州） | **可用**，实测首查约 5 秒、缓存命中 0.5 秒 | 按量约 1–4 元/月，无永久免费额度 |
 | Cloudflare Workers | 协议层已跑通（1.0 秒），但 `workers.dev` 国内 DNS 被污染、直连不通 | 免费额度够用，但需自有域名（10–60 元/年） |
 
-结论：不产生费用就没有稳定方案，所以暂停。**APK 仍可本地查**（见 `apk/`，已停更但能用）。
+结论：不产生费用就没有稳定方案，所以网页端暂停。**查询能力已转移到安卓 App**（`apk/`）：直连游戏接口、出口是用户自己的网络，不受机房 IP 风控影响。
 
 ### 恢复步骤
 
