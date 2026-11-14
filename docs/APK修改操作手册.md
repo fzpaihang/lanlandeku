@@ -1,449 +1,590 @@
 # APK 修改操作手册
 
-> 项目：`E:/workbuddy2/fzjh-rank`（仓库 `fzpaihang/lanlandeku`）
-> 适用：给「玩家查询」App 改界面、改逻辑、改数据、重打包
-> 最后校准：2026-11-13，线上热更 v20
+> 项目：`E:/workbuddy2/fzjh-rank`　仓库：`fzpaihang/lanlandeku`
+> 应用名：**霜霜妙妙屋**（`package.domain = com.fzjh`，`package.name = fzjhlookup`）
+> 最后校准：2026-11-14　线上热更：**v45**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
+> 本文汇总的是「改这个 APK 实际会用到的全部操作」；逐次改动的背景与推理见 `docs/UI优化-实施记录.md`。
 
 ---
 
 ## 0. 三十秒速查
 
-日常改界面/逻辑，走这三步就够：
+**日常改界面 / 逻辑（热更）**
 
 ```bash
 cd /e/workbuddy2/fzjh-rank
-python -m py_compile apk/app_ui.py            # 1. 语法检查
-python scripts/pack_update.py "这次改了什么"   # 2. 打包热更（版本号自动 +1）
-# 3. 提交并推送 apk/ 源码 + apk/update/ 两个文件（见 §3.4）
+python -m py_compile apk/app_ui.py apk/inline_input.py          # 1 语法
+python scripts/pack_update.py "这次改了什么"                     # 2 打包 + 自动签名 + 版本号 +1
+# 3 用 §9.1 的 GitHub API 脚本推 apk/*.py + apk/update/{code.zip,version.json}
+# 4 curl 确认线上版本号；模拟器删 files/live 重启做全量验收
 ```
 
-用户侧：**完全退出 App 再打开** → 启动器自动下载 → 页面底部显示新版本号即生效，不需要重装。
+用户侧：**完全退出 App 再打开**即自动热更，不用重装。
+
+**改了内置资源 / `main.py` / Java 层 / 应用名 / 图标** → 必须重打 APK（§4），用户要重新下载安装。
+
+**改了网页脚本** → 推 HTML/JS 后**必须**跑 `python scripts/stamp_assets.py` 刷 `?v=hash`，否则 App 内 WebView 一直用缓存里的旧脚本（§5.4）。
 
 ---
 
-## 1. 代码地图
+## 1. 环境与凭据
 
-`apk/` 目录就是打包进 APK 的全部源码。改之前先确认要改的文件属于哪一类。
+### 1.1 路径
 
-| 文件 | 行数 | 职责 | 在热更包内 |
-|---|---|---|---|
-| `main.py` | 181 | 启动器：比对版本 → 下载 code.zip → 校验 → 解压到 `live/` → 加载 `app_ui` | ✗（改它必须重装） |
-| `app_ui.py` | 1419 | 全部界面与交互（查询页、结果页、分组折叠、输入框、内嵌网页入口） | ✓ |
-| `lookup_core.py` | 485 | 接口与数据层：分区、档案解析、等级换算、缓存、最近查询 | ✓ |
-| `fetch.py` | 645 | 游戏接口请求、握手、AES 会话 | ✓ |
-| `aes_pure.py` | 188 | 纯 Python AES（避免引入 pycryptodome） | ✓ |
-| `names_index.py` | 252 | 昵称索引：拉 `lookup-index.json`、本地模糊搜索、隐私名单过滤 | ✓ |
-| `archive_local.py` | 258 | 查询成功回写昵称：本地 `pending_names.jsonl` → 后台提交 GitHub | ✓ |
-| `webview_overlay.py` | 314 | 安卓原生 WebView 覆盖层（App 内看高手榜） | ✓ |
-| `skill_groups.py` | 138 | 武学分组逻辑（多对多 + 关键词兜底） | ✓ |
-| `skill_class.py` | 785 | **自动生成**的武学位置表（774 条 `id → "内功,拳脚,招架"`） | ✓ |
-| `names.json` | 64 KB | 武学 / 门派 / 槽位 id→中文名 | ✗（改它必须重装） |
-| `fonts/NotoSansSC-Regular.ttf` | 7.1 MB | **自动生成**的中文字体子集（21637 字），见 §5.3 | ✗（改它必须重装） |
-| `buildozer.spec` | 44 | 打包配置（包名、权限、架构、依赖） | ✗ |
-| `icon.png` | 3.8 KB | 图标 | ✗ |
-| `config.json` | — | 分区 uuid/账号，**gitignore，绝不提交** | ✗（Secret 注入） |
-| `gh.json` | — | 回写仓库的 token，**gitignore** | ✗（Secret 注入） |
-| `data/skill.json.gz` | 121 KB | 只给生成脚本用的上游原始表缓存，不进 APK | ✗ |
-| `update/code.zip` | ~53 KB | 热更代码包 | 发布物 |
-| `update/version.json` | — | 热更版本号 + md5 + 大小 + 说明 | 发布物 |
-
-关键约束：
-
-- **热更只替换 `.py`**。`names.json`、`fonts/*.ttf`、`config.json`、`icon.png`、`buildozer.spec`、新增第三方依赖，都不在热更包里 → 必须重打 APK。
-- `buildozer.spec` 的 `source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf`；`.gz` 不打包，所以 `data/skill.json.gz` 只在本地生成时用。
-- **字体必须重装才生效**：热更包带不了 `.ttf`。发 v26 时热更先上线，老 APK 会自动回退系统字体（`_local_font()` 返回空），新 APK 才用到打包字体。
-- 缓存和用户数据写在 `ANDROID_PRIVATE`（`/data/data/com.fzjh.fzjhlookup/files/`），**不放 `live/`**，否则每次热更 `/data` 里的分区记忆和最近查询都会被清掉。
-
-### 1.1 本地目录约定
-
-| 路径 | 用途 | 是否进 git |
+| 路径 | 用途 | 进 git |
 |---|---|---|
-| `E:/workbuddy2/fzjh-rank/apk/` | 源码 | 是 |
-| `E:/workbuddy2/fzjh-rank/dist/` | 打好的 APK 归档（`fzjhlookup-1.x-<改动>.apk`） | 否（已 ignore） |
-| `E:/workbuddy2/fzjh-rank/docs/` | 方案、校对表、本手册 | 是 |
-| `E:/workbuddy2/_agent_tmp/` | 临时脚本、截图、worktree | 否 |
+| `E:/workbuddy2/fzjh-rank/apk/` | APK 全部源码与内置资源 | 是 |
+| `E:/workbuddy2/fzjh-rank/dist/` | 交付给用户的 APK 归档 | 否 |
+| `E:/workbuddy2/fzjh-rank/docs/` | 本手册、实施记录、校对表 | 是 |
+| `E:/workbuddy2/fzjh-rank/scripts/` | 打包、生成、发布辅助脚本 | 是 |
+| `E:/workbuddy2/_agent_tmp/` | 临时脚本、截图、备份、ffmpeg、token | 否 |
+| `E:/workbuddy2/fzjh-rank/.keys/update.key` | **更新包签名私钥** | 否（已 gitignore） |
 
-所有产物都放 E 盘，不要写 `%TEMP%` 或桌面（Git Bash 的 `/tmp` 实际落在 `C:\Users\...\AppData\Local\Temp`）。
+所有产物放 E 盘。Git Bash 的 `/tmp` 实际落在 `C:\Users\...\AppData\Local\Temp`，不要用；也不要写桌面/文档。
 
----
+### 1.2 设备
 
-## 2. 先判断改动属于哪一类
+```bash
+export MSYS_NO_PATHCONV=1
+ADB="D:/Program Files/Netease/MuMuPlayer-12.0/shell/adb.exe"
+"$ADB" start-server && "$ADB" connect 127.0.0.1:7555
+D="-s 127.0.0.1:7555"; P=com.fzjh.fzjhlookup
+```
 
-| 改动内容 | 走哪条通道 | 用户要做什么 |
+- 包名 `com.fzjh.fzjhlookup`，入口 `org.kivy.android.PythonActivity`
+- 屏幕 900×1600；常用坐标：输入框 `(450,592)`、查询按钮 `(450,800)`、顶栏空白 `(450,150)`
+- `MSYS_NO_PATHCONV=1` 必须加，否则 `/sdcard/x.png` 被改写成 Windows 路径
+- 每条 adb 都显式带 `-s`，不依赖默认设备
+
+### 1.3 发布凭据与密钥
+
+| 项 | 位置 / 值 | 说明 |
 |---|---|---|
-| `app_ui.py` / `lookup_core.py` / `webview_overlay.py` 等 .py | **热更**（§3） | 退出重开 |
-| 新增一个 `.py` 模块 | 热更，但**必须加进 `pack_update.py` 的 FILES** | 退出重开 |
-| `names.json` / `fonts/*.ttf` / `icon.png` / `buildozer.spec` / 新依赖 | **重打 APK**（§4） | 下载重装 |
-| 武学位置表（`skill_class.py`） | 重新生成后热更（§5.1） | 退出重开 |
-| 服务端数据（榜单、昵称索引、隐私名单） | 不碰 APK，改仓库数据即可（§5.2） | 无感 |
+| GitHub token | `E:/workbuddy2/_agent_tmp/gh_token.txt` | 用于 GitHub API 建 commit |
+| 签名私钥 | `.keys/update.key` | 丢了就无法再打热更包，必须备份 |
+| 签名公钥 | 硬编码在 `apk/main.py` 的 `UPDATE_PUBKEY` | `22d04f4b…` |
+| 更新源 | `https://fzpaihang.github.io/lanlandeku/apk/update/` | 主源 |
+| 更新镜像 | `https://cdn.jsdelivr.net/gh/fzpaihang/lanlandeku@main/apk/update/` | 主源失败自动切 |
+| 内置 CA | `apk/cacert.pem` | 3 张根：ISRG X1 / DigiCert G2 / GlobalSign R46 |
+
+Python 访问 GitHub API 用 `urllib.request.build_opener(urllib.request.ProxyHandler({}))` 绕开本机代理；`curl` 访问 Pages 必须带 `--noproxy '*'`，否则被本地代理拦成假 502。
 
 ---
 
-## 3. 通道 A：热更（日常 95% 的情况）
+## 2. 代码地图
 
-### 3.1 改代码
+### 2.1 `apk/` 文件职责
 
-只改 `apk/` 下的 `.py`。几个硬规则见 §7，尤其：
+| 文件 | 职责 | 热更包内 |
+|---|---|---|
+| `main.py` | 启动器：比对版本 → 下载 → md5 → **验签** → 解压到 `live/` → 加载 `app_ui` | ✗ 改它必须重装 |
+| `app_ui.py` | 全部界面与交互（查询页、结果页、顶栏、圆形头像、输入焦点、内嵌网页入口） | ✓ |
+| `lookup_core.py` | 接口与数据层：分区、档案解析、缓存、20s 查询预算、失败归因 | ✓ |
+| `fetch.py` | 游戏接口请求、握手、AES 会话、TLS 上下文 | ✓ |
+| `aes_pure.py` | 纯 Python AES | ✓ |
+| `names_index.py` | 昵称索引、模糊搜索、隐私名单 | ✓ |
+| `archive_local.py` | 查询成功后回写昵称 | ✓ |
+| `webview_overlay.py` | 安卓原生 WebView 覆盖层（App 内看高手榜） | ✓ |
+| `skill_groups.py` / `skill_class.py` | 武学分组规则 / 自动生成的 id→分类表 | ✓ |
+| `native_input.py` | 原生 AlertDialog 输入（**当前是兜底路径，不是主路径**） | ✓ |
+| `inline_input.py` | 内联原生 EditText 覆盖层（**当前主路径**） | ✓ |
+| `ed25519.py` | 纯 Python Ed25519，RFC 8032 向量自测通过 | ✓ |
+| `cacert.pem` | 最小 CA 根证书集（EXTRA） | ✓ |
+| `seal.jpg` | 顶栏圆形头像（EXTRA） | ✓ |
+| `icon_src.jpg` / `icon.png` | 应用图标；CI 用 ImageMagick 把 jpg 转 512 png | ✗ |
+| `fonts/NotoSansSC-Regular.ttf` | 中文字体子集 | ✗ 改它必须重装 |
+| `names.json` | 武学/门派/槽位 id→中文名 | ✗ 改它必须重装 |
+| `buildozer.spec` | 打包配置 | ✗ |
+| `config.json` / `gh.json` | 分区凭据、回写 token | ✗ 绝不提交，CI Secret 注入 |
+| `update/code.zip` / `version.json` | 热更发布物（一对，必须同时推） | 发布物 |
 
-- 给按钮传宽度用**纯数字**（`width=104`），不要再套 `dp()`；
-- 调 Java 的 `setText` 必须用 `autoclass("java.lang.String")(...)`；
-- 别在 `live/` 放用户数据。
+### 2.2 关键约束
 
-### 3.2 语法检查
+- **热更只替换热更包里的文件**。`main.py`、`names.json`、字体、图标、`buildozer.spec`、Java 层、新第三方依赖都不在包里 → 必须重打 APK 并重装。
+- `buildozer.spec`：`source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf,pem`（`pem` 是为了带 CA 包加的）。
+- `apk/main.py` 的 `REQUIRED` 只校验 4 个老文件；**新增 `.py` 必须同时加进 `scripts/pack_update.py` 的 `FILES`**，否则包里没有，功能静默降级。
+- 缓存与用户数据写 `ANDROID_PRIVATE`（`/data/data/com.fzjh.fzjhlookup/files/`），**绝不写 `live/`** —— 每次热更 `live/` 会被整个删掉重建。
+- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 175 KB。
+
+### 2.3 启动器怎么装热更包
+
+`main.py` 流程（`ensure_code` → `install`）：
+
+```
+比对 version.json（主源失败切 jsDelivr）
+  → 下载 code.zip → md5 校验
+  → Ed25519 验签（sig 覆盖 version|md5|size + 整包字节；False 直接丢弃）
+  → 解压到 live.new（带目录穿越防护）
+  → is_valid_dir() 对 REQUIRED 逐个 compile() 语法检查
+  → 写 live.new/version.txt → 删旧 live/ → rename 成 live/
+  → 把 live/ 插到 sys.path 最前面
+```
+
+任一环节失败都记日志并继续用现有版本，所以**热更失败表现为"界面没变"，不会闪退**。
+
+---
+
+## 3. 通道 A：热更（日常 95%）
+
+### 3.1 改代码 → 语法检查
 
 ```bash
 cd /e/workbuddy2/fzjh-rank
-python -m py_compile apk/app_ui.py apk/lookup_core.py apk/skill_groups.py
-echo $?      # 0 才继续
+python -m py_compile apk/app_ui.py apk/inline_input.py apk/lookup_core.py apk/fetch.py
 ```
 
-### 3.3 打热更包
+### 3.2 不发布，直接塞进设备快验
+
+改一次就打包发布太慢。用 `run-as` 覆盖 `live/`，并写 `version.txt = 99` 顶住自动热更：
 
 ```bash
-python scripts/pack_update.py "一句话说明这次改了什么"
+D="-s 127.0.0.1:7555"; P=com.fzjh.fzjhlookup
+"$ADB" $D shell am force-stop $P
+for f in app_ui.py inline_input.py; do
+  "$ADB" $D push "E:/workbuddy2/fzjh-rank/apk/$f" "/data/local/tmp/$f" >/dev/null 2>&1
+  "$ADB" $D shell run-as $P cp "/data/local/tmp/$f" "files/live/$f"
+done
+"$ADB" $D shell run-as $P rm -rf files/live/__pycache__     # 必须删，否则跑旧字节码
+printf '99' > E:/workbuddy2/_agent_tmp/v99.txt
+"$ADB" $D push E:/workbuddy2/_agent_tmp/v99.txt /data/local/tmp/v99.txt >/dev/null 2>&1
+"$ADB" $D shell run-as $P cp /data/local/tmp/v99.txt files/live/version.txt
+"$ADB" $D shell am start -n $P/org.kivy.android.PythonActivity >/dev/null 2>&1
+sleep 15
+```
+
+**快验期间加的 `print()` 调试日志，发布前必须清掉**（`grep -n 'print("\[' apk/*.py`）。
+
+### 3.3 打包 + 验签
+
+```bash
+python scripts/pack_update.py "一句话说明"
 cat apk/update/version.json
 ```
 
-输出示例：
-
-```
-已生成 v21：9 个文件 / 52.5 KB / md5 1543363f...
-```
-
-规则：
-
-- 版本号是**读旧的 version.json 再 +1**，不要手改 `version.json`（会导致号段重复、老客户端不更新）。
-- `version.txt` 不用管，由启动器在安装时写入。
-- `code.zip` 与 `version.json` 是**一对**，必须同时提交。只提交一个 → md5 与包不匹配 → 客户端校验失败静默回退，看起来像「热更没生效」。
-- 新增模块一定要先进 `scripts/pack_update.py` 的 `FILES` 列表，否则包里没有它，`import` 会走 `except` 兜底 → 功能静默降级。`main.py` 的 `REQUIRED` 只校验 4 个老文件，拦不住这种漏。
+- 版本号读旧 `version.json` **自动 +1**，不要手改。
+- 脚本同时算 md5、size，用 `.keys/update.key` 对 `version|md5|size|整包字节` 签名写 `sig`。
+- `code.zip` 与 `version.json` 是**一对**，必须一起提交；只推一个 → md5 不匹配 → 客户端静默回退。
+- 本地自检见 §9.3。
 
 ### 3.4 发布
 
-**情况一：本地仓库与远端一致（常规）**
+**实际常用：GitHub API 建 commit**（本地 git 与远端经常分叉，直接 `git push` 会被拒；API 方式不需要 worktree，也不影响工作区）：模板见 §9.1。
+
+要点：
+- 用 `base_tree` 增量建 tree，只改本次涉及的文件，不会覆盖 CI 抓下来的数据文件；
+- 顺序：`git/blobs` → `git/trees` → `git/commits` → `PATCH /git/refs/heads/main`；
+- 每次都要推**源码 `.py` + `code.zip` + `version.json`**（源码供追溯与下次打包，两个发布物供客户端）。
+
+**备选：本地 git 直推**（仅当本地与远端一致时）
 
 ```bash
-cd /e/workbuddy2/fzjh-rank
 git add apk/*.py apk/update/code.zip apk/update/version.json scripts/ docs/
-git commit -m "热更 v21：xxx"
-git push origin HEAD:main
-```
-
-**情况二：本地与远端分叉 / push 被拒（历史遗留，实际常遇到）**
-
-不要 `--force`，用临时 worktree 从远端干净拉一份再提交：
-
-```bash
-cd /e/workbuddy2/fzjh-rank
-git worktree prune
-git fetch -q origin
-git worktree add --detach "E:/workbuddy2/_agent_tmp/pxx" origin/main
-
-W="E:/workbuddy2/_agent_tmp/pxx"
-cp apk/app_ui.py apk/update/code.zip apk/update/version.json "$W/apk/"   # 按实际改动复制
-cd "$W"
-git add apk/
-git commit -q -m "热更 v21：xxx"
-git push origin HEAD:main
-
-cd /e/workbuddy2/fzjh-rank
-git worktree remove --force "$W"
-git worktree prune
-git fetch -q origin
-git reset --mixed origin/main        # 让本地索引与远端对齐，不动工作区文件
-```
-
-**代理问题**：本机环境变量里挂着 `HTTP_PROXY`（端口会变，`echo $HTTP_PROXY` 看当前值），会让 git 偶发 502。直连成功率高：
-
-```bash
+git commit -m "热更 vXX：xxx"
 env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u all_proxy \
   timeout 90 git -c http.proxy= -c http.sslBackend=openssl push origin HEAD:main
 ```
 
-**`-c http.sslBackend=openssl` 别省**：Git for Windows 默认走 schannel，本机实测会
-`Failed to connect to github.com:443 after 21004 ms`（而同一时刻 `curl --noproxy '*'` 却能通，
-容易误判成网络问题）。换 openssl 后端后秒过。诊断顺序：
+`-c http.sslBackend=openssl` 别省：Git for Windows 默认 schannel 会 `Failed to connect to github.com:443`。诊断：`curl -sI --noproxy '*' --max-time 12 https://github.com` 先看网络。
 
-```bash
-curl -sI --noproxy '*' --max-time 12 https://github.com          # 200 → 网络没问题
-git -c http.proxy= -c http.sslBackend=openssl ls-remote origin HEAD  # 能列出 sha → 通道没问题
-```
+**推 `apk/*.py` 会顺带触发一次 APK 构建**（workflow 的 paths 命中 `apk/**` 但排除 `apk/update/**`），这是设计如此，不影响热更分发。
 
-断了就等 1–2 分钟重试，别连续猛推。
+### 3.5 确认线上生效
 
-### 3.5 线上校验
-
-GitHub Pages 有 30–90 秒缓存延迟：
+GitHub Pages 有 30–90 秒缓存：
 
 ```bash
 for i in 1 2 3 4 5; do
-  sleep 15
+  sleep 12
   v=$(curl -s --noproxy '*' --max-time 15 \
       https://fzpaihang.github.io/lanlandeku/apk/update/version.json | grep -o '"version": *[0-9]*')
-  echo "try$i: $v"
-  echo "$v" | grep -q 21 && break
+  echo "try$i: $v"; echo "$v" | grep -q 45 && break
 done
 ```
 
-`curl` 访问公网要带 `--noproxy '*'`，否则会被本地代理拦成假 502。
+### 3.6 全量验收（最可靠）
 
-### 3.6 设备验证
+删掉 `files/live` 再启动，等价于老用户升级：
 
-见 §6.3「模拟老客户端走一遍真热更」。核心是删掉 `files/live` 再重启，等价于老用户升级。
+```bash
+D="-s 127.0.0.1:7555"; P=com.fzjh.fzjhlookup
+"$ADB" $D shell run-as $P rm -rf files/live
+"$ADB" $D shell am force-stop $P
+"$ADB" $D logcat -c
+"$ADB" $D shell am start -n $P/org.kivy.android.PythonActivity >/dev/null 2>&1
+sleep 45
+"$ADB" $D shell run-as $P cat files/live/version.txt       # 应等于线上版本
+"$ADB" $D shell run-as $P ls files/live | tr '\n' ' '
+"$ADB" $D logcat -d | grep -E "\[launcher\]|\[tls\]|NotImplementedError|Traceback" | tail -8
+```
 
-### 3.7 回滚
+### 3.7 回归清单
+
+- [ ] 查询页首屏、圆形头像、分区下拉
+- [ ] 输入框：点开 → 打字 → 点外面收起 → 再点回来 → **退格能删**（见 §8）
+- [ ] 完整查询出结果页：角色名、指标、准备位、顶栏「刷新」与返回箭头
+- [ ] 结果页按系统返回键回查询页，不退出 App
+- [ ] 内嵌高手榜能开能关，关完还能继续操作
+- [ ] 缓存命中副标题带「· 缓存」，点「刷新」后标记消失
+- [ ] 无水滴之外的残留、`logcat` 无 `NotImplementedError` / `Traceback`
+
+### 3.8 回滚
 
 客户端只升不降，**不能把 version 改小**。正确做法：
 
-1. 把代码恢复成上一版；
+1. 从 GitHub 历史 commit 取回旧版文件（模板 §9.2），或把代码恢复成上一版；
 2. 重新 `pack_update.py "回滚：xxx"` → 得到更大的版本号；
-3. 推送。
+3. 按 §3.4 推送。
+
+v45 就是这么做的：从 `7b8c19e1`（v42）取回 `app_ui.py` + `inline_input.py`，其余文件保持最新。
 
 ---
 
-## 4. 通道 B：重打 APK（改了内置资源或依赖）
+## 4. 通道 B：重打 APK
 
-### 4.1 触发构建
+### 4.1 什么时候必须
 
-构建在 GitHub Actions，`push` 命中 `apk/**`（但排除 `apk/update/**`）会自动跑；也可以手动：
+| 改动 | 原因 |
+|---|---|
+| `main.py`（启动器、验签、TLS、更新源） | 在 APK 内，热更换不到 |
+| 新增 Java 层 / `InputConnection` | 同上 |
+| `names.json`、字体、图标、应用名、`buildozer.spec` | 内置资源/配置 |
+| 新第三方依赖 | `requirements` 变了 |
+
+⚠️ 改 `buildozer.spec` / `main.py` 曾经会因为 CI 缓存 key 里带这两个文件的 hash 而**连带换掉自动生成的调试签名密钥** → 用户覆盖安装报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，必须卸载重装。缓存 key 已固定为 `buildozer-${{ runner.os }}-stable-v1`，不要再改回带 hash 的写法。
+
+### 4.2 CI 配置要点（`.github/workflows/build-apk.yml`）
+
+- `runs-on: ubuntu-22.04`（新镜像 ant 工具链会挂）；Python 3.10（p4a 锁 `pyjnius==1.7.0`）
+- `p4a.branch = v2024.01.21`，别升 master；只编 `arm64-v8a`
+- 步骤「生成应用图标」：`convert icon_src.jpg -resize 512x512^ -gravity center -extent 512x512 -strip icon.png`，仓库不用提交生成的 png
+- 首次构建下 2–3 GB SDK/NDK，40–60 分钟；命中缓存 15–20 分钟
+- 上传 artifact `fzjh-lookup-apk`，再 `gh release upload apk-v1.0 … --clobber` 覆盖**固定文件名** `fzjh-lookup-v1.0.apk`（网页下载按钮写死这个 URL，不能改名）
 
 ```bash
 gh workflow run build-apk.yml --repo fzpaihang/lanlandeku
 gh run list --repo fzpaihang/lanlandeku --limit 3
 ```
 
-要点（都在 `build-apk.yml` 里，改之前先读注释）：
+### 4.3 取产物并交付
 
-- `runs-on: ubuntu-22.04`，不用 `ubuntu-latest`（新镜像 ant 工具链会挂）；
-- Python **3.10**，因为 p4a 锁 `pyjnius==1.7.0`，3.11 没有 wheel；
-- `p4a.branch = v2024.01.21`（Python 3.11 + pyjnius 1.6.1），不要升 master，Kivy 2.3 编译不过；
-- 只编 `arm64-v8a`，两个架构会让构建时间翻倍；
-- 首次构建要下 2–3 GB SDK/NDK，约 40–60 分钟；命中缓存 15–20 分钟。
-
-注意副作用：**推任何 `apk/*.py` 都会顺带触发一次 APK 构建**（即使你只想发热更）。这是设计如此，接受即可，不影响热更分发。
-
-### 4.2 取产物
-
-Actions 页面下载 artifact `fzjh-lookup-apk`，或者：
+下载 Release asset 到 `dist/`，校验 zip 有效、包内含 `seal.jpg`、应用名字符串已更新，然后直接把文件交给用户。
 
 ```bash
-gh run download <run-id> -n fzjh-lookup-apk -D E:/workbuddy2/fzjh-rank/dist
+TOK=$(cat E:/workbuddy2/_agent_tmp/gh_token.txt)
+AID=$(curl -s --noproxy '*' -H "Authorization: token $TOK" \
+  https://api.github.com/repos/fzpaihang/lanlandeku/releases/latest \
+  | python -c "import sys,json;print(json.load(sys.stdin)['assets'][0]['id'])")
+curl -sL -H "Authorization: token $TOK" -H "Accept: application/octet-stream" \
+  "https://api.github.com/repos/fzpaihang/lanlandeku/releases/assets/$AID" \
+  -o "dist/霜霜妙妙屋-vXX.apk"
 ```
 
-重命名成本地归档：`dist/fzjhlookup-1.3-<改动名>.apk`。
+### 4.4 安装注意
 
-### 4.3 替换 Release 下载文件
-
-网页上「查询已停用」页的下载按钮指向：
-
-```
-https://github.com/fzpaihang/lanlandeku/releases/download/apk-v1.0/fzjh-lookup-v1.0.apk
-```
-
-换版本时**保持文件名不变**，只替换 Release `apk-v1.0` 下的 asset（网页地址就不用改）。用网页上传，或：
-
-```bash
-gh release upload apk-v1.0 "dist/fzjhlookup-1.3-xxx.apk#fzjh-lookup-v1.0.apk" \
-  --repo fzpaihang/lanlandeku --clobber
-```
-
-### 4.4 重装后的注意点
-
-- 覆盖安装**保留** `/data/data/.../files/`（含 `live/`、缓存、`gh.json`），所以重装后热更链路照常；
-- 卸载重装会清空 `live/`，App 会先跑内置代码，再自动升到线上最新热更版本；
-- 重装后第一次启动要等 10–30 秒做热更检查，属正常。
+- 覆盖安装保留 `/data/data/.../files/`（含 `live/`、缓存），热更链路照常；
+- **卸载重装**会清空 `live/`、最近查询和 UID 缓存，App 先跑内置代码再自动升到线上最新；
+- 重装后首次启动等 10–30 秒做热更检查，正常。
 
 ---
 
-## 5. 通道 C：只改数据
+## 5. 通道 C：数据与网页（不动 APK）
 
-### 5.1 武学位置表（`skill_class.py`）
-
-上游是 `whfie/fzjhskill` 的 `public/data/skill.json.gz`，与本项目 `names.json` 的 774 个 id 完全一致。
+### 5.1 武学位置表
 
 ```bash
-cd /e/workbuddy2/fzjh-rank
 python scripts/build_skill_class.py            # 用本地缓存 apk/data/skill.json.gz
-python scripts/build_skill_class.py --fetch    # 上游更新了才需要重新下
-python -m py_compile apk/skill_class.py
-python scripts/pack_update.py "更新武学位置表"
+python scripts/build_skill_class.py --fetch    # 上游更新才需要
+python -m py_compile apk/skill_class.py && python scripts/pack_update.py "更新武学位置表"
 ```
 
-单条纠错：直接在 `apk/skill_class.py` 里改 `CLASS["taixuangong"] = "内功,拳脚,招架"`，再打包热更。别去改 `skill_groups.py` 的关键词规则——那只是「表里查不到」时的兜底。
+单条纠错直接改 `apk/skill_class.py` 里的 `CLASS[...]`，别改 `skill_groups.py` 的关键词兜底。`skill_class.py` 在热更包内。
 
-### 5.2 服务端数据（APK 无需改动）
+### 5.2 服务端数据（推 main 即可，用户下次打开生效）
 
-| 数据 | 仓库路径 | 生成脚本 | APK 何时读到 |
-|---|---|---|---|
-| 昵称索引 | `data/lookup-index.json` | `scripts/build_lookup_index.py` | 启动时后台拉，6 小时最多检查一次 |
-| 昵称回写 | `data/extra-names.json` | APK 自己提交 | 下次别人查时进索引 |
-| 隐私名单 | `data/hidden.json` | 手改 | 随 `lookup-index.json` 的 `hidden` 字段下发 |
-| 榜单 | `data/servers/<key>/gaoshoubang.json` | `scripts/fetch.py`（Actions 定时） | 进结果页时按需拉 |
+| 数据 | 路径 | 生成 |
+|---|---|---|
+| 昵称索引 | `data/lookup-index.json` | `scripts/build_lookup_index.py` |
+| 昵称回写 | `data/extra-names.json` | APK 自己提交 |
+| 隐私名单 | `data/hidden.json` | 手改后要重跑 build_lookup_index |
+| 榜单 / 经验快照 | `data/servers/<key>/{gaoshoubang,exp-history}.json` | `scripts/fetch.py` / `merge_exp.py`（Actions 定时） |
 
-改完推 `main` 即可，用户下次打开就吃到新数据。隐私名单要重新跑一次 `build_lookup_index.py` 才会进索引。
+经验快照有两套口径：11-11 那批是**排行榜浮点值**，之后是 `merge_exp` 合并的**档案整数值**，两者相减会出现假增量。只保留 `src == "profile"` 的快照；`assets/exp.js` 的当前值与基准都取快照，保证同源。
 
 ### 5.3 中文字体子集（`fonts/NotoSansSC-Regular.ttf`）
 
-**为什么必须打包**：App 原来按路径探测系统字体，三条候选都不靠谱 ——
-`NotoSansCJKsc-Regular.ttf` 只有部分 ROM 有、`DroidSansFallback.ttf` 在 Android 9 后已移除、
-`NotoSansCJK-Regular.ttc` 的 face 0 是**日文字形**（简体「门」都没有）。三条全落空时退回
-`Roboto`（不含中文）→ 全屏豆腐块。而 MuMu 是 AOSP，一定有第一个文件，**这个故障在模拟器上永远复现不出来**。
-
-生成（源文件用 Windows 自带的 `NotoSansSC-VF.ttf`，OFL 1.1 可随 APK 分发）：
-
 ```bash
-cd /e/workbuddy2/fzjh-rank
-python scripts/build_font_subset.py            # 默认 C:/Windows/Fonts/NotoSansSC-VF.ttf
-python scripts/build_font_subset.py --src "D:/xxx/NotoSansSC-VF.ttf"
+python scripts/build_font_subset.py            # 源：C:/Windows/Fonts/NotoSansSC-VF.ttf
 ```
 
-脚本做三件事：`instancer` 固定 `wght=400` → 子集化 21637 字 → 输出单体 ttf（7.1 MB）。
-字符集 = CJK 基本区全量（20992）+ ASCII + Latin-1 + CJK 标点 + 全角 + **几何符号 U+25A0–U+25FF**。
+- 做 `instancer` 固定 `wght=400` → 子集化 21637 字 → 单体 ttf（7.1 MB）。
+- 字符集：CJK 基本区全量 + ASCII + Latin-1 + CJK 标点 + 全角 + **几何符号 U+25A0–U+25FF**（折叠箭头 `▶` 在这一区，漏了整片变豆腐块 ☒）。
+- Kivy 不做字体回退，缺一个字就是豆腐块；MuMu 是 AOSP 一定有系统字体，**这个故障在模拟器上永远复现不出来**。
+- `source.include_exts` 里 `.ttf` 有，但热更包 `EXTRA` 不带字体 → 改字体必须重打 APK。调试时把字体推到 `files/live/fonts/` 可临时生效。
 
-> 踩过的坑：折叠箭头 `▶` 就在几何符号区，第一版字符集漏了它，武学分组全变豆腐块（☒）。
-> Kivy 不做字体回退，缺一个字就是豆腐块，所以字符集宁大勿小。
+### 5.4 网页静态资源缓存戳（必须做）
 
-`_local_font()` 的查找顺序：`__file__` 目录（热更时是 `live/`）→ `ANDROID_APP_PATH` → `sys.path`。
-所以调试时把字体推到 `files/live/fonts/` 就能生效，不必重打 APK。
+改完 `assets/*.js` / `style.css` 后：
 
-改完字体要**重打 APK**（§4），热更包带不了 `.ttf`。
+```bash
+python scripts/stamp_assets.py
+```
+
+它把 `index.html` / `exp.html` / `lookup.html` 里 `./assets/xxx.js?v=<md5前8>` 刷成新哈希，内容没变则不动文件。
+
+⚠️ **漏跑这一步的现象**：代码推上线了，但 App 内 WebView 继续跑缓存里的旧脚本，页面上完全看不到新功能（转数筛选、移动端排序都踩过）。桌面浏览器硬刷新能看到，App 里看不到，很容易误判成逻辑写错。
 
 ---
 
-## 6. 模拟器调试环境（MuMu）
+## 6. 验证工具箱
 
-只在需要真机级验证（输入法、WebView、触摸）时用。
-
-### 6.1 连接
+### 6.1 截图
 
 ```bash
-export MSYS_NO_PATHCONV=1
-ADB="D:/Program Files/Netease/MuMuPlayer-12.0/shell/adb.exe"
-"$ADB" start-server
-"$ADB" connect 127.0.0.1:7555
-"$ADB" -s 127.0.0.1:7555 shell getprop ro.product.model
+"$ADB" $D exec-out screencap -p > E:/workbuddy2/_agent_tmp/x.png 2>/dev/null
 ```
 
-`MSYS_NO_PATHCONV=1` 必须加，否则 Git Bash 会把 `/sdcard/x.png` 改写成 Windows 路径。每条命令都要显式 `-s 127.0.0.1:7555`，别依赖默认设备。
+### 6.2 uiautomator 读真实控件文本（比截图可靠）
 
-包名 `com.fzjh.fzjhlookup`，入口 Activity `org.kivy.android.PythonActivity`。
-
-### 6.2 启动 / 截图 / 日志
+MuMu 偶尔画面冻结，截图会误导。`uiautomator dump` 读的是控件树：
 
 ```bash
-D="-s 127.0.0.1:7555"; P=com.fzjh.fzjhlookup
-"$ADB" $D shell am force-stop $P
-"$ADB" $D shell am start -n $P/org.kivy.android.PythonActivity
-sleep 11
-"$ADB" $D shell screencap -p /sdcard/s.png
-"$ADB" $D pull /sdcard/s.png "E:/workbuddy2/_agent_tmp/s.png"
-
-"$ADB" $D logcat -d | grep -iE "python|kivy|FATAL|AndroidRuntime" | tail -30
-"$ADB" $D shell dumpsys input_method | grep -E "^  mServedView=|mInputShown"
+"$ADB" $D shell uiautomator dump /sdcard/u.xml >/dev/null 2>&1
+"$ADB" $D shell "cat /sdcard/u.xml" > E:/workbuddy2/_agent_tmp/u.xml 2>/dev/null
+python -c "
+import re,io
+x=io.open('E:/workbuddy2/_agent_tmp/u.xml',encoding='utf-8',errors='ignore').read()
+et=[t for t in re.findall(r'<node[^>]*>',x) if 'EditText' in t]
+print(re.search(r'text=\"([^\"]*)\"',et[0]).group(1) if et else '（无原生框）')
+"
 ```
 
-坐标按 `wm size`（本例 900×1600）换算，点输入框 `input tap 450 200`，查示例 `input tap 859 600`。
+v45 的验收就是靠它确认 `123456 → 退格×3 → 123`。
 
-### 6.3 模拟老客户端走真热更（最可靠的验收方式）
+### 6.3 录屏抽帧
+
+ffmpeg 静态版已放在 `E:/workbuddy2/_agent_tmp/ffmpeg.exe`：
 
 ```bash
-D="-s 127.0.0.1:7555"; P=com.fzjh.fzjhlookup
-"$ADB" $D shell run-as $P rm -rf files/live
-"$ADB" $D shell am force-stop $P
-"$ADB" $D shell am start -n $P/org.kivy.android.PythonActivity
-sleep 30
-"$ADB" $D shell run-as $P cat files/live/version.txt      # 应等于线上版本
-"$ADB" $D shell run-as $P ls files/live | tr '\n' ' '
+cd E:/workbuddy2/_agent_tmp
+./ffmpeg.exe -hide_banner -loglevel error -i QQ20261114-141051.mp4 -vf "fps=2,scale=540:-1" vf%03d.png
 ```
 
-### 6.4 不发布、直接把本地代码塞进设备（调试用）
+`adb shell screenrecord` 可录设备操作；逐帧找"水滴/残影"出现和消失的时机。
 
-改一次就打包发布太慢，用 `run-as` 覆盖 `live/` 里的文件即可：
+### 6.4 日志
 
 ```bash
-D="-s 127.0.0.1:7555"; P=com.fzjh.fzjhlookup
-"$ADB" $D shell am force-stop $P
-for f in app_ui.py skill_groups.py skill_class.py; do
-  "$ADB" $D push "E:/workbuddy2/fzjh-rank/apk/$f" "/data/local/tmp/$f"
-  "$ADB" $D shell run-as $P cp "/data/local/tmp/$f" "files/live/$f"
-done
-"$ADB" $D shell run-as $P rm -rf files/live/__pycache__    # 必须删，否则跑旧字节码
-"$ADB" $D shell am start -n $P/org.kivy.android.PythonActivity
+"$ADB" $D logcat -d | grep -E "\[launcher\]|\[tls\]|\[inline\]|\[native_input\]|NotImplementedError|Traceback" | tail -20
 ```
 
-**注意**：设备上 `files/live/version.txt` 如果小于线上版本，下次启动会被自动热更覆盖回线上。调试期间可以把 `version.txt` 写成 `99` 顶住：
+`NotImplementedError` 尤其重要：pyjnius 的 `@java_method` 签名写错时不会在定义处报错，只在 Java 回调时抛，现象会跑到完全无关的地方。
 
-```bash
-printf '99' > E:/workbuddy2/_agent_tmp/v99.txt
-"$ADB" $D push "E:/workbuddy2/_agent_tmp/v99.txt" /data/local/tmp/v99.txt
-"$ADB" $D shell run-as $P cp /data/local/tmp/v99.txt files/live/version.txt
-```
+### 6.5 模拟器局限
 
-### 6.5 模拟器的已知局限
-
-- MuMu 里搜狗输入法窗口高度为 0（`mSurfacePosition=Point(0,1600)`），`adb shell input text` 的字**到不了 Kivy**。「能不能真的打字」只能真机确认；模拟器只能验到「输入法焦点回到 `DummyEdit`、`mInputShown=true`」这一层。
-- 系统低内存会杀进程（`lowmemorykiller`），界面突然变桌面不是崩溃，重启即可。
+- MuMu 里只装了**搜狗**输入法（`settings get secure default_input_method` 可查），换不了别的 IME 做对比。
+- 早期版本 `adb shell input text` 的字到不了 Kivy；现在有原生 EditText 覆盖层，注入有效。
+- 系统低内存杀进程（`lowmemorykiller`），界面突然变桌面不是崩溃，重启即可。
+- 截图里出现的"水滴"是系统 `HandleView` 悬浮窗口，不随内容滚动，切页后仍在屏幕固定位置（§8）。
 
 ---
 
-## 7. 界面改动的硬规则（都是踩过的坑）
+## 7. 硬规则与踩过的坑
 
-| 坑 | 现象 | 正确写法 |
+### 7.1 界面 / Kivy
+
+| 坑 | 正确做法 |
+|---|---|
+| 宽度重复套 `dp()` | `txt_button(width=104)` 传纯数字，内部已乘 dp |
+| 手算列表高度 | 绑 `minimum_height`，别 `dp(35) * len(items)` |
+| `add_widget(w, index=0)` 想置顶 | 竖向 BoxLayout 的 children 逆序铺，`index=0` 落到最下面；置顶用 `index=len(children)` |
+| BoxLayout 横向子项贴底 | 小胶囊用 `_vcenter()` 包一层 |
+| `on_touch_down` 立即触发动作 | ScrollView 里会误触；改「按下记坐标 + 抬手位移 <12dp 才触发」 |
+| 弹层/结果页按返回直接退出 | `_on_key` 三级：网页 → 弹层 → 结果页回查询页 → 才退出 |
+| `_deny()` / `_web_fail()` 用 `clear_widgets()` | 换成插卡到 `body.children` 末尾，保留表单与返回入口 |
+| 禁用态文字变半透明白 | 显式设 `disabled_color` |
+| 弱文字对比度 | `C_MUTED` 已压到 `#6E635A`（米底 4.9:1） |
+| 依赖系统字体路径 | 字体打包进 APK（§5.3） |
+| 拼音 id 参与英文关键词匹配 | 只对含大写的驼峰 id 做英文匹配 |
+
+### 7.2 pyjnius / 输入框
+
+| 坑 | 正确做法 |
+|---|---|
+| 传 Python str 给 Java `setText` | 显式 `autoclass("java.lang.String")(s)` |
+| `getParent()` 静态类型是 `ViewParent` | `cast("android.view.ViewGroup", parent).removeView(root)` |
+| `@java_method` 签名参数个数写错 | 必须和 Java 声明逐参数对齐。`beforeTextChanged` 是 `(Ljava/lang/CharSequence;III)V`，写成 `II` 会每次文字变化抛 `NotImplementedError` |
+| `setTextSize(unit, px)` 的 unit | **PX=0 / DIP=1 / SP=2**。传 1 会把像素当 dp 再乘密度，字大一倍顶出框 |
+| `setSelectAllOnFocus(True)` | 一聚焦就全选 → 出选择手柄；当前 v42 主路径仍有聚焦全选（能直接覆盖输入），这是已知取舍 |
+| 新 `addContentView` 的 View 立刻 `showSoftInput` | 还没 attach 完，IME 连不上；需要延迟到下一帧 |
+| 用「失焦 + `setInputType(TYPE_NULL)`」消手柄 | **禁止**：会让输入法连不上，退格失效（v43 的教训） |
+| 点在输入框自己也先 `hide()` | 收/弹一次会留下手柄；用 `_INLINE_OWNER` 记住归属，点它身上跳过 hide |
+| 依赖 Kivy 软键盘 / `keyboard_height` | 见实施记录 §10；SDL2 构建里 `keyboard_height` 恒 0，看 `dumpsys input_method` 的 `mInputShown` |
+| WebView 抢走输入法焦点 | 关闭时 `hideSoftInputFromWindow` + `clearFocus` + `removeView` + `destroy()` |
+
+### 7.3 更新包签名与 TLS
+
+- 签名用纯 Python `ed25519.py`（只依赖 hashlib），已对 RFC 8032 向量自测；私钥**只在本地 `.keys/`**，公钥硬编码在 `main.py`。
+- 签名覆盖 `version|md5|size|整包字节`，改包体或改版本号都会验签失败。
+- 两个 TLS 上下文（`main.py` 更新通道、`fetch.py` 游戏接口）在**找不到内置 CA 时都会降级**到 `CERT_NONE` 并打日志，保证老 APK 不至于完全不能用。区别在于更新通道还有 **Ed25519 签名**兜底：即使证书没校验，包内容被改动也会验签失败被丢弃。改这两处要重装 APK。
+- **完整 Mozilla CA 包（163KB）在设备 OpenSSL 上会报 `SSLError(9, '[X509] PEM lib')`**，整包不可用；只能用最小根证书集。
+
+### 7.4 构建与发布
+
+- 不要 `git push --force` 到 main（会顶掉 Actions 抓下来的数据）。
+- 不要把 `config.json` / `gh.json` / `.keys/` 提交进仓库。
+- CI 缓存 key 必须保持固定（§4.1），否则改 spec 就换签名密钥。
+- 发布时 `code.zip` 与 `version.json` 必须同时推。
+- 调试用的 `print()` 发布前清掉。
+- 每次改完追加 `docs/UI优化-实施记录.md`，并把关键结论写进工作区记忆。
+
+---
+
+## 8. 输入方案专题（当前状态必读）
+
+### 8.1 版本时间线
+
+| 版本 | 做法 | 结果 |
 |---|---|---|
-| 宽度重复套 `dp` | `txt_button(width=dp(150))` → 实际 337px，比整行还宽，标题 `text_size` 被压成 0，汉字各占一行、溢出盖住列表 | `txt_button(width=104)`（内部已乘 dp） |
-| 手动估列表高度 | `height = dp(35) * len(items)`，搜索过滤后条数变了会错位 | 绑 `minimum_height`，别手算 |
-| pyjnius 传 Python str 给 Java | `JavaException: No methods called setText` → 整个 WebView 构建失败 → 静默跳浏览器 | `autoclass("java.lang.String")("关闭")` |
-| `getParent()` 的静态类型是 `ViewParent` | `No methods called removeView`，异常被吞 → 白色 about:blank 一直盖在 App 上 | `cast("android.view.ViewGroup", root.getParent())` 再 `removeView` |
-| WebView 抢走输入法焦点 | 关掉网页后 Kivy 输入框「像被禁用」，软键盘弹出来字却进了看不见的网页 | 关闭时 `hideSoftInputFromWindow` + `clearFocus` + `removeView` + `destroy()`；打开网页前先让 App 输入框失焦 |
-| Kivy 默认不弹虚拟键盘 | 日志 `virtual keyboard not allowed`，点输入框没键盘 | `Config.set("kivy", "keyboard_mode", "system")`（启动最早期设置） |
-| 已聚焦的输入框再点不重申请键盘 | 关网页后再也调不回输入法 | `RoundInput.on_touch_down` 里 `rekeyboard()` + 补一次 `SDL_StartTextInput()` |
-| 依赖系统字体路径 | 厂商 ROM 可能一个都没有 → 退回 Roboto → 全屏豆腐块；MuMu 是 AOSP 测不出来 | 字体打包进 APK（§5.3），系统字体只做兜底 |
-| 子集漏字符 | Kivy 无字体回退，缺一个字符就是豆腐块（折叠箭头 ▶ 曾整片变 ☒） | 字符集按区段整段收（几何符号 U+25A0–U+25FF 等），别只挑几个 |
-| 依赖 Kivy 软键盘 | SDL 能把 IME 拉起来，但 Kivy 0.2 秒轮询 `is_keyboard_shown()` 会把它收走；且 system 模式下 `Window.on_textinput` 不转发给控件、`TextInput` 也不走 `_bind_keyboard()` | `RoundInput._on_focus` 里自己 `Window.bind(on_textinput/on_key_down)` + `SDL_StartTextInput()`（见 `docs/UI优化-实施记录.md` §10） |
-| 拿 `keyboard_height` 判断键盘 | SDL2 构建里 `_get_android_kheight()` 恒返回 0 | 别用它；看 `dumpsys input_method` 的 `mInputShown` |
-| `virtual keyboard not allowed` 日志 | 这是 `WindowBase.__init__` 的常规日志，system 模式也这么打 | 不要当报错，真正的证据是 `mServedView` |
-| BoxLayout 置顶写反 | `add_widget(w, index=0)` 在 `orientation="vertical"` 里落到**最下面**（children 逆序铺） | 置顶用 `add_widget(w, index=len(children))` |
-| 拼音 id 参与英文关键词匹配 | `jibenqinfa` 含 `qi` → 被误判成内功 | 只对含大写的驼峰 id 做英文匹配 |
-| 新模块忘了进 `FILES` | 热更包里没这个文件，功能静默降级 | 改 `scripts/pack_update.py` 的 `FILES` |
-| 起名带 `dp(78)` 当纯数字 | 按钮宽度翻倍 | 见第一条 |
+| v40 | 修 `setTextSize` 单位（PX=0）、收起顺序 | 字号正常，仍有残影 |
+| v41 | 修 `beforeTextChanged` 签名 | 部分改善 |
+| **v42** | 点框自身不收（`_INLINE_OWNER`）、`setCursorVisible(False)` | **能正常删除，仅有光标残影** |
+| v43 | 收起时 Kivy 输入框失焦 + `setInputType(TYPE_NULL)` + 强制重绘 | 残影没了，**退格失效** |
+| v44 | 改系统 AlertDialog 主路径 | **更难用**：弹窗里能删，确定/点外面后主界面仍旧值 |
+| **v45** | **整体回退到 v42** | 删除与查询恢复正常，残影回来 |
+
+### 8.2 为什么会有残影（原理）
+
+- 网页/原生 App：输入框是标准 View 树里的一员，"删字 → `onTextChanged` → `Editor` 收手柄 → `invalidate` → 整棵树重绘"是**同一条事件链**。
+- 本 App：Kivy 界面是 SDL 用 OpenGL 画在 Surface 上，Android 不认识它；为了输入中文额外 `addContentView` 了一个原生 EditText。于是"删字"走 Kivy 软件层、"手柄"走 Android `Editor`，中间**没有跨层通知通路**；手柄是独立 `PopupWindow`，底层 Surface 又是独立合成层不会被强制补帧 → 上一帧像素留在屏幕上。
+
+### 8.3 当前状态（v45，用户已确认接受）
+
+- 主路径：内联原生 EditText 覆盖层（`inline_input.py`）
+- 系统对话框（`native_input.py`）保留为兜底，不做主路径
+- **已知代价**：光标手柄残影，且不局限于输入框下沿，切到结果页后仍悬在屏幕固定位置
+- 判断原则：**能用 > 好看**。发现"修 A 坏 B"且 B 更严重时直接回退，不要继续叠加补丁
+
+### 8.4 彻底解决的路线（单独排期，尚未做）
+
+完整实现 `InputConnection`（参考 Flutter `InputConnectionAdaptor`）：新增 Java 层 View 重写 `onCreateInputConnection`，实现 `commitText` / `deleteSurroundingText` / `setComposingText` / `setSelection`，把编辑操作转发给 Kivy、用 `updateSelection` 回报 IME。
+
+- **必须重打 APK + 重装**（Java 层不在热更范围，需 `buildozer.spec` 加 `android.add_src`）
+- 中文输入法组合态（拼音候选、 composing text）要逐项真机联调
+- 按天算，收益仅是"输入框看起来像原生 App"，对查角色核心功能无加成
+
+结论沿用项目约定：**架构改动很久就先不动**，先保证可用性。
 
 ---
 
-## 8. 发布检查清单
+## 9. 常用脚本模板
 
-发之前逐条确认：
+### 9.1 GitHub API 发布（最常用）
 
-- [ ] `python -m py_compile` 全绿
-- [ ] 新增 `.py` 已加入 `scripts/pack_update.py` 的 `FILES`
-- [ ] `version.json` 的 `version` 比线上大 1（由脚本自动完成，没手改）
-- [ ] `code.zip` 与 `version.json` **一起**提交
-- [ ] `config.json` / `gh.json` 没被提交（`git status` 里不应出现）
-- [ ] 线上 `version.json` 已是新版本（§3.5）
-- [ ] 模拟器删 `files/live` 重启后 `version.txt` 等于新版本（§6.3）
-- [ ] 三处界面回归：查询页首屏、结果页指标 + 准备位、武学分组
-- [ ] 输入框可输入、内嵌高手榜可开可关（关完还能继续打字）
+```python
+import base64, io, json, urllib.request
+TOK = io.open('E:/workbuddy2/_agent_tmp/gh_token.txt', encoding='utf-8').read().strip()
+REPO, API = 'fzpaihang/lanlandeku', 'https://api.github.com'
+def call(m, p, pl=None):
+    d = json.dumps(pl).encode() if pl is not None else None
+    r = urllib.request.Request(API + p, data=d, method=m)
+    r.add_header('Authorization', 'token ' + TOK)
+    r.add_header('Accept', 'application/vnd.github+json')
+    r.add_header('Content-Type', 'application/json')
+    op = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with op.open(r, timeout=60) as x:
+        return json.loads(x.read().decode())
+
+base = call('GET', '/repos/%s/git/ref/heads/main' % REPO)['object']['sha']
+ts = call('GET', '/repos/%s/git/commits/%s' % (REPO, base))['tree']['sha']
+files = ['apk/app_ui.py', 'apk/update/code.zip', 'apk/update/version.json']  # 按实际改动
+entries = []
+for f in files:
+    sha = call('POST', '/repos/%s/git/blobs' % REPO,
+               {'content': base64.b64encode(open(f, 'rb').read()).decode(),
+                'encoding': 'base64'})['sha']
+    entries.append({'path': f, 'mode': '100644', 'type': 'blob', 'sha': sha})
+tree = call('POST', '/repos/%s/git/trees' % REPO, {'base_tree': ts, 'tree': entries})
+new = call('POST', '/repos/%s/git/commits' % REPO,
+           {'message': '热更 vXX：xxx', 'tree': tree['sha'], 'parents': [base]})
+call('PATCH', '/repos/%s/git/refs/heads/main' % REPO, {'sha': new['sha'], 'force': False})
+```
+
+### 9.2 从历史 commit 取回文件（回滚用）
+
+```python
+# ref 用 git log 查到的 sha（如 v42 = 7b8c19e1）
+r = urllib.request.Request(API + '/repos/%s/contents/%s?ref=%s' % (REPO, 'apk/app_ui.py', SHA))
+r.add_header('Authorization', 'token ' + TOK)
+with op.open(r, timeout=60) as x:
+    data = base64.b64decode(json.loads(x.read().decode())['content'])
+io.open('apk/app_ui.py', 'wb').write(data)
+```
+
+### 9.3 本地验签自检
+
+```python
+import json, io, sys
+sys.path.insert(0, 'apk'); import ed25519
+m = json.load(io.open('apk/update/version.json', encoding='utf-8'))
+b = open('apk/update/code.zip', 'rb').read()
+pk = ed25519.public_key(open('.keys/update.key', 'rb').read())
+msg = ('%s|%s|%s|' % (m['version'], m['md5'], m['size'])).encode() + b
+print(ed25519.verify(pk, msg, bytes.fromhex(m['sig'])))
+```
+
+### 9.4 缓存戳重算
+
+```bash
+python scripts/stamp_assets.py     # 改完 assets/*.js 或 style.css 必跑
+```
 
 ---
 
-## 9. 故障排查表
+## 10. 故障排查表
 
-| 现象 | 先查什么 | 结论 |
-|---|---|---|
-| 改了代码但界面没变 | `version.txt` 与线上 `version.json` 对比 | 号没涨 / md5 不匹配 / Pages 还没刷 |
-| 热更后打不开（闪退） | `logcat \| grep -i python`，看 `is_valid_dir` 的报错 | 包里文件缺失或语法错，启动器会回退内置代码 |
-| App 启动慢十几秒 | logcat 里 `[launcher]` 行 | 在等 8 秒版本检查 + 25 秒下载，正常 |
-| 内嵌网页跳浏览器 | logcat 找 `JavaException` | 多半是 pyjnius 类型转换（§7） |
-| 搜索框打不了字 | `dumpsys input_method \| grep mServedView` | 是否仍指向 WebView；是则收焦点没做干净 |
-| 武学全挤在「其他」 | `run-as cat files/live/skill_class.py \| head` | 热更包里漏了 `skill_class.py` |
-| 查询报 `errcode=-1` / 空数据 | 是否刚有其他查询在跑 | 一个 uuid 只保留一个会话，并发会互踢；等 2 分钟重试 |
-| 线上 404 | 文件是否真在 `apk/update/` 下、是否推上 main | Pages 源是 main 根目录 |
+| 现象 | 先查什么 |
+|---|---|
+| 改了代码界面没变 | `version.txt` vs 线上 `version.json`；号没涨 / md5 不匹配 / Pages 没刷 / **HTML 的 `?v=` 没刷** |
+| 热更后打不开 | `logcat \| grep -i python`，看 `is_valid_dir` 报错；启动器会回退内置代码 |
+| 验签失败 | `.keys/update.key` 是否换了、公钥是否还对得上、`code.zip` 与 `version.json` 是否同时推 |
+| 启动慢十几秒 | `[launcher]` 日志；等 8 秒版本检查 + 25 秒下载，正常 |
+| TLS 报错 | `[tls]` 日志；确认 `cacert.pem` 在 `live/` 或 app 目录，且是最小根证书集 |
+| 内嵌网页跳浏览器 | `logcat` 找 `JavaException`，多半是 pyjnius 类型转换 |
+| 输入框打不了字 / 退格无效 | `uiautomator dump` 看 EditText 是否存在、文本是否变化；查 `NotImplementedError`；对照 §8 |
+| 水滴/残影不消失 | 当前 v45 已知代价，见 §8.2，不要再用「失焦 + TYPE_NULL」去修 |
+| 武学全挤在「其他」 | `run-as cat files/live/skill_class.py \| head`，多半热更包漏文件 |
+| 查询 `errcode=-1` / 空数据 | 一个 uuid 只保留一个会话，并发互踢；等 2 分钟重试 |
+| 线上 404 | 文件是否在 `apk/update/`、是否推上 main；Pages 源是 main 根目录 |
+| 覆盖安装报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | 签名证书变了：检查 CI 缓存 key 是否被改回带 hash 的写法 |
 
 ---
 
-## 10. 不要做的事
+## 11. 不要做的事
 
-- 不要手改 `apk/update/version.json` 的版本号（会打断号段，老客户端收不到更新）。
-- 不要 `git push --force` 到 main（会顶掉 Actions 提交的抓取数据）。
-- 不要把 `config.json` / `gh.json` 提交进仓库（等同凭据）。
-- 不要在 `live/` 里放缓存或用户数据（热更会整个删掉）。
+- 不要手改 `apk/update/version.json` 的版本号。
+- 不要 `git push --force` 到 main。
+- 不要提交 `config.json` / `gh.json` / `.keys/`。
+- 不要在 `live/` 里放缓存或用户数据。
 - 不要把 `dp()` 套在已经是 dp 的参数上。
-- 不要为了「省一次构建」把 `apk/**` 从 workflow 的 `paths` 里去掉——重装包会拿不到新代码。
+- 不要为了省一次构建把 `apk/**` 从 workflow 的 `paths` 里去掉。
+- 不要改回带 hash 的 CI 缓存 key。
+- **不要为了消光标手柄再做「失焦 + `setInputType(TYPE_NULL)`」**（v43 已证明会废掉退格）。
+- 不要在修 bug 时夹带架构级改动；遇到需要重打 APK 的改造，先交付可用版本再单独排期。
+- 不要只推 `code.zip` 或只推 `version.json`。
+- 不要漏跑 `stamp_assets.py`。
+
+---
+
+## 12. 相关文档与约定
+
+| 文档 | 内容 |
+|---|---|
+| `docs/UI优化-实施记录.md` | v30–v45 逐次改动的背景、推理与验证（§13 起是签名/TLS/输入） |
+| `docs/武学分类校对表.md` | 武学分组人工校对 |
+| 工作区记忆 `.workbuddy/memory/2026-11-13.md`、`2026-11-14.md` | 跨会话的关键结论与用户偏好 |
+
+**用户约定**：
+- 所有产出、脚本、临时文件放 `E:\workbuddy2` 下，不同任务区分目录，尽量不写 C 盘；
+- 遇到决策不明确先问，不要自己决定；
+- 架构拆分 / 完整 `InputConnection` 这类"要很久"的改造先不动，只留记录；
+- 优先保证「能用」，视觉瑕疵可以让步。
