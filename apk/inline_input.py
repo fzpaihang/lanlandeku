@@ -15,8 +15,9 @@
 两条硬约束（都踩过）：
   1. 所有 View 操作必须在 Android 主线程（SDLActivity）执行，Python 跑在 SDLThread，
      直接建 View 会抛 CalledFromWrongThreadException → 统一 runOnUiThread + Event 等待；
-  2. 不要每次点击都 addContentView / removeView：反复创建销毁会留下输入法的
-     光标放大镜之类残留窗口。这里只建一次，之后用 VISIBLE / GONE 切换。
+  2. 早期版本只建一次、用 VISIBLE / GONE 切换，但搜狗这类输入法会在收起后
+     把选区拖柄（蓝色小水滴）留在屏幕上两三秒。现在收起时直接 removeView，
+     让输入法同步销毁会话；代价是每次点开重建一个 EditText（几毫秒）。
 """
 
 import threading
@@ -112,8 +113,10 @@ def _ensure(activity):
     edit.setPadding(int(14 * density), 0, int(14 * density), 0)
     edit.setTextColor(Color.parseColor("#2A2724"))
     edit.setHintTextColor(Color.parseColor("#8A8578"))
+    # 千万别开 setSelectAllOnFocus：一获得焦点就全选，出现选区就会有拖柄
+    # （蓝色小水滴），收起时还得等它淡出。
     try:
-        edit.setSelectAllOnFocus(True)
+        edit.setSelectAllOnFocus(False)
     except Exception:
         pass
 
@@ -144,7 +147,10 @@ def _ensure(activity):
         def onTextChanged(self, s, start, before, count):
             pass
 
-        @java_method("(Ljava/lang/CharSequence;II)V")
+        # 注意：beforeTextChanged 是 (CharSequence, start, count, after) —— 三个 int。
+        # 少写一个会把签名对成 2 个 int，Android 每次调用都抛 NotImplementedError，
+        # 输入法的选区/光标状态跟着乱，屏幕上的拖柄就一直挂着不掉。
+        @java_method("(Ljava/lang/CharSequence;III)V")
         def beforeTextChanged(self, s, start, count, after):
             pass
 
@@ -240,14 +246,19 @@ def show(rect, text="", on_text=None, on_done=None, style=None):
         edit.setText(JavaString(text or ""))
         n = len(text or "")
         try:
-            if n:
-                edit.setSelection(0, n)      # 有旧内容就全选，直接打字即覆盖
-            else:
-                edit.setSelection(0)
+            # 光标放末尾，不要全选：只要有选区，输入法就会画出选择手柄
+            # （那颗蓝色小水滴），收起时还要淡出两三秒才消失。想覆盖就直接删。
+            edit.setSelection(n)
         except Exception:
             pass
 
         root.setVisibility(0)                # VISIBLE
+        try:
+            # 光标不可见时，输入法不会画「光标手柄」（那颗蓝色小水滴）；
+            # 打字/删除行为不受影响，只是看不到插入点。
+            edit.setCursorVisible(True)
+        except Exception:
+            pass
         edit.requestFocus()
         imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
         imm.showSoftInput(edit, 0)
@@ -314,20 +325,40 @@ def hide():
         Context = autoclass("android.content.Context")
         imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
         try:
-            # 顺序：先把控件藏掉（输入法立刻知道目标没了）→ 撤焦点 → 清选中 →
-            # 复位输入法 → 收键盘。只清文本不清选中，或漏了 restartInput，
-            # 搜狗那种会在屏幕上留一颗选区拖柄（蓝色小水滴）不下来。
-            root.setVisibility(8)
+            # 关键在于「先清选区并通知输入法，再让控件消失」。
+            # 只 order 成 GONE → 清选区的话，输入法那边还留着旧的选区状态，
+            # 拖柄（蓝色小水滴）会在屏幕上慢慢淡出两三秒才没。
+            edit.setCursorVisible(False)
             edit.clearFocus()
             edit.setSelection(0)
             edit.setText(autoclass("java.lang.String")(""))
-            imm.restartInput(edit)
-        except Exception:
-            pass
-        try:
+            # 主动把「选区已空」推给输入法，拖柄立即撤掉
+            try:
+                imm.updateSelection(edit, 0, 0, -1, -1)
+            except Exception:
+                pass
             imm.hideSoftInputFromWindow(edit.getWindowToken(), 0)
         except Exception:
             pass
+        try:
+            imm.restartInput(edit)
+        except Exception:
+            pass
+        # 直接把这个 View 从窗口里摘掉：输入法会同步销毁选区拖柄，
+        # 而不是慢慢淡出（真机上搜狗那种拖柄能挂两三秒）。
+        try:
+            from jnius import cast, autoclass
+            parent = root.getParent()
+            if parent is not None:
+                cast("android.view.ViewGroup", parent).removeView(root)
+        except Exception as e:
+            print("[inline] removeView failed: %r" % (e,))
+            try:
+                root.setVisibility(8)
+            except Exception:
+                pass
+        # 下次 show() 会重新建一套（重建只要几毫秒）
+        _KEEP.update({"root": None, "edit": None, "params": None})
         try:
             root.setVisibility(8)            # GONE
         except Exception:

@@ -1,8 +1,8 @@
 {
-  "version": 40,
-  "md5": "b1df28d14e564a957cb6667f0c06e042",
-  "size": 177971,
-  "notes": "输入框字号单位修正（PX=0 不是 1）+ 收起时复位输入法，修蓝色水滴残留",
-  "builtAt": "2026-11-14 14:00:09",
-  "sig": "8d34798ca0b5de91f7c80d6712b6587f5d8df446bcece65e3e839b24209ff8efaaf7d3875de8c7013cd1f0ca28df388e858c7b92aa8a6b869e44641a21f9b305"
+  "version": 41,
+  "md5": "b6b68536620dce2695ccc7153cabaddb",
+  "size": 178624,
+  "notes": "修 TextWatcher 的 beforeTextChanged 签名（少一个 int 参数，一直抛 NotImplementedError），这是蓝色水滴一直挂着的根因",
+  "builtAt": "2026-11-14 14:22:22",
+  "sig": "4f7d42766d1b334fa31f887bb4b7ee27bc00508172a361cac21a9733d52461491579845dbb388e2d0676fb0109ff4bc3617084c88ce8143fcb878c47bd964505"
 }
