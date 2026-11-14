@@ -119,13 +119,6 @@ def _ensure(activity):
         edit.setSelectAllOnFocus(False)
     except Exception:
         pass
-    try:
-        # IME_FLAG_NO_EXTRACT_UI(0x10000000) | IME_FLAG_NO_FULLSCREEN(0x02000000)
-        # 搜狗在「全屏/抽取编辑」模式下会在自己的窗口里画一颗蓝色浮标（光标指示），
-        # 关掉这两个模式它就不画了。
-        edit.setImeOptions(0x10000000 | 0x02000000)
-    except Exception:
-        pass
 
     bg = GradientDrawable()
     bg.setShape(GradientDrawable.RECTANGLE)
@@ -133,25 +126,6 @@ def _ensure(activity):
     bg.setStroke(int(round(1.6 * density)), Color.parseColor("#8C2F28"))
     bg.setCornerRadius(12 * density)
     edit.setBackground(bg)
-
-    class _TouchEater(PythonJavaClass):
-        """把落在覆盖框上的触摸吃掉，不让 TextView 自己处理。
-
-        TextView 处理 ACTION_DOWN 时会画一个「插入点手柄」（那颗蓝/绿色小水滴），
-        位置就在点击点，而且部分 ROM 不自动收回。我们不需要点击定位光标
-        （光标固定在末尾），所以直接吞掉最干净。
-        """
-        __javainterfaces__ = ['android/view/View$OnTouchListener']
-        __javacontext__ = 'app'
-
-        @java_method('(Landroid/view/View;Landroid/view/MotionEvent;)Z')
-        def onTouch(self, v, e):
-            try:
-                if e.getActionMasked() == 0:
-                    v.requestFocus()
-            except Exception:
-                pass
-            return True
 
     class _Watcher(PythonJavaClass):
         __javainterfaces__ = ["android/text/TextWatcher"]
@@ -201,12 +175,6 @@ def _ensure(activity):
     params = FrameLayoutLP(1, 1)
     root.setVisibility(8)                      # GONE，先不显示
     activity.addContentView(root, params)
-
-    try:
-        _KEEP["eater"] = _TouchEater()
-        edit.setOnTouchListener(_KEEP["eater"])
-    except Exception as e:
-        print("[inline] touch eater failed: %r" % (e,))
 
     _KEEP.update({"root": root, "edit": edit, "params": params,
                   "refs": (watcher, action)})
@@ -286,49 +254,16 @@ def show(rect, text="", on_text=None, on_done=None, style=None):
 
         root.setVisibility(0)                # VISIBLE
         try:
-            # 三件事一起做，目标是「系统不画插入点手柄」：
-            #  1) 光标不可见；
-            #  2) 光标 drawable 置空（部分 ROM 只看 drawable，不看 cursorVisible）；
-            #  3) 不让长按进选择模式。
+            # 光标不可见 → 系统不生成「光标手柄」（那颗蓝/绿色小水滴）。
+            # 点已有文字的框时，系统会顺手弹一个插入点手柄，正常 3 秒自动收；
+            # 但部分 ROM/输入法组合下它不收回，只有把字全删才消失。
+            # 打字、删除、点击定位都不受影响，只是看不到那根竖线。
             edit.setCursorVisible(False)
-            try:
-                edit.setTextCursorDrawable(None)
-            except Exception:
-                pass
-            try:
-                edit.setLongClickable(False)
-            except Exception:
-                pass
         except Exception:
             pass
-        try:
-            edit.setSelection(0)          # 先放行首，聚焦时搜狗不画浮标
-        except Exception:
-            pass
-        # 新 addContentView 的控件这时还没完成 attach，立刻 showSoftInput 会被丢掉：
-        # 键盘不弹、退格也打不进去（IME 没连上）。推迟一帧再请求。
-        def _focus_later():
-            try:
-                edit.requestFocus()
-                imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
-                imm.showSoftInput(edit, 0)
-            except Exception as e:
-                print("[inline] focus later failed: %r" % (e,))
-
-        try:
-            from android.os import Handler, Looper
-            class _Runnable(PythonJavaClass):
-                __javainterfaces__ = ['java/lang/Runnable']
-                __javacontext__ = 'app'
-
-                @java_method('()V')
-                def run(self):
-                    _focus_later()
-
-            _KEEP["focus_runner"] = _Runnable()
-            Handler(Looper.getMainLooper()).postDelayed(_KEEP["focus_runner"], 120)
-        except Exception:
-            _focus_later()
+        edit.requestFocus()
+        imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
+        imm.showSoftInput(edit, 0)
         _KEEP["visible"] = True
 
     try:
@@ -396,12 +331,6 @@ def hide():
             # 只 order 成 GONE → 清选区的话，输入法那边还留着旧的选区状态，
             # 拖柄（蓝色小水滴）会在屏幕上慢慢淡出两三秒才没。
             edit.setCursorVisible(False)
-            # 先把输入类型清成 TYPE_NULL：框架会认为这个控件不再接受输入，
-            # 挂在它上面的光标手柄/选择手柄随之销毁（只 removeView 带不走它们）。
-            try:
-                edit.setInputType(0)
-            except Exception:
-                pass
             edit.clearFocus()
             edit.setSelection(0)
             edit.setText(autoclass("java.lang.String")(""))
@@ -432,17 +361,6 @@ def hide():
                 pass
         # 下次 show() 会重新建一套（重建只要几毫秒）
         _KEEP.update({"root": None, "edit": None, "params": None})
-
-        # 关键：输入法/光标浮标是在它们自己的窗口里画的，收起后如果宿主不重绘，
-        # 那一块像素就停在上一帧 —— 屏幕上看起来就是「光标残影一直不走」。
-        # 这里强制整棵视图树重绘一次（invalidate + requestLayout）。
-        try:
-            decor = activity.getWindow().getDecorView()
-            decor.invalidate()
-            decor.requestLayout()
-            root.getParent() and root.getParent().invalidate()
-        except Exception:
-            pass
         try:
             root.setVisibility(8)            # GONE
         except Exception:
