@@ -1,8 +1,8 @@
 {
-  "version": 49,
-  "md5": "38e7d157b0b5f6ab728831cd07d43c59",
-  "size": 183771,
-  "notes": "查询成功后把角色记入本地昵称索引，之后可直接按昵称搜到（修复散人查过仍搜不到）",
-  "builtAt": "2026-11-14 18:16:37",
-  "sig": "f92d3c31adc533455df4fdf90ce4a2cf01d74281954c2fede7adb6ee440337595c8001035db63f34e01cc199822b0e9c6f9308b23b868077c0264b93d5ff9c01"
+  "version": 50,
+  "md5": "2d9d4a3789ec92eaa09e6c51d0b257de",
+  "size": 184709,
+  "notes": "修闪退（markup size 必须整数）+ 填入胶囊真居中 + 单位字号按 density 正确缩放",
+  "builtAt": "2026-11-14 18:55:34",
+  "sig": "091f5c7b3f5ac726a8e44c3e9af5ab92ad68569ee41e5a89aecad02bc6fbe64deb4f86f1799beae1dd6cab734a00b6629ddd02e4655715ce785403050f676705"
 }

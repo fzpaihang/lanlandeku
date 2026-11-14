@@ -444,12 +444,23 @@ def _vcenter(w, row_h):
     BoxLayout 会把子项贴底（cy = 容器底 + padding_bottom），48dp 行里塞 26dp
     胶囊就会明显偏下；外面包一层带顶部 padding 的容器即可居中。
 
-    ⚠️ 单位必须统一：row_h 传进来的是 dp 数值（如 48），而 w.height 和
-    padding 都是**像素**。原实现直接相减再填 padding，在 density=2.5 的机器上
-    gap 只有应有值的 1/2.5，胶囊就贴在偏下的位置（v47 用户反馈「填入没居中」）。
+    ⚠️ 单位：row_h 是 **dp 数值**（如 48），w.height 是 **像素**（PillButton 内部
+    已经 dp(width/height) 过了）。所以要把 row_h 换算成像素再相减。
+    v48 曾把 row_h 直接当像素用（少了 dp 换算）→ 胶囊只上移了 1/density，
+    真机上明显偏下；v50 又反过来多套了一层 dp()，同样错。
     """
-    gap = max(0, (dp(row_h) - w.height) / 2.0)
-    wrap = BoxLayout(size_hint=(None, 1), width=w.width, padding=(0, gap, 0, 0))
+    # 居中做法：外层 wrap 高度固定为 row_h，给上下各留 (row_h - h)/2 的 padding。
+    #
+    # ⚠️ wrap 的高度必须**显式等于 row_h**，不能用 size_hint=(None, 1) 撑满父行：
+    #   撑满 + 上下都加 padding 时，内部可分配高度 = 行高 - 2*gap，而子项还要
+    #   占 h，Kivy 会把子项压扁到接近 0 —— 视觉上胶囊还在（画在 canvas 上），
+    #   但**命中区域没了，点击完全没反应**（v50 踩的坑）。
+    # 用 AnchorLayout 而不是「BoxLayout + padding：padding 会把内部可分配
+    # 高度吃掉，子项被压成 0 高 → 画得出来但点不中（v50 连续踩了两次）。
+    # AnchorLayout 只负责摆放，不改子项尺寸，命中区域就是胶囊本身。
+    from kivy.uix.anchorlayout import AnchorLayout
+    wrap = AnchorLayout(size_hint=(None, None), width=w.width,
+                        height=dp(row_h), anchor_x="center", anchor_y="center")
     wrap.add_widget(w)
     return wrap
 
@@ -2059,14 +2070,17 @@ class PlayerLookup(App):
             nm = self._name_of(server_key)
             if nm:
                 self.spin.text = nm
-        # 走到这里 text 已经写进去了，但 Kivy 在「从未获得过焦点」的 TextInput 上
-        # 不会把文字纹理真正提交到画布（实测：text/hint/foreground_color 全对，
-        # 屏幕上却一个深色像素都没有 —— 那不是灰字，是根本没画）。
+        # ⚠️ 不要再 focus = True：
+        #   聚焦 → _bind_ime() → INLINE.show() → 原生 EditText 抢焦点，
+        #   会打断当前这次 on_release 的后续处理（实测：点「填入」完全没反应），
+        #   而且 show() 里的 setText 时序还可能把刚写的 text 冲掉。
         #
-        # 最可靠的做法是把它当作用户点了输入框：聚焦一次。焦点变化会走完整的
-        # 纹理重建路径，同时弹出原生覆盖层，用户可以直接确认/修改。
+        # 不聚焦时 Kivy 不刷新文字纹理，用 hint 当「占位」再用 text 覆盖的做法
+        # 太脆弱。最省事且稳定的做法：让这个输入框**永远以 text 为准**，
+        # 关掉 hint（占位提示改由上方「昵称 / UID」标签承担），
+        # 然后强制重建一次文字纹理。
         try:
-            self.inp.focus = True
+            self.inp.hint_text = ""
         except Exception:
             pass
         self._force_repaint()
@@ -2091,10 +2105,15 @@ class PlayerLookup(App):
         try:
             inp = getattr(self, "inp", None)
             if inp is not None:
+                # 先确保有文字，再强制重建：_refresh_text 会按 text 重新生成
+                # 每一行的 Label/纹理。Kivy 对「属性相同」的赋值会短路，
+                # 所以先把 text 清空再写回，保证一定走到重建分支。
                 keep = inp.text
-                inp.text = ""
-                inp.text = keep
+                if keep:
+                    inp.text = ""
+                    inp.text = keep
                 inp._trigger_refresh_text()
+                inp.canvas.ask_update()
         except Exception:
             pass
         for w in (getattr(self, "inp", None), getattr(self, "body", None),
@@ -2518,9 +2537,17 @@ class PlayerLookup(App):
             num_txt, unit = split_num(v)
             markup = num_txt
             if unit:
-                # 单位原来只有 11，压在 15.5 的数字后面像蝇头小字（用户反馈太小）。
-                # 收到 15：比数字小一号，又能一眼看出量级。
-                markup += "[size=17][color=%s]%s[/color][/size]" % (hex_of(C_INK2), unit)
+                # ⚠️ 两个坑，都踩过：
+                #   1. Kivy 的 [size=N] 只接受**整数**。写成 %.1f（如 32.9）会让
+                #      解析器执行 int('32.9') 抛 ValueError，而这是从 Clock 渲染
+                #      回调里抛的，没人接 → Python 解释器直接退出 → App 闪退。
+                #   2. 这个 N 是**像素**，不经过本文件的 sp()；而数字走的是
+                #      sp(15.5) = 15.5 × density × fontscale。所以必须自己按同样
+                #      的口径算出像素值，否则在手机上单位会小得看不清。
+                # 取数字实际像素的 0.9 —— 比数字略小一号，又不会缩成芝麻。
+                unit_px = max(11, int(round(sp(15.5) * 0.9)))
+                markup += "[size=%d][color=%s]%s[/color][/size]" % (
+                    unit_px, hex_of(C_INK2), unit)
             cell.add_widget(lab(markup, 15.5, C_INK, height=29, markup=True, shorten=True))
             grid.add_widget(cell)
         grid.height = dp(44) * 3 + dp(6) * 2
