@@ -60,11 +60,21 @@ def _ssl_ctx():
     不校验 —— 接口只读公开数据、不执行远端代码，降级可以接受；更新通道
     （main.py）不降级。
     """
-    here = os.path.dirname(os.path.abspath(__file__))
-    cands = [os.path.join(here, "cacert.pem")]
-    app = os.environ.get("ANDROID_APP_PATH")
-    if app:
-        cands.append(os.path.join(app, "cacert.pem"))
+    cands = []
+    try:
+        cands.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "cacert.pem"))
+    except Exception:
+        pass
+    for key in ("ANDROID_PRIVATE", "ANDROID_APP_PATH"):
+        d = os.environ.get(key)
+        if d:
+            # 热更包解在 $ANDROID_PRIVATE/live，内置资源在 $ANDROID_APP_PATH
+            cands.append(os.path.join(d, "live", "cacert.pem"))
+            cands.append(os.path.join(d, "cacert.pem"))
+    for p in list(sys.path):
+        if p:
+            cands.append(os.path.join(p, "cacert.pem"))
     for p in cands:
         if os.path.exists(p):
             try:
@@ -72,12 +82,12 @@ def _ssl_ctx():
                 c.check_hostname = True
                 c.verify_mode = ssl.CERT_REQUIRED
                 return c
-            except Exception:
-                pass
+            except Exception as e:
+                print("[tls] CA 加载失败 %s：%r" % (p, e))
     c = ssl.create_default_context()
     c.check_hostname = False
     c.verify_mode = ssl.CERT_NONE
-    print("[tls] 未找到内置 CA，接口请求暂不校验证书")
+    print("[tls] 未找到内置 CA，接口请求暂不校验证书；已找过 %d 个位置" % len(cands))
     return c
 
 

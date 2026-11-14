@@ -1,8 +1,8 @@
 {
-  "version": 34,
-  "md5": "c6274a72c54150980e2e6f99133ff9af",
-  "size": 174817,
-  "notes": "P1 修复：死路/返回键/刷新按钮/查询总超时/失败归因；手势与对比度；更新包签名+TLS",
-  "builtAt": "2026-11-14 12:07:31",
-  "sig": "9b54243e09fb83dc36469b3fb62d54b15fd52abc5f4a6c6a3787d557b583343e99e9ecf5d4823077bd581b89b2d4d344ddc811e1fd3995f5caa3ab5b9c048a06"
+  "version": 35,
+  "md5": "6c6e243a09b6db383215c94a30aba2c7",
+  "size": 83492,
+  "notes": "内置最小 CA 包（ISRG X1 / DigiCert G2 / GlobalSign R46），接口与更新通道开启证书校验",
+  "builtAt": "2026-11-14 12:14:40",
+  "sig": "888c952ff0aab94d73f32ca1096939632414626e00febaa2240154308809ceef1e1ad398fc3b5adffd0722e7292beef2192fcb4cf0b2a3e0a5919e3ad61c3705"
 }
