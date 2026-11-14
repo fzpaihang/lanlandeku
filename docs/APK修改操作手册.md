@@ -398,7 +398,9 @@ printf '99' > E:/workbuddy2/_agent_tmp/v99.txt
 | 已聚焦的输入框再点不重申请键盘 | 关网页后再也调不回输入法 | `RoundInput.on_touch_down` 里 `rekeyboard()` + 补一次 `SDL_StartTextInput()` |
 | 依赖系统字体路径 | 厂商 ROM 可能一个都没有 → 退回 Roboto → 全屏豆腐块；MuMu 是 AOSP 测不出来 | 字体打包进 APK（§5.3），系统字体只做兜底 |
 | 子集漏字符 | Kivy 无字体回退，缺一个字符就是豆腐块（折叠箭头 ▶ 曾整片变 ☒） | 字符集按区段整段收（几何符号 U+25A0–U+25FF 等），别只挑几个 |
-| 依赖 Kivy 软键盘 | 部分 ROM 上 `virtual keyboard not allowed`，点输入框不弹键盘、只能粘贴；MuMu 复现不出来（输入法窗口高度 0） | 用 `apk/native_input.py` 弹系统 EditText（§7），Kivy 只做回填 |
+| 依赖 Kivy 软键盘 | SDL 能把 IME 拉起来，但 Kivy 0.2 秒轮询 `is_keyboard_shown()` 会把它收走；且 system 模式下 `Window.on_textinput` 不转发给控件、`TextInput` 也不走 `_bind_keyboard()` | `RoundInput._on_focus` 里自己 `Window.bind(on_textinput/on_key_down)` + `SDL_StartTextInput()`（见 `docs/UI优化-实施记录.md` §10） |
+| 拿 `keyboard_height` 判断键盘 | SDL2 构建里 `_get_android_kheight()` 恒返回 0 | 别用它；看 `dumpsys input_method` 的 `mInputShown` |
+| `virtual keyboard not allowed` 日志 | 这是 `WindowBase.__init__` 的常规日志，system 模式也这么打 | 不要当报错，真正的证据是 `mServedView` |
 | BoxLayout 置顶写反 | `add_widget(w, index=0)` 在 `orientation="vertical"` 里落到**最下面**（children 逆序铺） | 置顶用 `add_widget(w, index=len(children))` |
 | 拼音 id 参与英文关键词匹配 | `jibenqinfa` 含 `qi` → 被误判成内功 | 只对含大写的驼峰 id 做英文匹配 |
 | 新模块忘了进 `FILES` | 热更包里没这个文件，功能静默降级 | 改 `scripts/pack_update.py` 的 `FILES` |

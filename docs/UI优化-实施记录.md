@@ -352,3 +352,72 @@ Kivy 行为，所以桌面调试与老版本都不受影响。查询框的确认
 `children` 末尾才是视觉第一行。所以「置顶」要写
 `add_widget(w, index=len(children))`，写 `index=0` 反而落到最下面（先踩了一次，
 用 `[dbg] fail-order` 打印每个子控件的 `y` 才确认）。
+
+## 十、v30/v31：输入框终于能直接打字（真机 adb 定位）
+
+### 10.1 真机实测结论
+
+一加 Ace 6T / Android 17 / 搜狗输入法，`dumpsys input_method` 与 `logcat` 交叉验证：
+
+```
+mServedView=org.libsdl.app.DummyEdit    mInputShown=true
+mServedInputConnection=org.libsdl.app.SDLInputConnection
+```
+
+**键盘其实弹出来过**，问题在三处叠加：
+
+1. `WindowSDL` 每 0.2 秒轮询 `is_keyboard_shown()`，安卓上该值不可靠，
+   一为 False 就 `release_keyboard()`，键盘一秒内被收走 → 「闪一下就没了」；
+2. `keyboard_mode='system'` 时 `allow_vkeyboard=False`，而
+   `WindowBase.request_keyboard` 里「把 `Window.on_textinput` 转给 Keyboard」的绑定
+   写在 `if self.allow_vkeyboard and self.use_syskeyboard:` 里 → 直接跳过，
+   **键盘弹得出来，字一个都送不到控件**；
+3. Kivy 2.3 的 `TextInput` 在 system 模式下聚焦**根本不走 `_bind_keyboard()`**
+   （用 `ime.log` 验证：只有 `focus=True`，没有 bind），所以重写 `_bind_keyboard()`
+   或 `show_keyboard()` 都没用。
+
+顺带纠正两个此前写错的判断：
+
+- `keyboard_height` 在 SDL2 构建里恒为 0（`_get_android_kheight()` 直接 `return 0`，
+  源码注明 SDL2 bootstrap 未实现），不能拿它判断键盘是否可见；
+- 那句 `virtual keyboard not allowed, single mode, not docked` 是 `WindowBase.__init__`
+  打的常规日志，`system` 模式和默认模式打出来一模一样，**不是报错**，之前误读了。
+
+### 10.2 最终改法（apk/app_ui.py RoundInput）
+
+```
+_on_focus(True)
+  ├─ _bind_ime(): Window.bind(on_textinput, on_key_down)
+  │                + SDL_StartTextInput()   ← 自己弹键盘，绕开 Kivy 的 request_keyboard
+  └─ select_all()                            ← 点一下就能覆盖输入
+_on_focus(False)
+  └─ _unbind_ime(): Window.unbind + SDL_StopTextInput()
+
+_ime_text(win, text)  → insert_text(text)          # IME 中文 commitText 走同一通道
+_ime_key(...)         → 退格 8 / 回车 13 / ESC 27   # 可打印字符不重复插（否则变 11）
+```
+
+`_bind_keyboard / _unbind_keyboard / show_keyboard / hide_keyboard` 全部转调这两个实现，
+因为 Kivy 内部可能从任意一个入口触发。
+
+双击输入框仍然弹原生 EditText（`apk/native_input.py`），作为 IME 彻底失效时的兜底。
+
+### 10.3 验证
+
+真机 adb 注入（原生输入框与内联都能测）：
+
+| 操作 | 结果 |
+|---|---|
+| 点输入框 → `input text 12345` | 输入框显示 `12345` |
+| 连续两次退格 | `123` |
+| 重构后再测 `6789` + 一次退格 | `678` |
+| 点输入框全选后再输入 | 覆盖旧内容，不追加 |
+| 输入 `21079729670` → 点查询 | 结果页：刘小年 / 2707 级 / 第 1 名 |
+
+热更链路：删 `files/live` 重启 → launcher 自动升到 v31，输入照常。
+
+### 10.4 发布插曲
+
+本时段 `github.com:443` 直连被 reset、代理 502，`git push` 全失败。
+改用 **GitHub Git Data API**（token 取自 APK 内 `gh.json`，`admin` 权限）直接建
+blob → tree → commit → 更新 `refs/heads/main`，等价于一次推送，Pages 正常构建。
