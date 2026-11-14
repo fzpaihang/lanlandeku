@@ -421,3 +421,57 @@ _ime_key(...)         → 退格 8 / 回车 13 / ESC 27   # 可打印字符不�
 本时段 `github.com:443` 直连被 reset、代理 502，`git push` 全失败。
 改用 **GitHub Git Data API**（token 取自 APK 内 `gh.json`，`admin` 权限）直接建
 blob → tree → commit → 更新 `refs/heads/main`，等价于一次推送，Pages 正常构建。
+
+## 十一、v32：输入框换原生内联 EditText + 结果页朱砂色带
+
+### 11.1 输入框：安全键盘的根因
+
+真机（一加 Ace 6T / Android 17 / 搜狗）`dumpsys input_method` 里能看到：
+
+```
+curEditorInfo:  inputType=0x91  imeOptions=0x12000000
+```
+
+`0x91` = `TYPE_CLASS_TEXT | TYPE_TEXT_VARIATION_VISIBLE_PASSWORD`。对输入法来说这是
+「密码框」，所以必切安全键盘（没有中文）。这个值写在 SDL 的
+`DummyEdit.onCreateInputConnection()` 里，`DummyEdit` 又是 `View` 子类 —— Python 侧
+既改不了字段也覆盖不了该方法（试过反射，pyjnius 的 `Field` 没有 `setAccessible`；
+`SDLActivity.showTextInput` 是 `(int,int,int,int)`，参数是键盘矩形 x/y/w/h，不是 inputType）。
+
+**所以换成自己 new 的 EditText**（`apk/inline_input.py`）：
+
+```
+show(rect, text, on_text, on_done)
+  └─ addContentView(FrameLayout > EditText)，绝对定位到 Kivy 控件的位置
+     inputType=TYPE_CLASS_TEXT，白底 + 朱砂描边 + 12dp 圆角
+     TextWatcher → on_text(文字) 回写 Kivy
+     OnEditorActionListener → on_done()（当作回车）
+hide() → 断开 TextWatcher → hideSoftInput → setSelection(0) → setText("") → clearFocus → GONE
+```
+
+四条踩过的坑：
+
+1. **必须在 UI 线程建 View**。Python 跑在 SDLThread，直接 `addContentView` 抛
+   `CalledFromWrongThreadException`，日志里是一长串 `Only the original thread that
+   created a view hierarchy can touch its views`。做法：`runOnUiThread` + `threading.Event` 等待。
+2. **只建一次**。每次点击都 add/remove 会在屏幕上留下输入法的选区拖柄（蓝色水滴），
+   切页后还挂在原位。改成建一次，之后 `VISIBLE` / `GONE`。
+3. **收起前先断开 TextWatcher**，否则清空输入框会把 `""` 回写给 Kivy，输入框内容被抹掉。
+4. **不要改 App locale**。`res.updateConfiguration(conf)` 会触发配置变更，p4a 的
+   Activity 直接 finish（真机表现为「点图标闪一下就回桌面」，logcat 无 traceback）。
+   系统文本菜单本来就跟随系统语言，中文机自动是「全选 / 选择」。
+
+### 11.2 结果页顶部：从红底白字到朱砂色带
+
+```
+v32 初版：顶栏整块 #7B2D26 + 白字
+  ↓（用户：字别放在红色块里）
+14dp 色带 → 24dp + 底部圆角 → 36dp 直角（#B45A3E）
+```
+
+最终结构：`inner = ToneBar(36dp) + AppBar + body`，色带是纯色块不含文字，
+分区名与 UID 在其下方的米色底上用深色字。`ToneBar` 只在结果页有高度，查询页 `height=0`。
+
+**坑**：`AppBar` 画布里 `Color(*C_BG)` 原来没存成属性，`_set_tone()` 访问 `self._bgc`
+直接 `AttributeError` → Kivy 在 build 阶段崩溃 → 真机表现为「点了没反应」，logcat 里
+没有任何 Python traceback。给两个画布块都补上 `self._bgc = Color(...)` 才正常。
