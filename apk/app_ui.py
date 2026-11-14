@@ -33,6 +33,7 @@ from kivy.clock import Clock
 from kivy.core.text import LabelBase
 from kivy.metrics import Metrics, dp
 from kivy.metrics import sp as _sp_raw
+from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
@@ -442,6 +443,46 @@ class Root(BoxLayout):
         if INLINE is not None and INLINE.showing():
             INLINE.hide()
         return super(Root, self).on_touch_down(touch)
+
+
+class PickRow(ButtonBehavior, BoxLayout):
+    """昵称候选行：左侧「昵称 · 分区」，右侧等级，整行可点。
+
+    原来是一排 C_SOFT 底的 Button，字全挤成一行、等级和昵称混在一起，
+    也没有按下的反馈，看着像一张糊掉的列表。
+    """
+
+    def __init__(self, hit, **kw):
+        super(PickRow, self).__init__(orientation="horizontal", **kw)
+        from kivy.graphics import Color, Rectangle
+        self.size_hint_y = None
+        self.height = dp(52)
+        self.padding = (dp(16), 0, dp(14), 0)
+        self.spacing = dp(8)
+        with self.canvas.before:
+            self._c = Color(1, 1, 1, 0)
+            self._r = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self._sync, size=self._sync, state=self._on_state)
+
+        name = (hit.get("n") or "").replace("[", "[[").replace("]", "]]")
+        srv = (hit.get("sn") or hit.get("s") or "").replace("[", "[[").replace("]", "]]")
+        markup = "[b]%s[/b]" % name
+        if srv:
+            markup += "   [color=8B7F74]%s[/color]" % srv
+        self.add_widget(lab(markup, 15, C_INK, height=52, markup=True, shorten=True))
+        lv = hit.get("lv")
+        if lv:
+            l = lab("%s 级" % lv, 11.5, C_MUTED, height=52, halign="right", shorten=True)
+            l.size_hint_x = None
+            l.width = dp(58)
+            self.add_widget(l)
+
+    def _sync(self, *a):
+        self._r.pos = self.pos
+        self._r.size = self.size
+
+    def _on_state(self, _inst, value):
+        self._c.rgba = C_SOFT if value == "down" else (1, 1, 1, 0)
 
 
 class HLine(BoxLayout):
@@ -1818,34 +1859,72 @@ class PlayerLookup(App):
         self._hits = []
 
     def _show_candidates(self):
+        """昵称命中的多个角色：弹一张白卡，逐行选。
+
+        原来是 Popup 自带半透明底 + 一排灰块按钮，字挤成一团、等级和昵称混在一起。
+        现在换成：白底圆角卡 + 标题/副标题 + 分隔线 + 可滚动行（每行 52dp，
+        左边昵称加粗、分区灰色、右边等级）+ 底部取消。
+        """
         hits = self._hits or []
         if not hits:
             return
         from kivy.uix.popup import Popup
+        from kivy.core.window import Window
 
-        box = BoxLayout(orientation="vertical", spacing=dp(6), padding=dp(8))
-        sv = ScrollView(do_scroll_x=False)
-        inner = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(4))
+        box = BoxLayout(orientation="vertical", spacing=0)
+        from kivy.graphics import Color, RoundedRectangle
+        with box.canvas.before:
+            self._popc = Color(*C_CARD)
+            self._popr = RoundedRectangle(radius=[dp(18)], pos=box.pos, size=box.size)
+
+        def _sync(*a):
+            self._popr.pos = box.pos
+            self._popr.size = box.size
+
+        box.bind(pos=_sync, size=_sync)
+
+        head = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(62),
+                         padding=(dp(18), dp(12), dp(18), dp(6)), spacing=dp(2))
+        head.add_widget(lab("选择角色", 12, C_INK, bold=True, height=30, serif=True))
+        head.add_widget(lab("找到 %d 个匹配，点击选择" % len(hits), 11.5, C_MUTED,
+                            height=18, shorten=True))
+        box.add_widget(head)
+        box.add_widget(HLine())
+
+        sv = ScrollView(do_scroll_x=False, bar_width=dp(3))
+        inner = BoxLayout(orientation="vertical", size_hint_y=None, spacing=0)
         inner.bind(minimum_height=inner.setter("height"))
-
-        pop = None
-        for h in hits:
-            tail = h["sn"] or h["s"]
-            label = "%s  ·  %s%s" % (h["n"], tail, ("  lv%s" % h["lv"]) if h["lv"] else "")
-            b = Button(text=label, font_name=FONT, font_size=sp(16), halign="left",
-                       valign="middle", size_hint_y=None, height=dp(54),
-                       background_color=C_SOFT, background_normal="", color=C_INK)
-            b.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(20), None)))
-            b.bind(on_release=lambda inst, x=h: self._pick(x))
-            inner.add_widget(b)
-
+        for i, h in enumerate(hits):
+            row = PickRow(h)
+            row.bind(on_release=lambda inst, x=h: self._pick(x))
+            inner.add_widget(row)
+            if i < len(hits) - 1:
+                inner.add_widget(HLine(color=C_LINE2))
         sv.add_widget(inner)
         box.add_widget(sv)
-        pop = Popup(title="选择角色", title_font=FONT, title_size=sp(17),
-                    content=box, size_hint=(0.9, 0.62),
-                    background_color=C_BG, separator_color=C_ACCENT)
-        self._popup = pop
-        pop.open()
+
+        box.add_widget(HLine())
+        cancel = Button(text="取消", font_name=FONT, font_size=sp(14), color=C_INK2,
+                        size_hint_y=None, height=dp(48),
+                        background_color=(0, 0, 0, 0), background_normal="")
+        box.add_widget(cancel)
+
+        # 高度跟着条数走，最多 5 行（再多就滚动）；+20 是 Popup 自带的内边距
+        rows = min(len(hits), 5)
+        # 62 标题区 + 2 条分隔线 + 48 取消 + Popup 自带内边距约 48
+        h_px = dp(62 + 2 + 48 + 48) + rows * dp(52) + max(0, rows - 1)
+        self._popup = Popup(title="", content=box, separator_height=0, title_size=0,
+                            size_hint=(None, None),
+                            size=(min(Window.width * 0.88, dp(360)), h_px),
+                            # 背景留空 + 颜色全透明：不画主题那张 popup 图（它会变成
+                            # 卡片外圈的一层黑边），也不压暗背景
+                            background="",
+                            auto_dismiss=True)
+        cancel.bind(on_release=lambda *a: self._popup.dismiss())
+        # 构造参数里传 background_color 不生效（ModalView 在 __init__ 之后又写了一次默认值
+        # 0,0,0,0.7），只能在建好之后显式改。
+        self._popup.background_color = (0, 0, 0, 0)
+        self._popup.open()
 
     def _pick(self, h):
         try:
