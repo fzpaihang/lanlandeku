@@ -1087,6 +1087,33 @@ class RoundInput(TextInput):
         # textinput，这里再插一次就会变成 "11"。只保留退格/回车/ESC。
         return False
 
+    def _try_dialog(self):
+        """安卓上把「点输入框」直接交给系统对话框。"""
+        if not self.use_native or NATIVE is None:
+            return False
+        if getattr(self, "_dlg_busy", False):
+            return False
+        try:
+            from kivy.utils import platform
+            if platform != "android":
+                return False
+        except Exception:
+            return False
+        self._dlg_busy = True
+        try:
+            ok = NATIVE.ask(self.native_title or self.hint_text or "输入内容",
+                            initial=self.text, hint=self.hint_text,
+                            ok_text=self.native_ok_text, on_ok=self._apply_native)
+        except Exception as e:
+            print("[input] dialog failed: %r" % (e,))
+            ok = False
+        if ok:
+            # 不要在这里给 Kivy 输入框失焦：失焦后 Kivy 会把文字渲染成浅灰
+            # （看着像占位符）。对话框有自己的窗口，不会再触发 SDL 键盘。
+            return True
+        self._dlg_busy = False
+        return False
+
     def _open_native(self):
         title = self.native_title or self.hint_text or "输入内容"
         ok = NATIVE.ask(title, initial=self.text, hint=self.hint_text,
@@ -1096,6 +1123,7 @@ class RoundInput(TextInput):
 
     def _apply_native(self, txt):
         txt = (txt or "").strip()
+        self._dlg_busy = False
         self.text = txt
         cb = self.on_native_ok
         if cb:
@@ -1129,6 +1157,10 @@ class RoundInput(TextInput):
         self.foreground_color = C_INK
         self.disabled_foreground_color = C_INK
         if value:
+            # 安卓优先用系统输入对话框：它有自己的窗口和输入法会话，
+            # 「退格失效 / 光标残影」这类抢焦点的问题天然不存在。
+            if self._try_dialog():
+                return
             self._bind_ime()
             # 以前这里会「聚焦即全选」，方便直接覆盖输入。但只要有选区，Android 就会
             # 画出选择手柄（那颗蓝/绿色水滴），而且在部分 ROM 上不自动收回。

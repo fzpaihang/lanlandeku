@@ -305,9 +305,30 @@ def show(rect, text="", on_text=None, on_done=None, style=None):
             edit.setSelection(0)          # 先放行首，聚焦时搜狗不画浮标
         except Exception:
             pass
-        edit.requestFocus()
-        imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
-        imm.showSoftInput(edit, 0)
+        # 新 addContentView 的控件这时还没完成 attach，立刻 showSoftInput 会被丢掉：
+        # 键盘不弹、退格也打不进去（IME 没连上）。推迟一帧再请求。
+        def _focus_later():
+            try:
+                edit.requestFocus()
+                imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
+                imm.showSoftInput(edit, 0)
+            except Exception as e:
+                print("[inline] focus later failed: %r" % (e,))
+
+        try:
+            from android.os import Handler, Looper
+            class _Runnable(PythonJavaClass):
+                __javainterfaces__ = ['java/lang/Runnable']
+                __javacontext__ = 'app'
+
+                @java_method('()V')
+                def run(self):
+                    _focus_later()
+
+            _KEEP["focus_runner"] = _Runnable()
+            Handler(Looper.getMainLooper()).postDelayed(_KEEP["focus_runner"], 120)
+        except Exception:
+            _focus_later()
         _KEEP["visible"] = True
 
     try:
