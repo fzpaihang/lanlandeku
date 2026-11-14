@@ -653,8 +653,21 @@ class AppBar(BoxLayout):
         if _seal_img:
             from kivy.uix.image import Image as _Image
             self.seal.padding = (dp(2), dp(2), dp(2), dp(2))
-            self.seal.add_widget(_Image(source=_seal_img, allow_stretch=True,
-                                        keep_ratio=False, mipmap=True))
+            img = _Image(source=_seal_img, allow_stretch=True,
+                         keep_ratio=False, mipmap=True)
+            # 整张图缩到 44dp 只剩一团色块，抠出脸部特写再放进来。
+            # 取图宽 42% 的方形区域，中心落在偏上偏左（人物脸部位置）。
+            try:
+                from kivy.core.image import Image as CoreImage
+                tex = CoreImage(_seal_img).texture
+                side = min(tex.width, tex.height) * 0.42
+                cx, cy = tex.width * 0.37, tex.height * 0.70
+                x0 = max(0, min(tex.width - side, cx - side / 2))
+                y0 = max(0, min(tex.height - side, cy - side / 2))
+                img.texture = tex.get_region(int(x0), int(y0), int(side), int(side))
+            except Exception:
+                pass
+            self.seal.add_widget(img)
         else:
             self.seal.add_widget(lab("江", 13, (1, 1, 1, 1), height=22, halign="center",
                                      bold=True, font=SEAL))
