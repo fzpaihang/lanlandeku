@@ -1427,6 +1427,24 @@ class PlayerLookup(App):
         self._popup = None
         self._cached_uid = None      # 上一次命中的缓存 UID，再查一次就绕过缓存
 
+        # 后台拉一次「远端私有分区配置」（私有 gist，用内置 gh.json token 读）。
+        # 目的：新增分区时凭据只在远端，APK 内置的 config.json 是打包快照，
+        # 靠这一步做到「加分区不重打 APK」。拉失败就用本地，界面照常可用。
+        try:
+            import threading
+
+            def _pull_cfg():
+                try:
+                    if L.refresh_remote_config():
+                        # 刷新分区下拉（如果界面已建好）
+                        Clock.schedule_once(lambda dt: self._reload_servers(), 0)
+                except Exception:
+                    pass
+
+            threading.Thread(target=_pull_cfg, daemon=True).start()
+        except Exception:
+            pass
+
         root = Root(orientation="vertical", padding=0, spacing=0)
         # 全站统一顶栏：查询页 / 结果页只换内容，不换壳
         self.tone_bar = ToneBar()
@@ -1890,27 +1908,49 @@ class PlayerLookup(App):
         APK 内置的 config.json 拿不到新分区；而 data/servers/index.json
         是网页和 APK 共用的一份清单，随热更/站点更新，放新分区不用重打 APK。
         """
+        out = []
         try:
             cfg = L.load_config()
             out = [(str(s["key"]), str(s["name"]))
                    for s in (cfg.get("servers") or []) if s.get("key")]
-            if out:
-                return out
         except Exception:
             pass
-        try:
-            from kivy.network.urlrequest import UrlRequest  # noqa: F401
-        except Exception:
-            pass
+
+        # 本地 config.json 优先（它带凭据、能真正发请求），但它**可能是旧 APK 内置的**：
+        # 新增分区时凭据只在 CI Secret 里，APK 内置配置拿不到新分区。
+        # 所以再把远端 index.json 里有、本地没有的分区补在后面 —— 这样
+        # 「加分区不必重打 APK」，凭据由 update_servers 在运行时从远端配置取。
         try:
             remote = L.remote_servers()
-            if remote:
-                return remote
         except Exception:
-            pass
+            remote = []
+        if remote:
+            have = set(k for k, _ in out)
+            for k, n in remote:
+                if k not in have:
+                    out.append((k, n))
+            # 远端一个都没有时仍用本地（可能是网络失败）
+            if not out:
+                out = list(remote)
+        if out:
+            return out
         return [("taptap", "苍松迎客"), ("taptap_2", "白鹤亮翅"),
                 ("taptap_3", "丹凤朝阳"), ("taptap_4", "墨羽惊鸿"),
                 ("4399", "4399"), ("yyh", "应用汇")]
+
+    def _reload_servers(self):
+        """远端配置到位后，重建分区下拉的可选项（不打断当前选择）。"""
+        try:
+            new = self._servers()
+            if not new or new == self.servers:
+                return
+            self.servers = new
+            names = [n for _k, n in self.servers] + [self.AUTO_LABEL]
+            keep = self.spin.text
+            self.spin.values = names
+            self.spin.text = keep if keep in names else names[0]
+        except Exception:
+            pass
 
     def _picked_key(self):
         try:

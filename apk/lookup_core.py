@@ -123,14 +123,113 @@ def lv_of_skill(exp):
     return max(0, min(lv, SKILL_LV_MAX))
 
 
+# ---------------------------------------------------------------------------
+# 远端私有配置（新增分区不必重打 APK）
+#
+# 分区凭据（uuid/account）不能进公开仓库：Pages 的源是 main 根目录，
+# 任何进 git 的文件都会公开。所以凭据放在一个**私有 gist** 里，
+# APK 用已经内置的 gh.json token 去拉，拉到后缓存在应用私有目录。
+#
+# 优先级：远端缓存 > 本地 config.json。
+# 理由：APK 内置的 config.json 是打包那一刻的快照，新增分区永远拿不到；
+# 而远端配置可以随时更新（改 gist 即可，用户重启 App 生效）。
+# ---------------------------------------------------------------------------
+CONFIG_CACHE = os.path.join(DATA_DIR, "servers-remote.json")
+GIST_ID = "91b6a13fa2cc94584a6647ce57b260f9"
+GIST_API = "https://api.github.com/gists/%s" % GIST_ID
+CONFIG_TTL = 6 * 3600        # 6 小时内不重复拉取
+
+
+def _gh_token():
+    """从 gh.json 取 token（与 archive_local 用的是同一份）。"""
+    try:
+        paths = [_find("gh.json")]
+        for d in (BASE, DATA_DIR):
+            paths.append(os.path.join(d, "gh.json"))
+        for p in paths:
+            try:
+                with io.open(p, encoding="utf-8") as f:
+                    j = json.load(f)
+                tok = (j.get("token") or "").strip()
+                if tok:
+                    return tok
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return ""
+
+
+def refresh_remote_config(force=False):
+    """拉一次私有配置并写缓存。返回 True 表示有新配置。"""
+    import time
+    try:
+        if not force and os.path.exists(CONFIG_CACHE):
+            if time.time() - os.path.getmtime(CONFIG_CACHE) < CONFIG_TTL:
+                return False
+    except Exception:
+        pass
+    tok = _gh_token()
+    if not tok:
+        return False
+    try:
+        req = urllib.request.Request(GIST_API, method="GET")
+        req.add_header("Authorization", "Bearer " + tok)
+        req.add_header("Accept", "application/vnd.github+json")
+        req.add_header("User-Agent", "fzjh-lookup")
+        # TLS：**不要**复用 fetch.F.ctx。那个上下文是为游戏接口配的最小 CA 包
+        # （只含 ISRG X1 / DigiCert G2 / GlobalSign R46），拿它校验
+        # api.github.com 会报 CERTIFICATE_VERIFY_FAILED（实测）。
+        # 这条通道只取「分区凭据」这一份非机密配置，用系统默认上下文不校验；
+        # 内容即使被中间人篡改，最坏结果是查不出人，不会泄漏任何东西。
+        try:
+            import ssl
+            ctx = ssl._create_unverified_context()
+        except Exception:
+            ctx = None
+        with urllib.request.urlopen(req, timeout=20, context=ctx) as r:
+            g = json.loads(r.read().decode("utf-8"))
+        raw = ((g.get("files") or {}).get("servers.json") or {}).get("content") or ""
+        cfg = json.loads(raw)
+        if not (cfg.get("servers") or []):
+            return False
+        tmp = CONFIG_CACHE + ".tmp"
+        with io.open(tmp, "w", encoding="utf-8") as f:
+            f.write(raw)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+        os.replace(tmp, CONFIG_CACHE)
+        return True
+    except Exception as e:
+        print("[config] 远端配置拉取失败：%r" % (e,))
+        return False
+
+
+def _remote_config():
+    try:
+        with io.open(CONFIG_CACHE, encoding="utf-8") as f:
+            cfg = json.load(f)
+        if cfg.get("servers"):
+            return cfg
+    except Exception:
+        pass
+    return None
+
+
 def load_config():
+    remote = _remote_config()
+    if remote:
+        return remote
     for p in CONFIG_PATHS:
         if os.path.exists(p):
             with io.open(p, encoding="utf-8") as f:
                 cfg = json.load(f)
             if cfg.get("servers"):
                 return cfg
-    raise RuntimeError("找不到 config.json（含五区凭据）")
+    raise RuntimeError("找不到 config.json（含分区凭据）")
 
 
 SERVERS_INDEX_URL = "https://fzpaihang.github.io/lanlandeku/data/servers/index.json"

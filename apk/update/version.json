@@ -1,8 +1,8 @@
 {
-  "version": 54,
-  "md5": "c3b04226abfc7a9db3676ae95fdff629",
-  "size": 188962,
-  "notes": "新增应用汇分区：UID 6 开头自动识别；分区清单改读远端 index.json，以后加区不必重打 APK",
-  "builtAt": "2026-11-15 00:10:51",
-  "sig": "9874b492f3085969a1db0d7c81c8cee37f375a16fc1a612d780fc19cbd4e2cb73ea9efeda5ce6aa6661dd1597810cd7459940b7c89ec3f57d7a1312855be1e0f"
+  "version": 55,
+  "md5": "0da72d33ed5fe4156d1030cbfccc8fca",
+  "size": 190728,
+  "notes": "分区配置改为从私有 gist 拉取：新增应用汇，以后加区不用重打 APK",
+  "builtAt": "2026-11-15 00:25:53",
+  "sig": "e316e3a738a370abc3c7f30f482013e6f3605ee339f6692ada3742937826d4b1054a02dbedca5815526cc0e9ef83f033f340afe0b341cde65e0facd2fd283b08"
 }
