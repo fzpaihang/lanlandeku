@@ -30,6 +30,7 @@ FILES = [
     "webview_overlay.py",
     "skill_groups.py",
     "skill_class.py",
+    "native_input.py",
 ]
 
 

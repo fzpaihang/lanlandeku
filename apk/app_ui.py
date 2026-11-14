@@ -48,6 +48,10 @@ try:
     import skill_groups as SG          # 武学分类表，缺失时退化成不分组
 except Exception:
     SG = None
+try:
+    import native_input as NATIVE      # 安卓原生输入框，绕开 Kivy 软键盘
+except Exception:
+    NATIVE = None
 
 
 # ---------- 屏幕适配 ----------
@@ -655,12 +659,20 @@ class RoundInput(TextInput):
     背景，在白卡上只剩一行漂浮的字，根本不像输入框）。
     """
 
-    def __init__(self, radius=12, bg=None, **kw):
+    def __init__(self, radius=12, bg=None, native_title=None, native_ok_text="确定",
+                 on_native_ok=None, use_native=True, **kw):
         kw.setdefault("background_color", (0, 0, 0, 0))
         kw.setdefault("background_normal", "")
         kw.setdefault("background_active", "")
         kw.setdefault("padding", [dp(14), dp(13)])
         super(RoundInput, self).__init__(**kw)
+        # 原生输入框：Kivy 的软键盘在部分 ROM 上完全失效（点框不出键盘、只能粘贴），
+        # 点这里就弹系统的 EditText，中文/长按粘贴都由系统负责。
+        self.native_title = native_title
+        self.native_ok_text = native_ok_text
+        self.on_native_ok = on_native_ok
+        self.use_native = use_native
+        self._native_ok = None
         from kivy.graphics import Color, RoundedRectangle, Line
         self._r = dp(radius)
         with self.canvas.before:
@@ -671,6 +683,40 @@ class RoundInput(TextInput):
                                                self._r), width=1)
         self.bind(pos=self._sync, size=self._sync, focus=self._on_focus)
 
+    # ---------- 原生输入 ----------
+    def _native_ready(self):
+        if not self.use_native or NATIVE is None:
+            return False
+        try:
+            from kivy.utils import platform
+            if platform != "android":
+                return False
+        except Exception:
+            return False
+        if self._native_ok is None:
+            try:
+                self._native_ok = NATIVE.available()
+            except Exception:
+                self._native_ok = False
+        return bool(self._native_ok)
+
+    def _open_native(self):
+        title = self.native_title or self.hint_text or "输入内容"
+        ok = NATIVE.ask(title, initial=self.text, hint=self.hint_text,
+                        ok_text=self.native_ok_text, on_ok=self._apply_native)
+        if not ok:                       # 环境不支持就走回老路
+            self.focus = True
+
+    def _apply_native(self, txt):
+        txt = (txt or "").strip()
+        self.text = txt
+        cb = self.on_native_ok
+        if cb:
+            try:
+                cb(txt)
+            except Exception as e:
+                print("[input] 回调失败：%r" % (e,))
+
     def _sync(self, *a):
         self._bg.pos = self.pos
         self._bg.size = self.size
@@ -678,6 +724,9 @@ class RoundInput(TextInput):
 
     def on_touch_down(self, touch):
         in_box = self.collide_point(*touch.pos)
+        if in_box and self._native_ready():
+            self._open_native()
+            return True
         was_focus = self.focus
         handled = super(RoundInput, self).on_touch_down(touch)
         # 已经聚焦时再点一次：Kivy 不会重新向 SDL 申请文本输入，输入法就调不回来
@@ -1013,6 +1062,8 @@ class PlayerLookup(App):
             multiline=False, input_type="text",
             size_hint_y=None, height=dp(46),
             foreground_color=C_INK, hint_text_color=C_MUTED, cursor_color=C_ACCENT,
+            native_title="输入昵称或 UID", native_ok_text="查询",
+            on_native_ok=self._after_native_query,
         )
         self.inp.bind(on_text_validate=lambda *a: self.start())
         self.inp.bind(text=self._on_query_text)
@@ -1593,6 +1644,11 @@ class PlayerLookup(App):
         self.set_status("已选中「%s」，点「查询玩家」开始" % h["n"], C_INK2)
 
     # ---------- 查询 ----------
+    def _after_native_query(self, txt):
+        """原生输入框点了「查询」：文字已回填，直接发起查询。"""
+        if (txt or "").strip():
+            self.start()
+
     def start(self):
         if self.busy:
             return
@@ -1707,17 +1763,18 @@ class PlayerLookup(App):
         self.busy = False
         self.btn.disabled = False
         self.btn.text = "查询玩家"
-        self.set_status(title, C_ACCENT)
-        self._set_body_card(False)
-        self.body.padding = (dp(16), dp(14), dp(16), dp(18))
-        self.body.spacing = dp(12)
-        self.body.clear_widgets()
+        # 以前这里直接 clear_widgets 重建一个「错误卡 + 示例」页，查询表单被一起清掉，
+        # 用户看到错误后没有任何输入入口，只能返回键乱试。改成先还原查询页，
+        # 再把错误卡插到最上面。
+        self.show_query()
         err = Card(radius=16, pad=14, spacing=4)
         err.bind(minimum_height=err.setter("height"))
         err.add_widget(lab(title, 14, C_ACCENT, bold=True, height=24, shorten=True))
         err.add_widget(lab(detail, 12, C_INK2, height=22, shorten=True))
-        self.body.add_widget(err)
-        self.body.add_widget(self._recent_card())
+        # Kivy 的 add_widget 默认 index=0（插在 children 头部），而 vertical 布局是
+        # 逆序铺的：children 末尾才是视觉第一行。所以置顶要显式插到末尾。
+        self.body.add_widget(err, index=len(self.body.children))
+        self._scroll_top()
 
     def set_status(self, text, color=C_MUTED):
         self.q_status.text = text or ""
@@ -1912,6 +1969,7 @@ class PlayerLookup(App):
             font_size=sp(12.5), multiline=False, padding=[dp(12), dp(11)],
             size_hint_y=None, height=dp(40), bg=C_SOFT,
             foreground_color=C_INK, hint_text_color=C_INK2, cursor_color=C_ACCENT,
+            native_title="搜索武学名称",
         )
         self.skill_search.bind(text=lambda inst, v: self._on_skill_search(v, p))
         card.add_widget(self.skill_search)
