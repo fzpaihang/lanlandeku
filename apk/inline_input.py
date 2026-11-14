@@ -210,7 +210,9 @@ def show(rect, text="", on_text=None, on_done=None, style=None):
         st = style or {}
         try:
             px = float(st.get("font_px") or 17.0)
-            edit.setTextSize(1, px)              # unit=1 即 PX，跟 Kivy 的 font_size 同单位
+            # TypedValue: PX=0 / DIP=1 / SP=2。必须是 0——写成 1 会被当成 dp，
+            # 再乘一次屏幕密度，字就大了一倍多（真机上字会顶出输入框）。
+            edit.setTextSize(0, px)
         except Exception:
             pass
         try:
@@ -309,17 +311,20 @@ def hide():
         root = _KEEP["root"]
         # 先断开回写：下面要清空输入框，否则 TextWatcher 会把 "" 写回 Kivy
         _KEEP["on_text"] = None
+        Context = autoclass("android.content.Context")
+        imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
         try:
-            # 顺序很重要：先撤焦点 → 再清选中和文本 → 最后收键盘。
-            # 先收键盘再清文本的话，输入法的选区拖柄（蓝色水滴）会残留在屏幕上。
+            # 顺序：先把控件藏掉（输入法立刻知道目标没了）→ 撤焦点 → 清选中 →
+            # 复位输入法 → 收键盘。只清文本不清选中，或漏了 restartInput，
+            # 搜狗那种会在屏幕上留一颗选区拖柄（蓝色小水滴）不下来。
+            root.setVisibility(8)
             edit.clearFocus()
             edit.setSelection(0)
             edit.setText(autoclass("java.lang.String")(""))
+            imm.restartInput(edit)
         except Exception:
             pass
         try:
-            Context = autoclass("android.content.Context")
-            imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
             imm.hideSoftInputFromWindow(edit.getWindowToken(), 0)
         except Exception:
             pass

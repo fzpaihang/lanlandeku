@@ -1,8 +1,8 @@
 {
-  "version": 39,
-  "md5": "d7307557402775b4241fb08f22e4f0f7",
-  "size": 177809,
-  "notes": "顶栏头像换成新的古风角色图（仍为圆形）",
-  "builtAt": "2026-11-14 13:39:48",
-  "sig": "edcb3fff3665474cc2fef8fb0362d1069824a4b3aebe6d60082f79e9f9bd8c21a0968bd8a807bcfe0402f348f9c68846c57cfd4f2dbd7a1e384117272226a102"
+  "version": 40,
+  "md5": "b1df28d14e564a957cb6667f0c06e042",
+  "size": 177971,
+  "notes": "输入框字号单位修正（PX=0 不是 1）+ 收起时复位输入法，修蓝色水滴残留",
+  "builtAt": "2026-11-14 14:00:09",
+  "sig": "8d34798ca0b5de91f7c80d6712b6587f5d8df446bcece65e3e839b24209ff8efaaf7d3875de8c7013cd1f0ca28df388e858c7b92aa8a6b869e44641a21f9b305"
 }
