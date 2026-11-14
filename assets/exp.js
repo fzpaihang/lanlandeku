@@ -296,7 +296,10 @@
 
       state.rows = (board.rows || []).map(function (r) {
         var uid = String(r.userid);
-        var curExp = r.exp;
+        // 当前值优先取「最新快照」，和基准同源同口径；快照里没有才退回榜单行。
+        // 榜单的 updatedTs 可能比快照新，两边混用会又出现一次口径差。
+        var curExp = (latest && latest.exp && latest.exp[uid] !== undefined)
+          ? latest.exp[uid] : r.exp;
         var baseExp = baseSnap && baseSnap.exp ? baseSnap.exp[uid] : undefined;
         var grow = null, perDay = null, pct = null;
 
