@@ -475,3 +475,31 @@ v32 初版：顶栏整块 #7B2D26 + 白字
 **坑**：`AppBar` 画布里 `Color(*C_BG)` 原来没存成属性，`_set_tone()` 访问 `self._bgc`
 直接 `AttributeError` → Kivy 在 build 阶段崩溃 → 真机表现为「点了没反应」，logcat 里
 没有任何 Python traceback。给两个画布块都补上 `self._bgc = Color(...)` 才正常。
+
+## 十二、v33：昵称多命中弹窗重做
+
+原实现是 `Popup` + 一排 `C_SOFT` 灰块 Button，昵称、分区、等级挤在同一行，
+没有层次也没有按下反馈。重做后的结构：
+
+```
+Popup(background="", background_color 见下)
+└─ 白底圆角卡 (radius 18)
+   ├─ 标题区 62dp：「选择角色」(13sp 加粗) + 「找到 N 个匹配，点击选择」
+   ├─ HLine
+   ├─ ScrollView（超过 5 条才滚动）
+   │   └─ PickRow 52dp：昵称(加粗) + 分区(灰) + 等级(右对齐)，行间 1px 细线
+   ├─ HLine
+   └─ 取消 48dp（文字按钮）
+```
+
+`PickRow(ButtonBehavior, BoxLayout)`：整行可点，`state == "down"` 时底色变
+`C_SOFT`，替代原来靠 Button 背景色撑出来的假交互。
+
+### 两个坑
+
+1. **卡片外圈的黑框**：`Popup` 默认会把主题图 `atlas://.../popup` 按弹窗矩形缩放
+   绘制，白卡之外就露出一圈深色。`background=""` 才能不画它。
+2. **`background_color` 传构造参数无效**：`ModalView.__init__` 在应用 kwargs 之后
+   又写了一次默认值 `(0,0,0,0.7)`，所以遮罩一直是 70% 黑。必须在弹窗建好之后
+   `self._popup.background_color = (...)` 单独赋值。
+3. 高度要手动加上 `Popup` 自带的内边距（约 48dp），否则最后一行会被裁掉。
