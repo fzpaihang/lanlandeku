@@ -5,6 +5,20 @@
 属性区仍保持 2x4 无边框网格；只在「短标签成组」的准备位/装备用 Pill 胶囊，
 武学加搜索与展开，传承用竖向时间线并展示 inheritTime 日期。
 """
+
+# ---------------------------------------------------------------------------
+# 这两行必须在任何 kivy 模块之前执行。
+# keyboard_mode 只在 Window 创建时读一次（Window 在 import kivy.uix.* 时就被创建），
+# 运行到 App.run() 里再 Config.set 是无效的 —— 之前一直卡在默认的 single 模式，
+# Kivy 便拒绝申请系统键盘（日志 "virtual keyboard not allowed, single mode"），
+# 点输入框自然什么都不弹。
+# ---------------------------------------------------------------------------
+try:
+    from kivy.config import Config as _KC
+    _KC.set("kivy", "keyboard_mode", "system")
+except Exception:
+    pass
+
 import io
 import json
 import os
@@ -652,6 +666,28 @@ def _sdl_start_text_input():
         return
 
 
+def _sdl_stop_text_input():
+    """SDL_StopTextInput：收键盘时告诉 SDL 别再往 Kivy 送文本。"""
+    if not ("ANDROID_ARGUMENT" in os.environ or "ANDROID_PRIVATE" in os.environ):
+        return
+    try:
+        import ctypes
+    except Exception:
+        return
+    for name in ("libSDL2.so", None):
+        try:
+            lib = ctypes.CDLL(name) if name else ctypes.CDLL(None)
+            fn = getattr(lib, "SDL_StopTextInput")
+        except Exception:
+            continue
+        try:
+            fn.restype = None
+            fn()
+        except Exception:
+            pass
+        return
+
+
 class RoundInput(TextInput):
     """白底圆角输入框：对应网页 .lk-input（48 高、圆角 12、聚焦变强调色）。
 
@@ -673,6 +709,7 @@ class RoundInput(TextInput):
         self.on_native_ok = on_native_ok
         self.use_native = use_native
         self._native_ok = None
+        self._ime_on = False
         from kivy.graphics import Color, RoundedRectangle, Line
         self._r = dp(radius)
         with self.canvas.before:
@@ -683,8 +720,9 @@ class RoundInput(TextInput):
                                                self._r), width=1)
         self.bind(pos=self._sync, size=self._sync, focus=self._on_focus)
 
-    # ---------- 原生输入 ----------
-    def _native_ready(self):
+    # ---------- 系统键盘：直连 SDL ----------
+    def _android(self):
+        """安卓 + jnius 可用？决定走 SDL 直连还是普通桌面行为。"""
         if not self.use_native or NATIVE is None:
             return False
         try:
@@ -699,6 +737,88 @@ class RoundInput(TextInput):
             except Exception:
                 self._native_ok = False
         return bool(self._native_ok)
+
+    def _bind_ime(self):
+        """把 SDL 的文本事件接到这个控件上。
+
+        真机结论（一加 Ace 6T / Android 17 / 搜狗）：
+        - Kivy 2.3 的 TextInput 在 keyboard_mode='system' 下聚焦时既不走
+          _bind_keyboard()，也不会把 Window.on_textinput 转给控件
+          （WindowBase.request_keyboard 里那段绑定被 allow_vkeyboard=False 跳过），
+          所以键盘弹得出来、字却一个都进不来；
+        - 而 Kivy 自己那套 request_keyboard 又会被 0.2 秒一次的
+          is_keyboard_shown() 轮询把键盘收走（表现为「闪一下就没了」）。
+
+        因此这里完全不用 Kivy 的键盘管理：直接 SDL_StartTextInput 弹键盘，
+        文字/退格由 Window 的 on_textinput / on_key_down 自己接。
+        """
+        if not self._android():
+            return
+        try:
+            from kivy.core.window import Window
+            Window.unbind(on_textinput=self._ime_text, on_key_down=self._ime_key)
+            Window.bind(on_textinput=self._ime_text, on_key_down=self._ime_key)
+        except Exception:
+            return
+        self._ime_on = True
+        _sdl_start_text_input()
+
+    def _unbind_ime(self):
+        if not self._android():
+            return
+        try:
+            from kivy.core.window import Window
+            Window.unbind(on_textinput=self._ime_text, on_key_down=self._ime_key)
+        except Exception:
+            pass
+        self._ime_on = False
+        _sdl_stop_text_input()
+
+    # Kivy 内部可能从这几个入口触发，统一转给上面两个实现
+    def _bind_keyboard(self):
+        if self._android():
+            return self._bind_ime()
+        return super(RoundInput, self)._bind_keyboard()
+
+    def _unbind_keyboard(self):
+        if self._android():
+            return self._unbind_ime()
+        return super(RoundInput, self)._unbind_keyboard()
+
+    def show_keyboard(self):
+        if self._android():
+            return self._bind_ime()
+        return super(RoundInput, self).show_keyboard()
+
+    def hide_keyboard(self):
+        if self._android():
+            return self._unbind_ime()
+        return super(RoundInput, self).hide_keyboard()
+
+    def _ime_text(self, _win, text):
+        if not self._ime_on or not text:
+            return
+        self.insert_text(text)
+
+    def _ime_key(self, _win, key, _scancode, _codepoint, _mods):
+        """按键：SDL 的 IME 走 commitText 给 on_textinput，退格/回车得单独接。"""
+        if not self._ime_on:
+            return False
+        if key == 8:                       # 退格
+            self.do_backspace()
+            return True
+        if key in (13, 271):               # 回车
+            if self.multiline:
+                self.insert_text("\n")
+            else:
+                self.dispatch("on_text_validate")
+            return True
+        if key == 27:                      # ESC：收键盘
+            self.focus = False
+            return True
+        # 可打印字符交给 on_textinput：SDL 对同一个字符既发 key_down 又发
+        # textinput，这里再插一次就会变成 "11"。只保留退格/回车/ESC。
+        return False
 
     def _open_native(self):
         title = self.native_title or self.hint_text or "输入内容"
@@ -724,24 +844,16 @@ class RoundInput(TextInput):
 
     def on_touch_down(self, touch):
         in_box = self.collide_point(*touch.pos)
-        if in_box and self._native_ready():
+        # 双击输入框 = 弹原生输入框：键盘被系统/输入法搞挂时的兜底，也方便长文本粘贴
+        if in_box and touch.is_double_tap and self._android():
             self._open_native()
             return True
         was_focus = self.focus
         handled = super(RoundInput, self).on_touch_down(touch)
-        # 已经聚焦时再点一次：Kivy 不会重新向 SDL 申请文本输入，输入法就调不回来
-        # （关掉内嵌高手榜网页后必现）。这里强制重新走一遍。
+        # 已聚焦时再点一次：用户可能用返回键收起了键盘，这里重新唤一次
         if in_box and was_focus:
-            Clock.schedule_once(lambda dt: self.rekeyboard(), 0)
+            self.show_keyboard()
         return handled
-
-    def rekeyboard(self):
-        try:
-            self.focus = False
-            self.focus = True
-        except Exception:
-            return
-        Clock.schedule_once(lambda dt: _sdl_start_text_input(), 0.05)
 
     def _on_focus(self, _inst, value):
         self._ln.width = 1.6 if value else 1
@@ -750,7 +862,9 @@ class RoundInput(TextInput):
         self.foreground_color = C_INK
         self.disabled_foreground_color = C_INK
         if value:
-            Clock.schedule_once(lambda dt: _sdl_start_text_input(), 0.05)
+            self._bind_ime()
+        else:
+            self._unbind_ime()
 
 
 class PrimaryButton(Button):
@@ -2075,16 +2189,34 @@ class PlayerLookup(App):
         self.show_query()
 
 
+def _patch_ime_watchdog():
+    """关掉 Kivy 的软键盘看门狗。
+
+    真机实测（一加 Ace 6T / Android 17 / 搜狗输入法）：
+      mServedView=org.libsdl.app.DummyEdit   mInputShown=true
+    说明 SDL 已经把系统键盘拉起来了，但 WindowSDL 每 0.2 秒查一次
+    is_keyboard_shown()，安卓上这个返回值靠不住，一为 False 就 release_keyboard，
+    刚弹出来的键盘立刻被收走 —— 表现就是「点了没反应 / 闪一下就没了」。
+
+    这里把那次轮询换成永不释放的空实现，键盘由 TextInput 的失焦和返回键负责收起。
+    """
+    try:
+        from kivy.core.window import Window
+        cls = type(Window)
+        if getattr(cls, "_ime_watchdog_off", False):
+            return
+        cls._check_keyboard_shown = lambda self, dt: False
+        cls._ime_watchdog_off = True
+        print("[input] IME watchdog disabled")
+    except Exception as e:
+        print("[input] watchdog patch failed: %r" % (e,))
+
+
 def run():
     # 安卓上 Kivy 默认不申请虚拟键盘（启动日志会打印
-    # "virtual keyboard not allowed, single mode, not docked"），
-    # 于是点输入框不弹软键盘、也收不到输入法提交的字。
-    # 必须在 Window 创建之前改配置，所以放在 App.run() 之前。
-    try:
-        from kivy.config import Config
-        Config.set("kivy", "keyboard_mode", "system")
-    except Exception:
-        pass
+    _patch_ime_watchdog()
+    # keyboard_mode 已在文件顶部（任何 kivy import 之前）设成 system，
+    # 这里不要再设一次 —— 此时 Window 早就建好了，设了也不会生效。
     PlayerLookup().run()
 
 

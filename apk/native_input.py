@@ -28,6 +28,22 @@ def available():
         return False
 
 
+def ime_accepting():
+    """系统输入法是否已经接管输入。
+
+    比 Kivy 的 Window.keyboard_height 可靠：部分 ROM 会把键盘做成悬浮窗，
+    高度读不到 0，但 isAcceptingText 仍然是 True。
+    """
+    try:
+        from jnius import autoclass
+        Context = autoclass("android.content.Context")
+        activity = autoclass("org.kivy.android.PythonActivity").mActivity
+        imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
+        return bool(imm.isAcceptingText())
+    except Exception:
+        return False
+
+
 def _activity():
     from jnius import autoclass
     return autoclass("org.kivy.android.PythonActivity").mActivity
