@@ -177,6 +177,7 @@
   }
 
   function render() {
+    syncSortButtons();
     var list = sorted(state.rows.filter(matches));
     el.empty.hidden = list.length > 0;
     el.count.textContent = list.length + ' / ' + state.rows.length + ' 人';
@@ -369,6 +370,37 @@
     render();
   }
 
+  /* ---------- 移动端排序条 ---------- */
+
+  // 桌面靠表头排序；手机没有表头，这里给一条胶囊。默认仍按排行榜名次，
+  // 想按经验/等级看时手动切一下。
+  var sortbar = document.getElementById('sortbar');
+
+  function syncSortButtons() {
+    if (!sortbar) return;
+    Array.prototype.forEach.call(sortbar.querySelectorAll('[data-sort]'), function (b) {
+      b.setAttribute('aria-pressed', b.dataset.sort === state.sortKey ? 'true' : 'false');
+    });
+  }
+
+  function bindSortbar() {
+    if (!sortbar) return;
+    Array.prototype.forEach.call(sortbar.querySelectorAll('[data-sort]'), function (b) {
+      b.addEventListener('click', function () {
+        var k = b.dataset.sort;
+        if (state.sortKey === k) {
+          state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          state.sortKey = k;
+          // 名次越小越靠前；经验/等级从高到低
+          state.sortDir = (k === 'rank' || k === 'name' || k === 'menpai') ? 'asc' : 'desc';
+        }
+        syncSortButtons();
+        render();
+      });
+    });
+  }
+
   /* ---------- 事件 ---------- */
 
   el.q.addEventListener('input', function () {
@@ -518,6 +550,8 @@
         el.empty.textContent = '数据读取失败（' + e.message + '）。若是本地打开，请用本地服务器访问，不要直接双击 html。';
       });
   }
+
+  bindSortbar();
 
   if (window.FZJH && FZJH.init) FZJH.init(boot);
   else boot();
