@@ -60,7 +60,10 @@ jobs:
           path: |
             ~/.buildozer
             apk/.buildozer
-          key: buildozer-${{ runner.os }}-${{ hashFiles('apk/buildozer.spec', 'apk/main.py') }}
+          # 固定 key：以前这里带 buildozer.spec/main.py 的 hash，一改这两个文件就换
+          # 缓存目录，连带 ~/.buildozer 里自动生成的调试签名密钥一起换掉 →
+          # 用户覆盖安装报 INSTALL_FAILED_UPDATE_INCOMPATIBLE，必须卸载重装。
+          key: buildozer-${{ runner.os }}-stable-v1
           restore-keys: |
             buildozer-${{ runner.os }}-
 
