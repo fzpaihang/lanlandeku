@@ -1,8 +1,8 @@
 {
-  "version": 51,
-  "md5": "e4a3c52e6af54b94d57297cf9f7242a9",
-  "size": 185586,
-  "notes": "修武学搜索后原生输入框错位（列表变短卡片上移，覆盖层没跟随）",
-  "builtAt": "2026-11-14 19:04:07",
-  "sig": "147f14309765298fce0f04ca39c55b3c3787f3fbedaadd8546288ef5a553bda150fc93407dfedad7f34d3d02858b579e373a327235fe9eb6a3f0f5e13cfd7e0a"
+  "version": 52,
+  "md5": "77951b7a8813937ac59cfe122f8c1e8c",
+  "size": 186986,
+  "notes": "填入后文字深色(延迟聚焦) + 武学搜索覆盖层对齐(减状态栏偏移) + 展开分组保持视线位置",
+  "builtAt": "2026-11-14 19:18:28",
+  "sig": "2bfb9efb0c37e3be0efeaf09bda07b3ed0e80ae67f0107cac7723eb84fae219066cd0c3e261a96122c257890925761c60a677b2f3846abeadd3f42618ac6ad03"
 }

@@ -1040,6 +1040,15 @@ class RoundInput(TextInput):
                 from kivy.core.window import Window
                 wx, wy = self.to_window(self.x, self.y)
                 top = Window.height - (wy + self.height)
+                # Android 的 addContentView 相对的是 **Activity 内容区**（不含状态栏），
+                # 而 Kivy 的 Window.height 是整屏。两者差的这一截会让覆盖层
+                # 整体偏下 —— 列表越长越明显，列表变短时反而看着「浮在上面」。
+                # 用 window 的 top 偏移量补掉。
+                try:
+                    from kivy.core.window import Window as _W
+                    top -= getattr(_W, "top", 0) or 0
+                except Exception:
+                    pass
                 INLINE.move_to((wx, top, self.width, self.height))
             except Exception:
                 pass
@@ -1156,6 +1165,32 @@ class RoundInput(TextInput):
         if in_box and was_focus:
             self.show_keyboard()
         return handled
+
+    def reset_text_color(self):
+        """把文字色强制刷回主色，并重建纹理。
+
+        背景：Kivy 2.3 的 TextInput 在「失焦 / 从未聚焦」状态下会自己把
+        foreground_color 换成浅色（看起来像 hint），_on_focus 里那句赋值
+        只在焦点变化时才生效。所以**不经过焦点的赋值**（比如点「填入」）
+        改完 text 后文字仍是浅灰 —— 这是 v50 没修掉的那个残留。
+
+        这里用 StyleProperty 级别的重设 + 强制重绘，绕开焦点条件。
+        """
+        try:
+            self.foreground_color = C_INK
+            self.disabled_foreground_color = C_INK
+        except Exception:
+            pass
+        try:
+            # 直接把 style 里的 Color 指令覆盖掉：定位到 canvas.before 里
+            # 属于文字的那条（Kivy 把 text 颜色放在 canvas.before 的 Color 指令上）
+            self._trigger_refresh_text()
+        except Exception:
+            pass
+        try:
+            self.canvas.ask_update()
+        except Exception:
+            pass
 
     def _on_focus(self, _inst, value):
         self._ln.width = 1.6 if value else 1
@@ -2102,10 +2137,21 @@ class PlayerLookup(App):
         # 太脆弱。最省事且稳定的做法：让这个输入框**永远以 text 为准**，
         # 关掉 hint（占位提示改由上方「昵称 / UID」标签承担），
         # 然后强制重建一次文字纹理。
-        try:
-            self.inp.hint_text = ""
-        except Exception:
-            pass
+        # 文字色问题只有一个可靠解法：让控件真正经历一次「聚焦」。
+        # Kivy 2.3 只在焦点变化时才会把 foreground_color 应用到 canvas 上，
+        # 单靠赋值 / _trigger_refresh_text() 都改不动已建好的 Color 指令。
+        #
+        # 但**不能在同一帧里聚焦**：那会触发 _bind_ime → INLINE.show 抢焦点，
+        # 把当前这次 on_release 打断（v50 试过，按钮直接没反应）。
+        # 延迟到 on_release 处理完之后再聚焦，两者就不打架了。
+        def _late_focus(_dt):
+            try:
+                self.inp.focus = True
+                # 聚焦后 Kivy 自己会把文字刷成主色；这里不再清空 hint/文字
+            except Exception:
+                pass
+
+        Clock.schedule_once(_late_focus, 0.15)
         self._force_repaint()
         self.set_status("已填入 %s，点「查询玩家」开始" % uid, C_INK2)
 
@@ -2722,6 +2768,7 @@ class PlayerLookup(App):
         t.size_hint_x = None
         t.width = dp(44)
         row.add_widget(t)
+        row._group_cat = cat          # 供 _restore_group_pos 找回这一组
         row.bind(on_touch_down=lambda inst, touch: self._press_track(touch))
         row.bind(on_touch_up=lambda inst, touch, c=cat: self._group_release(inst, touch, c))
         return row
@@ -2735,8 +2782,36 @@ class PlayerLookup(App):
         else:
             self.skill_open_groups.add(cat)
         if self.prof:
+            # 记下「刚点的那一组」和它在屏幕上的相对位置：
+            # 展开/收起会让列表高度突变，ScrollView 按 scroll_y 保持比例，
+            # 用户原本看的那一行就被顶走或挪到很远的地方（「找不到刚才的位置」）。
+            # 重建后把这一组拉回原来的屏幕高度，视线不用重新找。
+            self._refocus_group = cat
+            self._refocus_y = inst.to_window(inst.x, inst.y)[1]
             self._render_skill_list(self.prof)
+            Clock.schedule_once(lambda dt: self._restore_group_pos(), 0.06)
         return True
+
+    def _restore_group_pos(self):
+        """把刚操作的那一组滚回它原来在屏幕上的高度。"""
+        cat = getattr(self, "_refocus_group", None)
+        want_y = getattr(self, "_refocus_y", None)
+        self._refocus_group = None
+        if not cat or want_y is None or not self.prof:
+            return
+        try:
+            for w in self.skill_list.children:
+                if getattr(w, "_group_cat", None) == cat:
+                    now_y = w.to_window(w.x, w.y)[1]
+                    dy = now_y - want_y
+                    if abs(dy) > dp(2):
+                        # inner 已经因为高度变化重排过，回滚 scroll_y
+                        sv_h = max(1.0, self.inner.height - self.sv.height)
+                        self.sv.scroll_y = max(0.0, min(1.0,
+                                                       self.sv.scroll_y + dy / sv_h))
+                    break
+        except Exception:
+            pass
 
     def _more_group(self, cat, p):
         self.skill_group_limit[cat] = self.skill_group_limit.get(cat, 8) + 20
