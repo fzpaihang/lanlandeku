@@ -36,7 +36,7 @@ FILES = [
 ]
 
 # 附带资源：cacert.pem 让老 APK 更新一次之后也能开启 TLS 校验
-EXTRA = ["cacert.pem"]
+EXTRA = ["cacert.pem", "seal.jpg"]
 
 KEY_PATH = os.path.join(ROOT, ".keys", "update.key")
 

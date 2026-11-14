@@ -135,6 +135,25 @@ _BACK_KEYS = (27, 1073742094)
 # - NotoSansCJKsc-Regular.ttf 只有部分 ROM 有；DroidSansFallback 在 Android 9 后已移除。
 # 三条全落空时 FONT 会退回 Roboto（不含中文）→ 全屏豆腐块。MuMu 是 AOSP，一定有
 # 第一个文件，所以这个故障在模拟器上永远复现不出来。
+def _asset(rel):
+    """定位随包分发的图片/资源：__file__ 目录（热更时是 live/）→ ANDROID_APP_PATH → sys.path。"""
+    cands = [os.path.dirname(os.path.abspath(__file__))]
+    ap = os.environ.get("ANDROID_APP_PATH")
+    if ap:
+        cands.append(ap)
+    cands += [p for p in sys.path if p and os.path.isdir(p)]
+    seen = set()
+    for d in cands:
+        d = os.path.normpath(d)
+        if d in seen:
+            continue
+        seen.add(d)
+        f = os.path.join(d, rel)
+        if os.path.isfile(f):
+            return f
+    return ""
+
+
 def _local_font():
     """定位打包进 APK 的字体：__file__ 目录（热更时是 live/）→ ANDROID_APP_PATH → sys.path。"""
     rel = os.path.join("fonts", "NotoSansSC-Regular.ttf")
@@ -629,10 +648,18 @@ class AppBar(BoxLayout):
             self._seal_bg = RoundedRectangle(radius=[dp(10)], pos=self.seal.pos,
                                              size=self.seal.size)
         self.seal.bind(pos=self._seal_sync, size=self._seal_sync)
-        self.seal.add_widget(lab("江", 13, (1, 1, 1, 1), height=22, halign="center",
-                                 bold=True, font=SEAL))
-        self.seal.add_widget(lab("湖", 13, (1, 1, 1, 1), height=22, halign="center",
-                                 bold=True, font=SEAL))
+        # 左边的标识：优先用随包的 seal.jpg，找不到就退回红底「江湖」两字
+        _seal_img = _asset("seal.jpg")
+        if _seal_img:
+            from kivy.uix.image import Image as _Image
+            self.seal.padding = (dp(2), dp(2), dp(2), dp(2))
+            self.seal.add_widget(_Image(source=_seal_img, allow_stretch=True,
+                                        keep_ratio=False, mipmap=True))
+        else:
+            self.seal.add_widget(lab("江", 13, (1, 1, 1, 1), height=22, halign="center",
+                                     bold=True, font=SEAL))
+            self.seal.add_widget(lab("湖", 13, (1, 1, 1, 1), height=22, halign="center",
+                                     bold=True, font=SEAL))
         self.add_widget(self.seal)
 
         self.col = BoxLayout(orientation="vertical", size_hint_y=None, height=dp(58),

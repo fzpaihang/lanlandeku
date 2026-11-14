@@ -100,6 +100,18 @@ jobs:
           print('已注入回写凭据：repo=%s token=%s***' % (d.get('repo'), t[:8]))
           PY
 
+      - name: 生成应用图标
+        # 图标源图是 jpg，p4a 只吃 png，这里统一转成 512×512。
+        # （runner 自带 ImageMagick；转完再打包，仓库里不用提交二进制 png）
+        working-directory: apk
+        run: |
+          if [ -f icon_src.jpg ]; then
+            convert icon_src.jpg -resize 512x512^ -gravity center -extent 512x512 -strip icon.png
+            echo "已生成 icon.png：$(identify -format '%wx%h' icon.png)"
+          else
+            echo "没有 icon_src.jpg，沿用仓库里的 icon.png"
+          fi
+
       - name: 打包 APK
         working-directory: apk
         run: |

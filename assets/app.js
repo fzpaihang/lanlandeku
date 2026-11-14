@@ -9,6 +9,7 @@
     school: '',
     sortKey: 'rank',
     sortDir: 'asc',
+    zhuan: '',        // 转数筛选：'' = 全部；墨羽惊鸿这类混合分区才有意义
     hasPrev: false,
     chipsAll: false,   // 门派筛选是否展开全部
     me: new URLSearchParams(location.search).get('me') || ''
@@ -20,6 +21,7 @@
     q: document.getElementById('q'),
     clear: document.getElementById('clear'),
     chips: document.getElementById('chips'),
+    zchips: document.getElementById('zchips'),
     updated: document.getElementById('updated'),
     count: document.getElementById('count'),
     empty: document.getElementById('empty'),
@@ -81,7 +83,10 @@
 
   /* ---------- 渲染 ---------- */
 
+  function zhuanOf(r) { return String(Number(r.inheritCount) || 0); }
+
   function matches(r) {
+    if (state.zhuan && zhuanOf(r) !== state.zhuan) return false;
     if (state.school && r.menpai !== state.school) return false;
     if (!state.q) return true;
     var q = state.q.toLowerCase();
@@ -321,6 +326,49 @@
     render();
   }
 
+  /* ---------- 转数筛选 ---------- */
+
+  // 只有该分区同时存在多个转数时才显示（例如墨羽惊鸿：2转/3转/4转并存），
+  // 其余分区只有一档，显示了也只是个死按钮。
+  function buildZhuanChips() {
+    if (!el.zchips) return;
+    var cnt = {}, keys = [];
+    state.rows.forEach(function (r) {
+      var z = zhuanOf(r);
+      if (!cnt[z]) { cnt[z] = 0; keys.push(z); }
+      cnt[z]++;
+    });
+    if (keys.length <= 1) {
+      el.zchips.hidden = true;
+      el.zchips.textContent = '';
+      state.zhuan = '';
+      return;
+    }
+    keys.sort(function (a, b) { return Number(a) - Number(b); });
+    el.zchips.hidden = false;
+    el.zchips.textContent = '';
+
+    var all = h('button', 'chip', '全部转数');
+    all.type = 'button';
+    all.setAttribute('aria-pressed', state.zhuan ? 'false' : 'true');
+    all.addEventListener('click', function () { selectZhuan(''); });
+    el.zchips.appendChild(all);
+
+    keys.forEach(function (z) {
+      var b = h('button', 'chip', z + '转 ' + cnt[z]);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', state.zhuan === z ? 'true' : 'false');
+      b.addEventListener('click', function () { selectZhuan(z); });
+      el.zchips.appendChild(b);
+    });
+  }
+
+  function selectZhuan(z) {
+    state.zhuan = z;
+    buildZhuanChips();
+    render();
+  }
+
   /* ---------- 事件 ---------- */
 
   el.q.addEventListener('input', function () {
@@ -441,11 +489,12 @@
         el.updated.textContent = fmtUpdated(d.updatedTs, d.updatedAt);
         el.updated.title = '数据时间：' + (d.updatedAt || '未知');
         buildChips();
+        buildZhuanChips();
         render();
 
         // 跨过 560px 断点时切换「表格 / 卡片」两套渲染
         // 门派 chips 的展开策略也要跟着变（桌面露 8 个 / 手机只留展开）
-        var onMQ = function () { buildChips(); render(); };
+        var onMQ = function () { buildChips(); buildZhuanChips(); render(); };
         if (mqMobile.addEventListener) mqMobile.addEventListener('change', onMQ);
         else if (mqMobile.addListener) mqMobile.addListener(onMQ);
 

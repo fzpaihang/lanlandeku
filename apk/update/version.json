@@ -1,8 +1,8 @@
 {
-  "version": 35,
-  "md5": "6c6e243a09b6db383215c94a30aba2c7",
-  "size": 83492,
-  "notes": "内置最小 CA 包（ISRG X1 / DigiCert G2 / GlobalSign R46），接口与更新通道开启证书校验",
-  "builtAt": "2026-11-14 12:14:40",
-  "sig": "888c952ff0aab94d73f32ca1096939632414626e00febaa2240154308809ceef1e1ad398fc3b5adffd0722e7292beef2192fcb4cf0b2a3e0a5919e3ad61c3705"
+  "version": 36,
+  "md5": "b23f34eddab8f2a05d94e0db8a047459",
+  "size": 219411,
+  "notes": "顶栏印章换图（seal.jpg）；网页高手榜加转数筛选、经验页移动端排序",
+  "builtAt": "2026-11-14 12:58:23",
+  "sig": "0ba5d63ada9ce036aa4742ea47e487ed032fb6e8a8588799370c599ce1c788aa27f5769ea13f9b846667321b44939acf82c4b496618d3b4ed747fb1820c0650f"
 }

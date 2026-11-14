@@ -1,7 +1,7 @@
 [app]
 
 # 应用名称与标识
-title = 玩家查询
+title = 霜霜妙妙屋
 package.name = fzjhlookup
 package.domain = com.fzjh
 

@@ -16,7 +16,8 @@
     spanInfo: document.getElementById('span-info'),
     banner: document.getElementById('banner'),
     empty: document.getElementById('empty'),
-    tbl: document.getElementById('tbl')
+    tbl: document.getElementById('tbl'),
+    sortbar: document.getElementById('sortbar')
   };
 
   var mqMobile = window.matchMedia('(max-width: 560px)');
@@ -140,11 +141,38 @@
     return s;
   }
 
+  /* 移动端没有表头，排序只能靠这条胶囊；桌面用表头，CSS 里把这条隐藏掉 */
+  function syncSortButtons() {
+    if (!el.sortbar) return;
+    Array.prototype.forEach.call(el.sortbar.querySelectorAll('[data-sort]'), function (b) {
+      b.setAttribute('aria-pressed', b.dataset.sort === state.sortKey ? 'true' : 'false');
+    });
+  }
+
+  function bindSortbar() {
+    if (!el.sortbar) return;
+    Array.prototype.forEach.call(el.sortbar.querySelectorAll('[data-sort]'), function (b) {
+      b.addEventListener('click', function () {
+        var k = b.dataset.sort;
+        if (state.sortKey === k) {
+          state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          state.sortKey = k;
+          // 名次越小越靠前，数值类默认从高到低
+          state.sortDir = (k === 'rank') ? 'asc' : 'desc';
+        }
+        syncSortButtons();
+        render();
+      });
+    });
+  }
+
   function render() {
     var list = sorted(state.rows);
     el.empty.hidden = list.length > 0;
     el.count.textContent = list.length + ' 人';
     syncSortState();
+    syncSortButtons();
 
     if (isMobile()) {
       el.tbody.textContent = '';
@@ -291,6 +319,8 @@
       fail('读取失败：' + e.message);
     });
   }
+
+  bindSortbar();
 
   if (window.FZJH && FZJH.init) FZJH.init(boot);
   else boot();

@@ -613,3 +613,13 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
   .panel h2{font-size:17px}
   .panel-actions a{flex:1 1 auto;justify-content:center;padding:0 14px;font-size:13.5px}
 }
+
+/* 转数筛选：只有分区里存在多种转数时才出现（墨羽惊鸿这类混合分区） */
+.zchips{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line,#e5ded5)}
+
+/* 经验页的移动端排序条：桌面有表头，这一条只在窄屏显示 */
+.sortbar{display:none;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+.sortbar-lb{font-size:12px;color:var(--muted,#6E635A)}
+@media (max-width:560px){
+  .sortbar{display:flex}
+}
