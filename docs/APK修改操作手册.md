@@ -398,6 +398,8 @@ printf '99' > E:/workbuddy2/_agent_tmp/v99.txt
 | 已聚焦的输入框再点不重申请键盘 | 关网页后再也调不回输入法 | `RoundInput.on_touch_down` 里 `rekeyboard()` + 补一次 `SDL_StartTextInput()` |
 | 依赖系统字体路径 | 厂商 ROM 可能一个都没有 → 退回 Roboto → 全屏豆腐块；MuMu 是 AOSP 测不出来 | 字体打包进 APK（§5.3），系统字体只做兜底 |
 | 子集漏字符 | Kivy 无字体回退，缺一个字符就是豆腐块（折叠箭头 ▶ 曾整片变 ☒） | 字符集按区段整段收（几何符号 U+25A0–U+25FF 等），别只挑几个 |
+| 依赖 Kivy 软键盘 | 部分 ROM 上 `virtual keyboard not allowed`，点输入框不弹键盘、只能粘贴；MuMu 复现不出来（输入法窗口高度 0） | 用 `apk/native_input.py` 弹系统 EditText（§7），Kivy 只做回填 |
+| BoxLayout 置顶写反 | `add_widget(w, index=0)` 在 `orientation="vertical"` 里落到**最下面**（children 逆序铺） | 置顶用 `add_widget(w, index=len(children))` |
 | 拼音 id 参与英文关键词匹配 | `jibenqinfa` 含 `qi` → 被误判成内功 | 只对含大写的驼峰 id 做英文匹配 |
 | 新模块忘了进 `FILES` | 热更包里没这个文件，功能静默降级 | 改 `scripts/pack_update.py` 的 `FILES` |
 | 起名带 `dp(78)` 当纯数字 | 按钮宽度翻倍 | 见第一条 |

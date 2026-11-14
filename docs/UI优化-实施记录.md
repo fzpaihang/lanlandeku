@@ -309,3 +309,46 @@ Kivy 没有字体回退，所以改成按区段整段收（U+25A0–U+25FF）。
    否则三天没更新的玩家会在第四天被算成「日增 = 三天累积」。
 3. `build_lookup_index` 加人数熔断：新索引 < 上一版 70% 直接失败，
    写入改成 `tmp + os.replace`。实测把上游文件移走后，7985 → 295 会被拒绝。
+
+## 九、v29：输入框改用安卓原生文本框
+
+### 9.1 为什么放弃 Kivy 的软键盘
+
+真机反馈：点输入框不弹键盘，长按只有「粘贴」，一个字符都进不来。模拟器里
+`dumpsys input_method` 显示 Kivy 从未真正拿到安卓的文本输入通道：
+`[Window] virtual keyboard not allowed, single mode, not docked`。
+
+Kivy 的链路是 `TextInput.request_keyboard → SDL_StartTextInput → SDLActivity 的
+InputConnection`，而 `keyboard_mode` 只在 `Window` 创建时读一次配置，运行中再
+`Config.set` 已经晚了；即便设成 `system`，部分 ROM 仍把这个通道掐掉。
+之前那些补丁（`rekeyboard()`、ctypes 调 `SDL_StartTextInput`）都只是在这一层打转。
+
+### 9.2 现在的做法
+
+`apk/native_input.py`：点输入框直接弹系统的 `AlertDialog + EditText`。
+
+| 能力 | 由谁负责 |
+|---|---|
+| 弹键盘 | 系统 IME（`showSoftInput` + `requestFocus`） |
+| 中文输入 | 系统 IME（`TYPE_CLASS_TEXT`，不锁数字键盘） |
+| 长按粘贴 / 全选 | `EditText` 自带 |
+| 取值 | `getText()` → 兼容 `str` 与 `Editable` 两种返回（pyjnius 版本差异） |
+
+`RoundInput` 里 `_native_ready()` 判断平台与 jnius；不成立时自动退回原来的
+Kivy 行为，所以桌面调试与老版本都不受影响。查询框的确认按钮直接叫「查询」，
+省掉一次点击；武学搜索框共用同一套。
+
+**验证**（这次能端到端，因为原生控件吃 adb 注入）：
+点框 → 弹窗 → `input text 7257325` → 点「查询」→ 日志
+`[native_input] ok which=-1 txt='7257325'` → 真的发出了查询请求。
+
+### 9.3 顺手修：失败态把表单吃掉了
+
+`_fail()` 原来 `clear_widgets()` 重建「错误卡 + 示例」，输入框一起消失，用户
+看到「该分区未找到」后没有任何输入入口。现在先 `show_query()` 还原表单，再把
+错误卡插到 `body.children` **末尾**。
+
+坑：Kivy 的 `add_widget` 默认 `index=0`，而 `vertical` 布局是**逆序铺**的——
+`children` 末尾才是视觉第一行。所以「置顶」要写
+`add_widget(w, index=len(children))`，写 `index=0` 反而落到最下面（先踩了一次，
+用 `[dbg] fail-order` 打印每个子控件的 `y` 才确认）。
