@@ -1,8 +1,8 @@
 {
-  "version": 37,
-  "md5": "a4e104e0c083fee9e96bdb40a2b1591e",
-  "size": 219683,
-  "notes": "顶栏印章取脸部特写（整图缩到 44dp 看不清人）",
-  "builtAt": "2026-11-14 13:05:40",
-  "sig": "d2c642f208b45cd80fc82d871379b75d9a3e56589c4f6dc42471166d8fe50a3f03196c0ae195bbc99e0007e0f89e1e7018edcb6289af0ab9b0692b6ae3663c0e"
+  "version": 38,
+  "md5": "100dab58a8eb0c17cadaa2d8f6c9e050",
+  "size": 219644,
+  "notes": "顶栏标识改成圆形头像（整图裁圆）",
+  "builtAt": "2026-11-14 13:13:40",
+  "sig": "81a3238690d320155b8b60678ce94438e709160e62b5d943c649d378a87361e26403aba7af30154ab5e7c4e7c4bbf32dc9a2e9004f36ca62408912c3a759e40f"
 }

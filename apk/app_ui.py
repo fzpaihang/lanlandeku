@@ -35,6 +35,7 @@ from kivy.metrics import Metrics, dp
 from kivy.metrics import sp as _sp_raw
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.widget import Widget
 from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
@@ -609,6 +610,34 @@ class ToneBar(BoxLayout):
         self._r.size = self.size
 
 
+class SealAvatar(Widget):
+    """圆形头像：用 RoundedRectangle 当遮罩把整张图画成圆。
+
+    Kivy 没有圆形裁剪，但 RoundedRectangle 支持 texture，半径设成边长一半
+    就是正圆，比叠 StencilView 简单也更省。
+    """
+
+    def __init__(self, source, **kw):
+        super(SealAvatar, self).__init__(**kw)
+        from kivy.graphics import Color, RoundedRectangle
+        from kivy.core.image import Image as CoreImage
+        tex = None
+        try:
+            tex = CoreImage(source).texture
+        except Exception:
+            tex = None
+        with self.canvas:
+            Color(1, 1, 1, 1)
+            self._rr = RoundedRectangle(pos=self.pos, size=self.size,
+                                        radius=[self.size[0] / 2.0], texture=tex)
+        self.bind(pos=self._sync, size=self._sync)
+
+    def _sync(self, *a):
+        self._rr.pos = self.pos
+        self._rr.size = self.size
+        self._rr.radius = [min(self.size) / 2.0]
+
+
 class AppBar(BoxLayout):
     """浅米底顶栏 + 红印章，复刻网页高手榜的头部。
 
@@ -639,36 +668,22 @@ class AppBar(BoxLayout):
         )
         self.add_widget(self.back)
 
-        # 红印章：44×44、圆角 10、绛红底白字，竖排「江湖」
-        self.seal = BoxLayout(orientation="vertical", size_hint=(None, None),
-                              size=(0, 0), spacing=0, opacity=0)
-        from kivy.graphics import Color as _C, RoundedRectangle
-        with self.seal.canvas.before:
-            _C(*C_SEAL)
-            self._seal_bg = RoundedRectangle(radius=[dp(10)], pos=self.seal.pos,
-                                             size=self.seal.size)
-        self.seal.bind(pos=self._seal_sync, size=self._seal_sync)
-        # 左边的标识：优先用随包的 seal.jpg，找不到就退回红底「江湖」两字
-        _seal_img = _asset("seal.jpg")
-        if _seal_img:
-            from kivy.uix.image import Image as _Image
-            self.seal.padding = (dp(2), dp(2), dp(2), dp(2))
-            img = _Image(source=_seal_img, allow_stretch=True,
-                         keep_ratio=False, mipmap=True)
-            # 整张图缩到 44dp 只剩一团色块，抠出脸部特写再放进来。
-            # 取图宽 42% 的方形区域，中心落在偏上偏左（人物脸部位置）。
-            try:
-                from kivy.core.image import Image as CoreImage
-                tex = CoreImage(_seal_img).texture
-                side = min(tex.width, tex.height) * 0.42
-                cx, cy = tex.width * 0.37, tex.height * 0.70
-                x0 = max(0, min(tex.width - side, cx - side / 2))
-                y0 = max(0, min(tex.height - side, cy - side / 2))
-                img.texture = tex.get_region(int(x0), int(y0), int(side), int(side))
-            except Exception:
-                pass
-            self.seal.add_widget(img)
+        # 左侧标识：有 seal.jpg 就做成圆形头像；没有则退回红底「江湖」印章
+        self._seal_img = _asset("seal.jpg")
+        if self._seal_img:
+            self.seal = SealAvatar(self._seal_img, size_hint=(None, None),
+                                   size=(0, 0), opacity=0)
+            self._seal_bg = None
         else:
+            self.seal = BoxLayout(orientation="vertical", size_hint=(None, None),
+                                  size=(0, 0), spacing=0, opacity=0)
+            from kivy.graphics import Color as _C, RoundedRectangle
+            with self.seal.canvas.before:
+                _C(*C_SEAL)
+                self._seal_bg = RoundedRectangle(radius=[dp(10)], pos=self.seal.pos,
+                                                 size=self.seal.size)
+            self.seal.bind(pos=self._seal_sync, size=self._seal_sync)
+        if not self._seal_img:
             self.seal.add_widget(lab("江", 13, (1, 1, 1, 1), height=22, halign="center",
                                      bold=True, font=SEAL))
             self.seal.add_widget(lab("湖", 13, (1, 1, 1, 1), height=22, halign="center",
@@ -710,6 +725,8 @@ class AppBar(BoxLayout):
         self._bg.size = self.size
 
     def _seal_sync(self, *a):
+        if self._seal_bg is None:      # 圆形头像模式没有背景块
+            return
         self._seal_bg.pos = self.seal.pos
         self._seal_bg.size = self.seal.size
 
