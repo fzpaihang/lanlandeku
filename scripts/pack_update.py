@@ -32,7 +32,13 @@ FILES = [
     "skill_class.py",
     "native_input.py",
     "inline_input.py",
+    "ed25519.py",
 ]
+
+# 附带资源：cacert.pem 让老 APK 更新一次之后也能开启 TLS 校验
+EXTRA = ["cacert.pem"]
+
+KEY_PATH = os.path.join(ROOT, ".keys", "update.key")
 
 
 def main():
@@ -49,13 +55,13 @@ def main():
             ver = 0
     new_ver = ver + 1
 
-    missing = [f for f in FILES if not os.path.exists(os.path.join(APK, f))]
+    missing = [f for f in FILES + EXTRA if not os.path.exists(os.path.join(APK, f))]
     if missing:
         raise SystemExit("缺少文件：%s" % ", ".join(missing))
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, 9) as z:
-        for name in FILES:
+        for name in FILES + EXTRA:
             z.write(os.path.join(APK, name), name)
     blob = buf.getvalue()
 
@@ -69,9 +75,20 @@ def main():
         "notes": notes,
         "builtAt": __import__("time").strftime("%Y-%m-%d %H:%M:%S"),
     }
+    # 用私钥签「版本|md5|大小|整包字节」，客户端启动时会重算并验签
+    if not os.path.exists(KEY_PATH):
+        raise SystemExit("缺少签名私钥：%s（从备份恢复后再打包）" % KEY_PATH)
+    sys.path.insert(0, APK)
+    import ed25519
+    seed = open(KEY_PATH, "rb").read()
+    msg = ("%s|%s|%s|" % (info["version"], info["md5"], info["size"])).encode() + blob
+    info["sig"] = ed25519.sign(seed, msg).hex()
+
     with io.open(vf, "w", encoding="utf-8", newline="\n") as f:
         f.write(json.dumps(info, ensure_ascii=False, indent=2) + "\n")
 
+    print("已签名：%s…（公钥 %s…）"
+          % (info["sig"][:16], ed25519.public_key(seed).hex()[:16]))
     print("已生成 v%d：%d 个文件 / %.1f KB / md5 %s"
           % (new_ver, len(FILES), len(blob) / 1024.0, info["md5"]))
     print("说明：%s" % notes)

@@ -254,7 +254,7 @@ C_SOFT = (0.949, 0.937, 0.914, 1)        # #F2EFE9 次级底（搜索框/占位�
 C_ACCENT_SOFT = (0.976, 0.894, 0.859, 1)  # #F9E4DB 强调浅底（胶囊/徽章），太浅在白卡上会消失
 C_INK = (0.165, 0.145, 0.133, 1)         # #2A2522 主文字，暖黑（原先偏冷 #1F2328）
 C_INK2 = (0.376, 0.337, 0.302, 1)        # #60564D 次文字
-C_MUTED = (0.545, 0.498, 0.455, 1)       # #8B7F74 弱文字 / 标签
+C_MUTED = (0.431, 0.388, 0.353, 1)       # #6E635A 弱文字 / 标签（原 #8B7F74 在米底只有 3.59:1）
 # 顶栏和按钮拆成两个色：原来是同一个 #7B2D26，整页像一大块暗红。
 # 顶栏压到浅一档的绛棕当框架，按钮提亮成朱砂当行动点，强调文字单独留深色。
 C_BAR = (0.549, 0.290, 0.243, 1)         # #8C4A3E 原顶栏底色（v24 起顶栏改浅底，保留备用）
@@ -410,6 +410,18 @@ def share_text(filename, text):
     intent.putExtra(_js("android.intent.extra.TEXT"), _js(text))
     chooser = Intent.createChooser(intent, _js("分享玩家档案"))
     _android_activity().startActivity(chooser)
+
+
+def _vcenter(w, row_h):
+    """在横向 BoxLayout 里把固定高度的小控件垂直居中。
+
+    BoxLayout 会把子项贴底（cy = 容器底 + padding_bottom），48dp 行里塞 26dp
+    胶囊就会明显偏下；外面包一层带顶部 padding 的容器即可居中。
+    """
+    gap = max(0, (row_h - w.height) / 2.0)
+    wrap = BoxLayout(size_hint=(None, 1), width=w.width, padding=(0, gap, 0, 0))
+    wrap.add_widget(w)
+    return wrap
 
 
 def txt_button(text, color=C_ACCENT, width=None, height=48, size=13):
@@ -708,10 +720,10 @@ class AppBar(BoxLayout):
                 self.title_lab.height = dp(58)
                 self.sub_lab.height = dp(0)
                 self.col.padding = (0, 0, 0, 0)
-        self.back.width = dp(26) if back else dp(0)
+        self.back.width = dp(44) if back else dp(0)
         self.back.opacity = 1 if back else 0
         self.right_btn.text = right or ""
-        self.right_btn.width = dp(72) if right else dp(0)
+        self.right_btn.width = dp(56) if right else dp(0)
         self.right_btn.opacity = 1 if right else 0
 
     def bind_back(self, fn):
@@ -806,6 +818,7 @@ class RoundInput(TextInput):
         self.use_native = use_native
         self._native_ok = None
         self._ime_on = False
+        self._inline_bg = bg or C_CARD
         self._inline = False
         from kivy.graphics import Color, RoundedRectangle, Line
         self._r = dp(radius)
@@ -869,7 +882,8 @@ class RoundInput(TextInput):
             wx, wy = self.to_window(self.x, self.y)
             top = Window.height - (wy + self.height)
             ok = INLINE.show((wx, top, self.width, self.height), self.text,
-                             on_text=self._from_inline, on_done=self._inline_done)
+                             on_text=self._from_inline, on_done=self._inline_done,
+                             style=self._inline_style())
             if ok:
                 self._ime_on = True
                 self._inline = True
@@ -877,6 +891,41 @@ class RoundInput(TextInput):
         except Exception as e:
             print("[input] inline failed: %r" % (e,))
             return False
+
+    def _inline_style(self):
+        """把 Kivy 这边的字号/底色/描边/占位文案同步给原生覆盖层。
+
+        原来覆盖层写死白底红框 17sp，点武学搜索框（浅灰 40dp / 12.5sp）时会
+        突然变成一个白胖红框，且占位提示消失，像换了个控件。
+        """
+        def hexc(c):
+            try:
+                return "#%02X%02X%02X" % (int(round(c[0] * 255)),
+                                          int(round(c[1] * 255)),
+                                          int(round(c[2] * 255)))
+            except Exception:
+                return "#FFFFFF"
+        try:
+            fpx = float(self.font_size or 17)
+        except Exception:
+            fpx = 17.0
+        return {"font_px": fpx,
+                "bg": hexc(self._inline_bg),
+                "stroke": hexc(C_ACCENT),
+                "hint": self.hint_text or "",
+                "text": hexc(C_INK)}
+
+    def _resync_inline(self):
+        """页面重排后（列表重建、键盘弹起、窗口缩放）把覆盖层挪回原位。"""
+        if not self._inline or INLINE is None:
+            return
+        try:
+            from kivy.core.window import Window
+            wx, wy = self.to_window(self.x, self.y)
+            top = Window.height - (wy + self.height)
+            INLINE.move_to((wx, top, self.width, self.height))
+        except Exception:
+            pass
 
     def _from_inline(self, val):
         """原生框里的文字回写到 Kivy 控件（不回调回去，避免来回打架）。"""
@@ -1216,6 +1265,7 @@ class PlayerLookup(App):
         self._hits = []
         self._sug_ev = None
         self._web = None
+        self._popup = None
         self._cached_uid = None      # 上一次命中的缓存 UID，再查一次就绕过缓存
 
         root = Root(orientation="vertical", padding=0, spacing=0)
@@ -1325,6 +1375,8 @@ class PlayerLookup(App):
             size_hint_y=None, height=dp(0), opacity=0,
             background_color=(0, 0, 0, 0), background_normal="", color=C_ACCENT,
         )
+        # disabled 时 Kivy 会用 disabled_color（默认白 30%），压在白卡上等于看不见
+        self.sug.disabled_color = C_ACCENT
         self.sug.bind(width=lambda inst, v: setattr(inst, "text_size", (v - dp(4), None)))
         self.sug.bind(on_release=lambda *a: self._show_candidates())
         grp2.add_widget(self.sug)
@@ -1335,6 +1387,7 @@ class PlayerLookup(App):
             text="查询玩家", font_name=FONT, font_size=sp(16), bold=True,
             size_hint_y=None, height=dp(48),
         )
+        self.btn.disabled_color = (1, 1, 1, 0.95)
         self.btn.bind(on_release=lambda *a: self.start())
         card.add_widget(self.btn)
 
@@ -1530,25 +1583,54 @@ class PlayerLookup(App):
             self._web = None          # 下次重新尝试创建
             return False
 
-    def _web_fail(self, msg):
-        """把内嵌失败的原因留在页面上，用户回来还能看到，方便定位。"""
+    def _web_fail(self, msg, url=None):
+        """内嵌失败只提示，不换页。
+
+        原来这里 clear_widgets 把整页换成错误文案，而调用方紧接着会用系统浏览器
+        打开网页 —— 用户从浏览器切回来只看到一张没有输入框、没有返回的死页。
+        """
         self.set_status("内嵌网页失败，已改用浏览器", C_ACCENT)
-        self.body.clear_widgets()
-        self._set_body_card(True)
-        self.body.add_widget(lab("内嵌网页打开失败", 18, C_ACCENT, bold=True, height=32))
-        d = lab(msg, 13.5, C_INK2, height=1)
-        d.bind(texture_size=lambda inst, sz: setattr(inst, "height", sz[1] + dp(6)))
-        self.body.add_widget(d)
-        self.body.add_widget(lab("已改用系统浏览器。把上面这段字发我即可定位。",
-                                13, C_MUTED, height=28))
+        self._hide_inline()
+        err = Card(radius=16, pad=14, spacing=6)
+        err.bind(minimum_height=err.setter("height"))
+        err.add_widget(lab("内嵌网页打开失败", 14, C_ACCENT, bold=True,
+                           height=24, shorten=True))
+        d = lab(msg, 12, C_INK2, height=1)
+        d.bind(texture_size=lambda inst, sz: setattr(inst, "height", sz[1] + dp(4)))
+        err.add_widget(d)
+        if url:
+            b = txt_button("用系统浏览器打开", color=C_ACCENT, height=38, size=13)
+            b.bind(on_release=lambda *a: open_url(url))
+            err.add_widget(b)
+        self.body.add_widget(err, index=len(self.body.children))
+        self._scroll_top()
 
     def _on_key(self, _win, key, *args):
-        """返回键：网页开着就先关网页，其它情况交回 Kivy 默认处理。"""
-        if key in _BACK_KEYS and self._web is not None and self._web.is_open():
+        """返回键：先关网页，再关弹层，结果页回查询页，最后才退出 App。
+
+        原来只处理了网页一种情况，其余落到 Kivy 默认的 exit_on_escape ——
+        结果页/弹层按返回直接退出，而屏幕上明明摆着 ‹ 返回。
+        """
+        if key not in _BACK_KEYS:
+            return False
+        if self._web is not None and self._web.is_open():
             try:
                 self._web.close()
             except Exception:
                 self._web = None
+            return True
+        if self._popup is not None:
+            try:
+                self._popup.dismiss()
+            except Exception:
+                pass
+            self._popup = None
+            return True
+        if getattr(self, "_pop", None) is not None:
+            self._drop_popup()
+            return True
+        if self.mode == "result":
+            self.show_query()
             return True
         return False
 
@@ -1608,7 +1690,13 @@ class PlayerLookup(App):
         self.tone_bar.height = dp(36)
         self.appbar.set_content(title=p["serverName"],
                                 sub="UID %s" % (p.get("uid") or ""),
-                                right="", back=True)
+                                right="刷新", back=True)
+        # right_btn 是常驻控件，每次进结果页重新绑一次（先解绑，避免累积）
+        try:
+            self.appbar.right_btn.unbind(on_release=self._on_refresh)
+        except Exception:
+            pass
+        self.appbar.right_btn.bind(on_release=self._on_refresh)
         self.appbar.bind_sub(lambda: self.copy_uid())
         self.prep_open = False
         self.skill_open = False
@@ -1723,13 +1811,38 @@ class PlayerLookup(App):
         ar.width = dp(16)
         row.add_widget(ar)
         card.add_widget(row)
-        card.bind(on_touch_down=lambda inst, t: self._entry_touch(inst, t))
+        card.bind(on_touch_down=lambda inst, t: self._press_track(t))
+        card.bind(on_touch_up=lambda inst, t: self._entry_release(inst, t))
         box.add_widget(card)
         box.add_widget(self._hint_row())
         return box
 
-    def _entry_touch(self, inst, touch):
-        if inst.collide_point(*touch.pos):
+    @staticmethod
+    def _press_track(touch):
+        """记下按下位置，抬手时判断有没有拖动过。
+
+        ScrollView 里挂 on_touch_down 就直接执行动作，是「想滑页面却打开了网页」
+        的根因；改成按下只记录、抬手才决定。
+        """
+        try:
+            touch.ud["_press_pos"] = touch.pos
+        except Exception:
+            pass
+        return False
+
+    @staticmethod
+    def _dragged(touch, limit=None):
+        try:
+            ox, oy = touch.ud.get("_press_pos") or touch.pos
+        except Exception:
+            return False
+        lim = limit if limit is not None else dp(12)
+        return abs(touch.x - ox) + abs(touch.y - oy) > lim
+
+    def _entry_release(self, inst, touch):
+        if touch.is_double_tap or touch.is_triple_tap:
+            return False
+        if inst.collide_point(*touch.pos) and not self._dragged(touch):
             self._open_web()
             return True
         return False
@@ -1737,6 +1850,15 @@ class PlayerLookup(App):
     def _hint_row(self):
         box = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(3))
         box.bind(minimum_height=box.setter("height"))
+        self._hint_holder = box
+        for w in self._build_hint_children():
+            box.add_widget(w)
+        box.bind(on_touch_down=lambda inst, t: self._press_track(t))
+        box.bind(on_touch_up=lambda inst, t: self._hint_release(inst, t))
+        return box
+
+    def _build_hint_children(self):
+        out = []
         row = BoxLayout(size_hint_y=None, height=dp(24), spacing=dp(6))
         row.add_widget(lab("UID 是游戏内角色 ID，不是登录账号", 10.5, C_MUTED,
                            height=24, shorten=True))
@@ -1745,23 +1867,30 @@ class PlayerLookup(App):
         q.size_hint_x = None
         q.width = dp(34)
         row.add_widget(q)
-        box.add_widget(row)
+        out.append(row)
         if self.hint_open:
-            box.add_widget(lab("默认只查选中的分区，速度快、不易被限流；分区选择会被记住。",
-                               10.5, C_MUTED, height=16, shorten=True))
-            box.add_widget(lab("不确定在哪个区时，用列表最后的「自动探测」逐区尝试。",
-                               10.5, C_MUTED, height=16, shorten=True))
-            box.add_widget(lab("当前代码版本：%s · 数据来自游戏接口" % code_version(),
-                               10, C_MUTED, height=15))
-        box.bind(on_touch_down=lambda inst, t: self._hint_touch(inst, t))
-        return box
+            out.append(lab("默认只查选中的分区，速度快、不易被限流；分区选择会被记住。",
+                           10.5, C_MUTED, height=16, shorten=True))
+            out.append(lab("不确定在哪个区时，用列表最后的「自动探测」逐区尝试。",
+                           10.5, C_MUTED, height=16, shorten=True))
+            out.append(lab("当前代码版本：%s · 数据来自游戏接口" % code_version(),
+                           10, C_MUTED, height=15))
+        return out
 
-    def _hint_touch(self, inst, touch):
-        if inst.collide_point(*touch.pos):
-            self.hint_open = not self.hint_open
+    def _hint_release(self, inst, touch):
+        if not inst.collide_point(*touch.pos) or self._dragged(touch):
+            return False
+        self.hint_open = not self.hint_open
+        # 只重建这一块，别走整页 show_query()：那样会把页面滚回顶部，
+        # 展开的三行说明刚好落在屏幕外，看着像「点了没反应」。
+        try:
+            holder = self._hint_holder
+            holder.clear_widgets()
+            for w in self._build_hint_children():
+                holder.add_widget(w)
+        except Exception:
             self._show_idle()
-            return True
-        return False
+        return True
 
     def _recent_card(self):
         hist = L.recent_queries()
@@ -1797,7 +1926,7 @@ class PlayerLookup(App):
             row.add_widget(b)
             pill = PillButton("示例" if is_ex else "填入", width=52 if is_ex else 46)
             pill.bind(on_release=lambda inst, u=r.get("uid"), k=r.get("server"): self._fill(u, k))
-            row.add_widget(pill)
+            row.add_widget(_vcenter(pill, 48))
             card.add_widget(row)
             if i < len(rows) - 1:
                 card.add_widget(HLine())
@@ -1950,10 +2079,9 @@ class PlayerLookup(App):
             return
         if raw.isdigit():
             uid = int(raw)
-            # 同一个 UID 连点两次查询 = 绕过缓存强制刷新。
-            # 不额外加刷新按钮：右上角已经被删过两次，用户明确不想在那里放操作。
-            force = (getattr(self, "_cached_uid", None) == uid)
-            return self._begin(uid, force=force)
+            # 刷新改成结果页右上角的显式按钮：连点两次的行为没人猜得到，
+            # 而且第一次点击并不会置位，实际要点三次才绕过缓存。
+            return self._begin(uid)
 
         # 非纯数字 → 当作昵称搜本地索引
         hits = NI.search(raw, 8) if NI else []
@@ -1992,14 +2120,18 @@ class PlayerLookup(App):
         if self.mode != "query":
             self.show_query()
         self.set_status("该角色不支持查询", C_ACCENT)
-        self.body.clear_widgets()
-        self._set_body_card(True)
-        self.body.add_widget(lab("无法查询", 20, C_ACCENT, bold=True, height=34))
-        self.body.add_widget(lab("该角色已设置为不公开档案，无法查看详细信息。",
-                                 14, C_INK2, height=30))
-        self.body.add_widget(lab("请换一个 UID 或昵称再试。", 13.5, C_MUTED, height=26))
+        # 原来这里 clear_widgets 整页换掉，表单一起没了：用户既不能改 UID，
+        # 也没有返回入口，只能杀 App。改成把拒绝卡插到查询页最上面。
+        err = Card(radius=16, pad=14, spacing=6)
+        err.bind(minimum_height=err.setter("height"))
+        err.add_widget(lab("无法查询", 15, C_ACCENT, bold=True, height=26, shorten=True))
+        d = lab("该角色已设置为不公开档案，换一个 UID 或昵称再试。", 12.5, C_INK2, height=1)
+        d.bind(texture_size=lambda inst, sz: setattr(inst, "height", sz[1] + dp(4)))
+        err.add_widget(d)
+        self.body.add_widget(err, index=len(self.body.children))
+        self._scroll_top()
 
-    def _begin(self, uid, force=False):
+    def _begin(self, uid, force=False, server=None):
         if self._hidden(uid):
             self._deny()
             return
@@ -2008,7 +2140,7 @@ class PlayerLookup(App):
         self.btn.text = "查询中…"
         self.set_status("连接中…" if force else "连接中…（10 分钟内查过会直接给结果）",
                         C_ACCENT)
-        key = self.key_of(self.spin.text)
+        key = server or self.key_of(self.spin.text)
         threading.Thread(target=self._worker, args=(uid, key, force),
                          daemon=True).start()
 
@@ -2017,9 +2149,19 @@ class PlayerLookup(App):
             prof = L.lookup(uid, server=server, use_cache=not force,
                             progress=lambda m: Clock.schedule_once(
                                 lambda dt, msg=m: self.set_status(msg, C_ACCENT)))
-        except Exception:
-            err = traceback.format_exc()[-300:]
-            Clock.schedule_once(lambda dt: self._fail("查询异常", err))
+        except Exception as e:
+            # [-300:] 在深调用链上会把路径切在中间（界面上以 ata/user/0/… 开头），
+            # 而最该看的「哪一行」反而丢了。改成：界面只给人话 + 最深一帧，
+            # 完整堆栈打 logcat。
+            tb = traceback.extract_tb(sys.exc_info()[2])
+            where = ""
+            if tb:
+                where = "%s:%d" % (os.path.basename(tb[-1].filename), tb[-1].lineno)
+            brief = "%s: %s" % (type(e).__name__, str(e)[:80])
+            print("[lookup] %s%s\n%s" % (brief, (" @" + where) if where else "",
+                                          traceback.format_exc()))
+            msg = brief + ("（%s）" % where if where else "")
+            Clock.schedule_once(lambda dt: self._fail("查询异常", msg))
             return
         Clock.schedule_once(lambda dt: self._done(prof, server))
 
@@ -2028,18 +2170,25 @@ class PlayerLookup(App):
         self.btn.disabled = False
         self.btn.text = "查询玩家"
         if not prof:
-            if server == "auto":
+            # 以前所有失败都出「未找到」，断网也会说 UID 错，用户会反复换号试
+            reason = "unknown"
+            try:
+                reason = L.last_reason()
+            except Exception:
+                pass
+            if reason == "timeout":
+                self._fail("查询超时", "网络较慢或服务繁忙，稍后再试")
+            elif reason == "net":
+                self._fail("网络不可用", "检查一下网络连接；服务限流时也会这样")
+            elif server == "auto":
                 self._fail("五个分区都没有这个 UID", "确认是游戏内的角色 ID 吗？")
             else:
-                self._fail("该分区未找到，试试「自动探测」", "确认分区选对了吗？请求繁忙请稍后重试")
+                self._fail("该分区未找到，试试「自动探测」", "确认分区选对了吗？")
             return
         L.add_recent(prof)
         # 缓存命中：告诉用户这是旧结果，并且下次同一 UID 再查会绕过缓存
-        if prof.get("_cached"):
-            self._cached_uid = prof.get("uid")
-            self._flash("10 分钟内的结果 · 再查一次可刷新")
-        else:
-            self._cached_uid = None
+        cached = bool(prof.get("_cached"))
+        self._cached_uid = prof.get("uid") if cached else None
         # 先本地记账（一定不丢），再尽力同步到仓库；同步失败完全不影响展示
         if AL:
             try:
@@ -2050,6 +2199,9 @@ class PlayerLookup(App):
                 pass
         self.set_status("")
         self.show_result(prof)
+        if cached:
+            # 缓存标记常驻在副标题上（原来是 2.2 秒就消失的 flash，等于没有）
+            self.appbar.sub_lab.text = "%s · 缓存" % (self.appbar.sub_lab.text or "")
 
     def _fail(self, title, detail):
         self.busy = False
@@ -2106,7 +2258,7 @@ class PlayerLookup(App):
         rank = PillButton(rank_txt, width=84, height=28)
         if p.get("rank"):
             rank.bind(on_release=lambda *a: self._open_web(self._result_uid()))
-        head.add_widget(rank)
+        head.add_widget(_vcenter(rank, 36))
         idc.add_widget(head)
 
         meta = BoxLayout(size_hint_y=None, height=dp(26), spacing=dp(6))
@@ -2302,19 +2454,21 @@ class PlayerLookup(App):
         t.size_hint_x = None
         t.width = dp(44)
         row.add_widget(t)
-        row.bind(on_touch_down=lambda inst, touch, c=cat: self._group_touch(inst, touch, c))
+        row.bind(on_touch_down=lambda inst, touch: self._press_track(touch))
+        row.bind(on_touch_up=lambda inst, touch, c=cat: self._group_release(inst, touch, c))
         return row
 
-    def _group_touch(self, inst, touch, cat):
-        if inst.collide_point(*touch.pos):
-            if cat in self.skill_open_groups:
-                self.skill_open_groups.discard(cat)
-            else:
-                self.skill_open_groups.add(cat)
-            if self.prof:
-                self._render_skill_list(self.prof)
-            return True
-        return False
+    def _group_release(self, inst, touch, cat):
+        """抬手才切换分组；按下时返回 False，ScrollView 才收得到拖动手势。"""
+        if not inst.collide_point(*touch.pos) or self._dragged(touch):
+            return False
+        if cat in self.skill_open_groups:
+            self.skill_open_groups.discard(cat)
+        else:
+            self.skill_open_groups.add(cat)
+        if self.prof:
+            self._render_skill_list(self.prof)
+        return True
 
     def _more_group(self, cat, p):
         self.skill_group_limit[cat] = self.skill_group_limit.get(cat, 8) + 20
@@ -2355,11 +2509,38 @@ class PlayerLookup(App):
                 self.skill_list.add_widget(gap(4))
             # 组标题之间不再画线：15 组就是 15 条，整块看起来像 Excel
 
+    def _resync_skill_inline(self):
+        try:
+            self.skill_search._resync_inline()
+        except Exception:
+            pass
+
     def _on_skill_search(self, v, p):
         self.skill_query = v
-        self._render_skill_list(p)
+        ev = getattr(self, "_skill_ev", None)
+        if ev:
+            try:
+                ev.cancel()
+            except Exception:
+                pass
+        def _run(dt):
+            self._render_skill_list(p)
+            self._resync_skill_inline()
+        self._skill_ev = Clock.schedule_once(_run, 0.25)
 
     # ---------- 结果态动作 ----------
+    def _on_refresh(self, *a):
+        self.refresh()
+
+    def refresh(self):
+        """强制绕过 10 分钟缓存重查当前角色。"""
+        prof = self.prof or {}
+        uid = prof.get("uid")
+        if not uid or self.busy:
+            return
+        self._begin(uid, force=True, server=prof.get("server"))
+        self._flash("正在刷新…")
+
     def copy_uid(self):
         uid = str((self.prof or {}).get("uid") or "")
         try:

@@ -174,8 +174,14 @@ def _ensure(activity):
                   "refs": (watcher, action)})
 
 
-def show(rect, text="", on_text=None, on_done=None):
-    """在 rect=(left, top, width, height)（安卓像素，左上角原点）显示输入框。"""
+def show(rect, text="", on_text=None, on_done=None, style=None):
+    """在 rect=(left, top, width, height)（安卓像素，左上角原点）显示输入框。
+
+    style 用来让覆盖层长得像它盖住的那个控件：
+      {"font_px": 21.9, "bg": "#F2EFE9", "stroke": "#A8482C",
+       "hint": "搜索武学名称", "text": "#2A2522"}
+    不传就退回白底红框 17sp 的默认样式。
+    """
     if not available():
         return False
     _KEEP["on_text"] = on_text
@@ -201,6 +207,34 @@ def show(rect, text="", on_text=None, on_done=None):
         root.setLayoutParams(outer)
         edit.setLayoutParams(FrameLayoutLP(max(1, w), max(1, h)))
 
+        st = style or {}
+        try:
+            px = float(st.get("font_px") or 17.0)
+            edit.setTextSize(1, px)              # unit=1 即 PX，跟 Kivy 的 font_size 同单位
+        except Exception:
+            pass
+        try:
+            hint = st.get("hint") or ""
+            edit.setHint(JavaString(hint) if hint else JavaString(""))
+        except Exception:
+            pass
+        try:
+            GradientDrawable = autoclass("android.graphics.drawable.GradientDrawable")
+            Color = autoclass("android.graphics.Color")
+            bg2 = GradientDrawable()
+            bg2.setShape(GradientDrawable.RECTANGLE)
+            bg2.setColor(Color.parseColor(st.get("bg") or "#FFFFFF"))
+            bg2.setStroke(int(round(1.6 * float(activity.getResources()
+                                                .getDisplayMetrics().density))),
+                          Color.parseColor(st.get("stroke") or "#8C2F28"))
+            bg2.setCornerRadius(12 * float(activity.getResources()
+                                           .getDisplayMetrics().density))
+            edit.setBackground(bg2)
+            if st.get("text"):
+                edit.setTextColor(Color.parseColor(st["text"]))
+        except Exception:
+            pass
+
         edit.setText(JavaString(text or ""))
         n = len(text or "")
         try:
@@ -222,6 +256,32 @@ def show(rect, text="", on_text=None, on_done=None):
         return True
     except Exception as e:
         print("[inline] show failed: %r" % (e,))
+        return False
+
+
+def move_to(rect):
+    """只挪位置（页面重排后用），不重建控件、不走焦点流程。"""
+    if _KEEP.get("edit") is None:
+        return False
+    left, top, w, h = (_px(rect[0]), _px(rect[1]), _px(rect[2]), _px(rect[3]))
+
+    def work():
+        from jnius import autoclass
+        edit = _KEEP["edit"]
+        outer = _KEEP["params"]
+        outer.leftMargin = left
+        outer.topMargin = top
+        outer.width = max(1, w)
+        outer.height = max(1, h)
+        _KEEP["root"].setLayoutParams(outer)
+        FrameLayoutLP = autoclass("android.widget.FrameLayout$LayoutParams")
+        edit.setLayoutParams(FrameLayoutLP(max(1, w), max(1, h)))
+
+    try:
+        _run_ui(work, timeout=3.0)
+        return True
+    except Exception as e:
+        print("[inline] move failed: %r" % (e,))
         return False
 
 
@@ -250,17 +310,17 @@ def hide():
         # 先断开回写：下面要清空输入框，否则 TextWatcher 会把 "" 写回 Kivy
         _KEEP["on_text"] = None
         try:
-            Context = autoclass("android.content.Context")
-            imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
-            imm.hideSoftInputFromWindow(edit.getWindowToken(), 0)
+            # 顺序很重要：先撤焦点 → 再清选中和文本 → 最后收键盘。
+            # 先收键盘再清文本的话，输入法的选区拖柄（蓝色水滴）会残留在屏幕上。
+            edit.clearFocus()
+            edit.setSelection(0)
+            edit.setText(autoclass("java.lang.String")(""))
         except Exception:
             pass
         try:
-            # 清掉选中和内容：输入法的选区拖柄（蓝色水滴）是挂在文本选区上的，
-            # 只清焦点不清选区，它就会一直留在屏幕上
-            edit.setSelection(0)
-            edit.setText(autoclass("java.lang.String")(""))
-            edit.clearFocus()
+            Context = autoclass("android.content.Context")
+            imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE)
+            imm.hideSoftInputFromWindow(edit.getWindowToken(), 0)
         except Exception:
             pass
         try:

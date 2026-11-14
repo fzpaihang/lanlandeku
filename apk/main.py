@@ -31,6 +31,29 @@ VERSION_FILE = os.path.join(LIVE_DIR, "version.txt")
 
 REQUIRED = ("app_ui.py", "lookup_core.py", "fetch.py", "aes_pure.py")
 
+# 更新包签名公钥（Ed25519，私钥只在本地 .keys/ 里，不进仓库）
+UPDATE_PUBKEY = bytes.fromhex(
+    "22d04f4b1494904f306117f2c1bdb07df7b7b3c7cc4cf7ddf191739b7f80bf0e")
+
+
+def verify_package(meta, blob):
+    """校验更新包签名。
+
+    签名同时覆盖 version/md5/size 三个字段和整包字节，任一处被改都会失败。
+    返回 True/False；老格式（无 sig 字段）返回 None，调用方按「未签名」处理。
+    """
+    sig_hex = (meta or {}).get("sig") or ""
+    if not sig_hex:
+        return None
+    try:
+        import ed25519
+        msg = ("%s|%s|%s|" % (meta.get("version"), meta.get("md5"),
+                              meta.get("size"))).encode("utf-8") + blob
+        return ed25519.verify(UPDATE_PUBKEY, msg, bytes.fromhex(sig_hex))
+    except Exception as e:
+        log("验签异常：%r" % (e,))
+        return False
+
 
 def log(msg):
     try:
@@ -39,13 +62,40 @@ def log(msg):
         pass
 
 
-# p4a 打包的 Python 不带 Android 系统根证书，urlopen 默认校验会报
-# CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate，
-# 导致每次都静默回退到 APK 内置代码。这里与 fetch.py 保持一致：
-# 只拉公开静态文件，不做证书校验。
-SSL_CTX = ssl.create_default_context()
-SSL_CTX.check_hostname = False
-SSL_CTX.verify_mode = ssl.CERT_NONE
+def _ca_file():
+    """找内置 CA 包（p4a 的 Python 不带 Android 系统根证书）。
+
+    新 APK 会把它放在 app 目录；热更包也会带一份到 live/，老 APK 更新一次
+    之后同样能吃到校验。
+    """
+    cands = []
+    app = os.environ.get("ANDROID_APP_PATH")
+    if app:
+        cands.append(os.path.join(app, "cacert.pem"))
+    cands.append(os.path.join(HERE, "cacert.pem"))
+    cands.append(os.path.join(LIVE_DIR, "cacert.pem"))
+    for p in cands:
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def _ssl_ctx():
+    ca = _ca_file()
+    if ca:
+        ctx = ssl.create_default_context(cafile=ca)
+        ctx.check_hostname = True
+        ctx.verify_mode = ssl.CERT_REQUIRED
+        log("TLS 校验已开启（CA: %s）" % os.path.basename(ca))
+        return ctx
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    log("未找到内置 CA，更新通道暂不校验证书（内容仍由签名保证）")
+    return ctx
+
+
+SSL_CTX = _ssl_ctx()
 
 
 def http_get(url, timeout):
@@ -90,13 +140,21 @@ def is_valid_dir(d):
     return True
 
 
-def install(ver, md5):
+def install(ver, md5, meta=None):
     log("发现新版本 v%s，开始下载" % ver)
     blob = fetch_update("code.zip", 25)
     if md5:
         got = hashlib.md5(blob).hexdigest()
         if got != md5:
             raise RuntimeError("md5 不匹配（本地 %s，期望 %s）" % (got, md5))
+
+    # md5 是同一个通道取回来的，能改包的人也能改 md5；签名才是真正的校验
+    verdict = verify_package(meta or {"version": ver, "md5": md5,
+                                      "size": len(blob)}, blob)
+    if verdict is False:
+        raise RuntimeError("更新包签名校验失败，已丢弃")
+    if verdict is None:
+        log("更新包未签名（旧格式），仅校验 md5")
 
     tmp = LIVE_DIR + ".new"
     if os.path.isdir(tmp):
@@ -134,9 +192,11 @@ def ensure_code():
     """返回可用代码目录；None 表示用 APK 内置代码"""
     remote_ver = 0
     md5 = ""
+    meta = {}
     try:
         raw = fetch_update("version.json", 8)
         info = json.loads(raw.decode("utf-8"))
+        meta = info
         remote_ver = int(info.get("version") or 0)
         md5 = info.get("md5") or ""
     except Exception as e:
@@ -144,7 +204,7 @@ def ensure_code():
 
     if remote_ver and remote_ver > local_version():
         try:
-            install(remote_ver, md5)
+            install(remote_ver, md5, meta)
         except Exception as e:
             log("更新未完成，继续用现有版本：%s" % e)
 

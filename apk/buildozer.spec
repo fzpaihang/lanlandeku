@@ -8,7 +8,7 @@ package.domain = com.fzjh
 source.dir = .
 # ttf：中文字体子集（fonts/NotoSansSC-Regular.ttf），由 scripts/build_font_subset.py 生成。
 # 打包字体是为了不再依赖各厂商 ROM 的 /system/fonts 差异（详见 app_ui.py 字体段注释）。
-source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf
+source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf,pem
 source.exclude_patterns = __pycache__,*.pyc,.buildozer,bin,lookup_cache.json,player_lookup.py
 
 version = 1.0

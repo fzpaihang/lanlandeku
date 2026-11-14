@@ -236,6 +236,18 @@ def fetch_board(key, cache=None, days=1):
         return (rec or {}).get("rows") or []
 
 
+# 单次查询的总预算（秒）。探测 80 个版本号 × 每版 2 次请求 × 5 个分区，
+# 最坏能拖到十几分钟，用户只能杀 App —— 这里给一个硬上限。
+LOOKUP_BUDGET = 20.0
+
+_LAST = {"reason": "unknown"}
+
+
+def last_reason():
+    """上一次 lookup 的失败原因：ok / notfound / net / timeout / config。"""
+    return _LAST.get("reason", "unknown")
+
+
 def try_one(srv, uid, hotver):
     """返回 (data, errcode)。data 为 None 表示该区没有这个角色。"""
     srv = dict(srv)
@@ -382,9 +394,12 @@ def _redetect_hotver(srv, hotver):
         return None
 
 
-def _lookup_single(uid, srv, cache, hotver, note):
+def _lookup_single(uid, srv, cache, hotver, note, deadline=None):
     """只查指定分区。20616 限流 / 网络异常做退避重试，必要时校正版本号。"""
     for attempt in range(3):
+        if deadline and time.time() > deadline:
+            _LAST["reason"] = "timeout"
+            return None
         note("查询 %s …" % srv["name"] if attempt == 0
              else "请求繁忙，重试 %d/3 …" % (attempt + 1))
         data, ec = try_one(srv, uid, hotver)
@@ -397,6 +412,9 @@ def _lookup_single(uid, srv, cache, hotver, note):
             continue
         break
 
+    if deadline and time.time() > deadline:
+        _LAST["reason"] = "timeout"
+        return None
     hv = _redetect_hotver(srv, hotver)
     if hv and hv != hotver:
         hotver = hv
@@ -485,6 +503,8 @@ def _lookup_uncached(uid, progress=None, cfg=None, cache=None, server=None):
     servers = cfg.get("servers") or []
     hotver = int(cache.get("hotver") or cfg.get("hotver") or 18464)
     uid = int(uid)
+    # 总预算必须在这里就位：单分区分支在任何循环之前就直接 return 了
+    deadline = time.time() + LOOKUP_BUDGET
 
     def note(msg):
         if progress:
@@ -495,14 +515,18 @@ def _lookup_uncached(uid, progress=None, cfg=None, cache=None, server=None):
         srv = by_key.get(server)
         if not srv:
             return None
-        return _lookup_single(uid, srv, cache, hotver, note)
+        return _lookup_single(uid, srv, cache, hotver, note, deadline=deadline)
 
     order = order_servers(servers, uid, cache.get("lastServer"))
     hit = None
     clean_miss = True   # 所有分区都明确回「没有这个角色」（errcode=0 但 data 空）
+    _LAST["reason"] = "unknown"
 
     # 第一轮：用缓存的热更版本号快速试
     for i, srv in enumerate(order, 1):
+        if time.time() > deadline:
+            _LAST["reason"] = "timeout"
+            break
         note("正在尝试 %d/%d · %s …" % (i, len(order), srv["name"]))
         data, ec = try_one(srv, uid, hotver)
         if data:
@@ -513,12 +537,16 @@ def _lookup_uncached(uid, progress=None, cfg=None, cache=None, server=None):
 
     # 所有分区都干净地回「查无此人」→ 不必浪费时间去探测版本号
     if not hit and clean_miss:
+        _LAST["reason"] = "notfound"
         return None
 
     # 第二轮：可能游戏刚更新，重新探测版本号
     if not hit:
         note("版本号可能过期，重新探测…")
         for srv in order:
+            if time.time() > deadline:
+                _LAST["reason"] = "timeout"
+                break
             hv = _redetect_hotver(srv, hotver)
             if hv and hv != hotver:
                 hotver = hv
@@ -531,8 +559,12 @@ def _lookup_uncached(uid, progress=None, cfg=None, cache=None, server=None):
                     break
 
     if not hit:
+        # 走到这里还没命中：区分「限流/断网」和「版本号都探不出来」
+        if _LAST.get("reason") not in ("timeout",):
+            _LAST["reason"] = "net"
         return None
     srv, data = hit
+    _LAST["reason"] = "ok"
     return _finish(uid, srv, data, cache, hotver, note)
 
 

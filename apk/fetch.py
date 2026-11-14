@@ -52,9 +52,36 @@ RETRY = 3
 
 BOARD_CN = {1: "高手榜"}
 
-ctx = ssl.create_default_context()
-ctx.check_hostname = False
-ctx.verify_mode = ssl.CERT_NONE
+def _ssl_ctx():
+    """游戏接口的 TLS 上下文。
+
+    p4a 的 Python 不带 Android 系统根证书，所以带一份 cacert.pem（新 APK 放
+    app 目录，热更包放 live/）。有 CA 就正常校验；老包没这个文件时只能退回
+    不校验 —— 接口只读公开数据、不执行远端代码，降级可以接受；更新通道
+    （main.py）不降级。
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    cands = [os.path.join(here, "cacert.pem")]
+    app = os.environ.get("ANDROID_APP_PATH")
+    if app:
+        cands.append(os.path.join(app, "cacert.pem"))
+    for p in cands:
+        if os.path.exists(p):
+            try:
+                c = ssl.create_default_context(cafile=p)
+                c.check_hostname = True
+                c.verify_mode = ssl.CERT_REQUIRED
+                return c
+            except Exception:
+                pass
+    c = ssl.create_default_context()
+    c.check_hostname = False
+    c.verify_mode = ssl.CERT_NONE
+    print("[tls] 未找到内置 CA，接口请求暂不校验证书")
+    return c
+
+
+ctx = _ssl_ctx()
 
 
 def load_cfg():
