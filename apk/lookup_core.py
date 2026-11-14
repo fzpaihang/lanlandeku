@@ -203,18 +203,68 @@ def add_recent(prof):
         pass
 
 
+# ---------------------------------------------------------------------------
+# uid → 分区 的确定性规则（由用户提供，比按位数猜准得多）
+#
+#   8 位及以下           → taptap     苍松迎客
+#   18 开头（>8 位）      → taptap_2   白鹤亮翅
+#   21 开头              → taptap_3   丹凤朝阳
+#   22 开头              → taptap_4   墨羽惊鸿
+#   4  开头              → 4399
+#   其余前缀对应的渠道本项目暂未收录，落到「未知」按老办法轮询
+#
+# 注意：**位数优先**。8 位及以下一律是苍松，不看前缀
+#（例如 4168426 这种 7 位数虽然 4 开头，也是苍松不是 4399）。
+# ---------------------------------------------------------------------------
+UID_PREFIX_SERVER = (
+    ("18", "taptap_2"),   # 白鹤亮翅
+    ("21", "taptap_3"),   # 丹凤朝阳
+    ("22", "taptap_4"),   # 墨羽惊鸿
+    ("4", "4399"),
+)
+
+# 本项目未收录、但已知归属的前缀（留档，将来补分区时直接用）
+UID_PREFIX_FUTURE = {
+    "5": "当乐", "6": "应用汇", "7": "啪啪游戏厅", "9": "其他",
+    "10": "华为", "11": "oppo", "12": "vivo", "13": "应用宝",
+    "14": "小七", "20": "小米",
+}
+
+
+def server_of_uid(uid):
+    """按 uid 推出分区 key；推不出来返回 None。
+
+    规则来源见 UID_PREFIX_SERVER 上方注释。这里只做纯字符串判断，
+    不依赖任何网络或分区清单，所以调用方可以据此「只请求一次」。
+    """
+    s = str(uid or "").strip()
+    if not s.isdigit():
+        return None
+    if len(s) <= 8:                 # 8 位及以下 → 苍松迎客（位数优先于前缀）
+        return "taptap"
+    for pre, key in UID_PREFIX_SERVER:
+        if s.startswith(pre):
+            return key
+    return None
+
+
 def order_servers(servers, uid, last_key=None):
-    """按「上次命中 → uid 位数推测 → 其余」排序，减少无谓请求。
-    位数规律：苍松 7 位、4399 10 位、taptap 系（白鹤/丹凤/墨羽）11 位。
+    """按「前缀规则 → 上次命中 → 位数推测 → 其余」排序，减少无谓请求。
+
+    最优先的是 server_of_uid() 的确定性结果：命中就把它排到第一位，
+    自动探测的常规情况就只发 1 次请求。
     """
     s = str(uid)
     guess = []
+    exact = server_of_uid(uid)      # 前缀规则命中的分区，放最前面
+    if exact:
+        guess.append(exact)
     if len(s) == 7:
-        guess = ["taptap"]
+        guess.append("taptap")
     elif len(s) == 10:
-        guess = ["4399"]
+        guess.append("4399")
     elif len(s) == 11:
-        guess = ["taptap_3", "taptap_2", "taptap_4"]
+        guess += ["taptap_3", "taptap_2", "taptap_4"]
     keys = []
     for k in ([last_key] if last_key else []) + guess:
         if k and k not in keys:
@@ -526,7 +576,26 @@ def _lookup_uncached(uid, progress=None, cfg=None, cache=None, server=None):
             return None
         return _lookup_single(uid, srv, cache, hotver, note, deadline=deadline)
 
+    # 前缀规则能唯一确定分区时，只查这一个区（1 次请求）。
+    # 推不出来才回退到多区轮询。
+    exact_key = server_of_uid(uid)
+    if exact_key:
+        by_key = {x["key"]: x for x in servers}
+        srv = by_key.get(exact_key)
+        if srv:
+            note("按 UID 规则直接定位 · %s" % srv["name"])
+            data = _lookup_single(uid, srv, cache, hotver, note, deadline=deadline)
+            if data:
+                cache["lastServer"] = exact_key
+                save_cache(cache)
+                return data
+            # 规则命中的区查不到：可能是规则外的新渠道，或角色已删。
+            # 不直接放弃，落回轮询（跳过刚试过的这个区）。
+            note("该区未找到，继续尝试其他分区…")
+
     order = order_servers(servers, uid, cache.get("lastServer"))
+    if exact_key:
+        order = [s for s in order if s["key"] != exact_key]
     hit = None
     clean_miss = True   # 所有分区都明确回「没有这个角色」（errcode=0 但 data 空）
     _LAST["reason"] = "unknown"

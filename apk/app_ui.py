@@ -1402,7 +1402,9 @@ class CnSpinnerOption(SpinnerOption):
 
 
 class PlayerLookup(App):
-    AUTO_LABEL = "自动探测（不推荐）"
+    # 现在自动探测会先按 UID 前缀规则定位分区，常规情况只发 1 次请求，
+    # 不再「逐区试」到超时，所以去掉了「不推荐」的措辞。
+    AUTO_LABEL = "自动识别分区"
     EXAMPLES = [
         {"uid": 21079729670, "name": "刘小年", "server": "taptap_3", "serverName": "丹凤朝阳"},
         {"uid": 21079747122, "name": "观云者", "server": "taptap_3", "serverName": "丹凤朝阳"},
@@ -2040,7 +2042,7 @@ class PlayerLookup(App):
         if self.hint_open:
             out.append(lab("默认只查选中的分区，速度快、不易被限流；分区选择会被记住。",
                            10.5, C_MUTED, height=16, shorten=True))
-            out.append(lab("不确定在哪个区时，用列表最后的「自动探测」逐区尝试。",
+            out.append(lab("不确定在哪个区时，用列表最后的「自动识别分区」：按 UID 前缀直接定位，只查一次。",
                            10.5, C_MUTED, height=16, shorten=True))
             out.append(lab("当前代码版本：%s · 数据来自游戏接口" % code_version(),
                            10, C_MUTED, height=15))
@@ -2473,7 +2475,7 @@ class PlayerLookup(App):
             elif server == "auto":
                 self._fail("五个分区都没有这个 UID", "确认是游戏内的角色 ID 吗？")
             else:
-                self._fail("该分区未找到，试试「自动探测」", "确认分区选对了吗？")
+                self._fail("该分区未找到，试试「自动识别分区」", "确认分区选对了吗？")
             return
         L.add_recent(prof)
         # 查过的角色立刻进本地昵称索引：远端索引只覆盖榜单 + 苍松 5 转普查，
