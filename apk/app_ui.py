@@ -1022,17 +1022,32 @@ class RoundInput(TextInput):
                 "hint": self.hint_text or "",
                 "text": hexc(C_INK)}
 
-    def _resync_inline(self):
-        """页面重排后（列表重建、键盘弹起、窗口缩放）把覆盖层挪回原位。"""
+    def _resync_inline(self, delay=0.0):
+        """页面重排后（列表重建、键盘弹起、窗口缩放）把覆盖层挪回原位。
+
+        delay > 0 时延后到「布局已经算完」的那一帧再做。
+        武学搜索会重建整个列表、卡片高度变化、本控件整体上移，
+        如果在同一帧里取 self.x/self.y，拿到的还是旧坐标 ——
+        原生覆盖层就会停在原来的高度上（表现为输入框「浮」在列表上方）。
+        """
         if not self._inline or INLINE is None:
             return
-        try:
-            from kivy.core.window import Window
-            wx, wy = self.to_window(self.x, self.y)
-            top = Window.height - (wy + self.height)
-            INLINE.move_to((wx, top, self.width, self.height))
-        except Exception:
-            pass
+
+        def _move(_dt=None):
+            if not self._inline or INLINE is None:
+                return
+            try:
+                from kivy.core.window import Window
+                wx, wy = self.to_window(self.x, self.y)
+                top = Window.height - (wy + self.height)
+                INLINE.move_to((wx, top, self.width, self.height))
+            except Exception:
+                pass
+
+        if delay > 0:
+            Clock.schedule_once(_move, delay)
+        else:
+            _move()
 
     def _from_inline(self, val):
         """原生框里的文字回写到 Kivy 控件（不回调回去，避免来回打架）。"""
@@ -1403,6 +1418,11 @@ class PlayerLookup(App):
         self.inner.add_widget(self.body)
         sv.add_widget(self.inner)
         self.sv = sv
+        # 滚动时 ScrollView 移动的是 inner 的 pos，内部控件的 to_window()
+        # 会跟着变，但不会触发 skill_search 自己的 pos 回调 —— 覆盖层就留在
+        # 原来的高度上（用户看到「搜索框浮在列表上方」）。这里绑 inner 的
+        # pos，滚动一发生就把覆盖层同步过去。
+        self.inner.bind(pos=lambda *a: self._sync_all_inline())
         root.add_widget(sv)
 
         # 结果态固定底栏：主操作不该滚到最底才看得见
@@ -2038,6 +2058,9 @@ class PlayerLookup(App):
             b.bind(width=lambda inst, v: setattr(inst, "text_size", (v, None)))
             b.bind(on_release=lambda inst, u=r.get("uid"), k=r.get("server"): self._fill(u, k))
             row.add_widget(b)
+            # 胶囊必须显式 size_hint_x=None，否则 BoxLayout 会把它当弹性项，
+            # 在 txt_button 之后被挤到 row 外面 —— 画面上还在（canvas 坐标），
+            # 但触摸点根本落不到它身上（v48~v50 反复出现「填入点了没反应」）。
             pill = PillButton("填入", width=46)
             pill.bind(on_release=lambda inst, u=r.get("uid"), k=r.get("server"): self._fill(u, k))
             row.add_widget(_vcenter(pill, 48))
@@ -2666,6 +2689,10 @@ class PlayerLookup(App):
             native_title="搜索武学名称",
         )
         self.skill_search.bind(text=lambda inst, v: self._on_skill_search(v, p))
+        # 列表重建会让这张卡片整体位移。绑定 pos/size，布局一算完就自动跟上，
+        # 比到处手动调 _resync_inline 可靠（之前漏调/调早了都会让覆盖层错位）。
+        self.skill_search.bind(pos=lambda inst, v: self._resync_skill_inline(),
+                               size=lambda inst, v: self._resync_skill_inline())
         card.add_widget(self.skill_search)
 
         self.skill_list = BoxLayout(orientation="vertical", size_hint_y=None, spacing=0)
@@ -2750,9 +2777,20 @@ class PlayerLookup(App):
                 self.skill_list.add_widget(gap(4))
             # 组标题之间不再画线：15 组就是 15 条，整块看起来像 Excel
 
-    def _resync_skill_inline(self):
+    def _sync_all_inline(self):
+        """把所有正在使用的原生覆盖层挪到它该在的位置。"""
+        for w in (getattr(self, "skill_search", None), getattr(self, "inp", None)):
+            if w is None:
+                continue
+            try:
+                if getattr(w, "_inline", False):
+                    w._resync_inline()
+            except Exception:
+                pass
+
+    def _resync_skill_inline(self, delay=0.0):
         try:
-            self.skill_search._resync_inline()
+            self.skill_search._resync_inline(delay=delay)
         except Exception:
             pass
 
@@ -2766,7 +2804,10 @@ class PlayerLookup(App):
                 pass
         def _run(dt):
             self._render_skill_list(p)
-            self._resync_skill_inline()
+            # 列表高度变了，本控件位置也变了；但此刻 Kivy 还没重新布局，
+            # 立刻取坐标会拿到旧值 → 覆盖层停在上方不动。
+            # 延后两帧（约 32ms）等布局完成再对齐。
+            self._resync_skill_inline(delay=0.05)
         self._skill_ev = Clock.schedule_once(_run, 0.25)
 
     # ---------- 结果态动作 ----------
