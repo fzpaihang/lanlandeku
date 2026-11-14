@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-15 00:28:22",
- "updatedTs": 1794673702,
+ "updatedAt": "2026-11-15 00:49:14",
+ "updatedTs": 1794674954,
  "hasPrev": true,
  "total": 20,
  "rows": [
@@ -363,21 +363,21 @@
    "userid": 18027072568,
    "name": "张不器",
    "menpai": "昆仑派",
-   "lv": 2873,
-   "kongfu": 1675.22,
+   "lv": 2876,
+   "kongfu": 1677.67,
    "exp": 2389983433.0,
-   "money": 149608649,
-   "yueli": 890278,
-   "xiayi": 24275.5,
-   "looks": 6014,
+   "money": 150754433,
+   "yueli": 890345,
+   "xiayi": 24195.5,
+   "looks": 6032,
    "fuyuan": 142,
-   "age": 222,
+   "age": 223,
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
    "prevRank": 17,
    "delta": 0,
-   "expBoard": 2383372499.3222,
+   "expBoard": 2389983432.8595,
    "expSrc": "profile"
   },
   {
@@ -448,5 +448,5 @@
   }
  ],
  "expSrc": "mixed",
- "mergedAt": "2026-11-15 00:33:42"
+ "mergedAt": "2026-11-15 01:16:54"
 }
