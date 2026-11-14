@@ -1,8 +1,8 @@
 {
-  "version": 45,
-  "md5": "f33cef1331171029ab466f3d9d96cb8d",
-  "size": 179079,
-  "notes": "回退到 v42 输入方案：撤销 v43/v44 的失焦、TYPE_NULL 与系统弹窗，恢复可正常删除的就地编辑（保留已知光标残影）",
-  "builtAt": "2026-11-14 15:45:03",
-  "sig": "414964bfd635efc7e540c96171ffa5f20e93fcd615375975b0326f57e8e38cdf2568d9b2a2942e3c98e9db2813665505a335b1d0fd069d71d9e716c12445e50f"
+  "version": 46,
+  "md5": "1569024a47aef85dc45529115bdd8ec0",
+  "size": 179678,
+  "notes": "修复蓝色水滴残影：Kivy TextInput.use_handles=False，不再生成光标手柄",
+  "builtAt": "2026-11-14 16:49:13",
+  "sig": "b000f9e74e96b2477f6de3f1add27ecd2d3ca96e21c5f1c73055c2b62c9507afdd82bd3b510e4ddec0461042b413ae7e929dc28962554d0964b6bdc3a8390d07"
 }

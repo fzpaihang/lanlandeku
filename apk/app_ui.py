@@ -32,6 +32,7 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.text import LabelBase
 from kivy.metrics import Metrics, dp
+from kivy.properties import BooleanProperty
 from kivy.metrics import sp as _sp_raw
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
@@ -898,6 +899,26 @@ class RoundInput(TextInput):
             self._ln = Line(rounded_rectangle=(self.x, self.y, self.width, self.height,
                                                self._r), width=1)
         self.bind(pos=self._sync, size=self._sync, focus=self._on_focus)
+
+    # ---------- 关掉 Kivy 自己的光标手柄（蓝色水滴的真正来源）----------
+    #
+    # Kivy 2.3.0 的 TextInput.use_handles 在触屏上默认 True。单击已有文字且没有
+    # 选区时，它的 on_touch_up 会走 textinput.py:1715-1730：
+    #     if self.use_handles and self._selection_to == self._selection_from:
+    #         self._handle_middle = Selector(source=self.handle_image_middle, ...)
+    #         EventLoop.window.add_widget(handle_middle, canvas='after')
+    # 这个 Selector 就是屏幕上那颗蓝色水滴，默认贴图 shape-drop.png。
+    #
+    # 它不是 Android 的 HandleView：不进 dumpsys window、不是 SurfaceFlinger 图层、
+    # 杀掉输入法进程也不消失，而且跟着页面一起滚动（因为画在我们的 GL 画布上）。
+    # v40-v45 一直在 Android 侧找原因，所以怎么改都只有部分效果。
+    #
+    # 本控件的文字编辑全部交给原生覆盖层（inline_input.py），Kivy 侧根本不需要
+    # 这个手柄 —— 关掉即可，不影响输入、退格、中文候选、查询、切页。
+    #
+    # 只关 use_handles，不动 use_bubble：use_handles 在桌面端本来就是 False
+    # （Kivy 里 use_handles = not _is_desktop），所以桌面端等于没改，只影响触屏。
+    use_handles = BooleanProperty(False)
 
     # ---------- 系统键盘：直连 SDL ----------
     def _android(self):
