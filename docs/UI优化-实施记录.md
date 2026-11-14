@@ -503,3 +503,366 @@ Popup(background="", background_color 见下)
    又写了一次默认值 `(0,0,0,0.7)`，所以遮罩一直是 70% 黑。必须在弹窗建好之后
    `self._popup.background_color = (...)` 单独赋值。
 3. 高度要手动加上 `Popup` 自带的内边距（约 48dp），否则最后一行会被裁掉。
+
+## 十三、v34/v35：P1 修复 + 更新包签名与 TLS
+
+### 13.1 P1（都在 `apk/app_ui.py`）
+
+| 问题 | 修法 |
+|---|---|
+| 被隐私名单拒绝后表单被清空，成死路 | `_deny()` 不再 `clear_widgets()`，照 `_fail()` 插卡到 `body.children` 末尾 |
+| 结果页/弹层按返回直接退出 App | `_on_key` 改三级：网页 → 弹层 → `mode=="result"` 回查询页 → 才退出 |
+| WebView 失败把整页换掉 | `_web_fail()` 只插提示卡 + 「用系统浏览器打开」，不清页 |
+| 连点两次拿不到新数据（要点三次） | 删掉隐藏手势，结果页右上角显式「刷新」按钮；`:955` 的 `force` 判定不再依赖 `_cached_uid` |
+| 缓存提示 2.2 秒 flash 从未真正显示 | 副标题常驻 `UID xxx · 缓存` |
+| 查询没有总超时 | `lookup_core.LOOKUP_BUDGET = 20s`，探测循环与单区重试都检查 deadline |
+| 断网被报成「查无此人」 | `lookup_core.last_reason()` 返回 ok/notfound/net/timeout，`_done` 分文案 |
+| 「查询中…」「搜不到」是半透明白字 | `disabled_color` 显式设置（Button 白 95%，sug 用 C_ACCENT） |
+
+坑：`deadline` 一开始只加在 `_lookup_uncached` 的循环之前，而单分区是**在循环之前就 return** 的，
+真机直接 `UnboundLocalError`。改成在函数开头（`uid = int(uid)` 之后）就赋值。
+
+### 13.2 交互与视觉
+
+- 入口卡 / 说明行 / 武学分组标题：`on_touch_down` 立即触发 → 改成按下只记坐标，
+  `on_touch_up` 且位移 < 12dp 才触发（滑动不再误开网页、分组标题不再吞滚动手势）。
+- 说明展开只重建 `_hint_holder`，不再 `show_query()` 整页重排（原来会把页面滚回顶部）。
+- 返回箭头命中区 26dp → 44dp；胶囊用 `_vcenter()` 包一层（BoxLayout 横向子项贴底，48dp 行里差 11dp）。
+- `C_MUTED` `#8B7F74` → `#6E635A`（白卡 3.9:1 → 5.3:1，米底 3.6 → 4.9）。
+- 武学搜索 250ms 防抖；原生覆盖层跟随宿主字号/底色/占位文案，列表重建后 `move_to()` 重新定位。
+
+### 13.3 更新包签名（Ed25519）
+
+- `apk/ed25519.py`：纯 Python，只依赖 hashlib，对照 RFC 8032 测试向量 1 自测
+  （公钥、签名逐字节一致，篡改消息/签名均返回 False），单次验签约 4ms。
+- 私钥 `.keys/update.key`（已 gitignore），公钥硬编码在 `main.py`。
+- `pack_update.py` 对 `version|md5|size|整包字节` 签名写入 `version.json.sig`。
+- `main.py` 安装前验签：`False` 直接丢弃，`None`（旧格式无 sig）只记日志继续。
+
+### 13.4 TLS
+
+- 完整 Mozilla 包（163KB）在设备 OpenSSL 上 `load_verify_locations` 报
+  `SSLError(9, '[X509] PEM lib')`，整包不可用。
+- 改为**最小根证书集**（5KB）：ISRG Root X1（GitHub Pages）、DigiCert Global Root G2（游戏接口）、
+  GlobalSign Root R46（jsDelivr），来自各自的链，加载正常。
+- `fetch.py`：有 CA 就 `CERT_REQUIRED` + `check_hostname`，没有则降级并打日志（老包兼容）。
+- `main.py`：同样逻辑，但**不降级**到不校验——那条链路会执行下载下来的代码。
+- 注意：`main.py` 在 APK 内，验签与更新通道的 TLS 要重装新 APK 才生效；热更只能覆盖 `apk/*.py`。
+
+## 十四、v36–v38：转数筛选、移动端排序、换标改名
+
+### 14.1 高手榜「转数」筛选（`assets/app.js` + `index.html`）
+
+数据里转数字段是 `inheritCount`。实测各分区分布：
+
+| 分区 | 转数分布 |
+|---|---|
+| 4399 / taptap / taptap_2 / taptap_3 | 清一色 5 转 |
+| taptap_4（墨羽惊鸿） | 2 转 26、3 转 51、4 转 22 |
+
+所以筛选条做成**按数据条件显示**：`buildZhuanChips()` 统计当前分区去重后的转数，
+只有 >1 档才渲染（`el.zchips.hidden = true` 否则），避免在单档分区上摆一排死按钮。
+
+### 14.2 移动端排序（`index.html` / `exp.html`）
+
+排序入口原来只存在于桌面表头，手机上没有。加 `.sortbar`（CSS 里 `@media(max-width:560px)` 才显示）：
+
+- 高手榜：名次（默认，asc）/ 经验 / 等级
+- 经验页：名次 / 当前经验 / 区间增长（默认区间增长）
+
+注意：**静态资源必须带 `?v=<hash>`**。这次改完 `app.js` 没更新 `?v=`，WebView 直接在
+缓存里跑旧脚本，页面上完全看不到新功能——排查了半天才发现。发布前用脚本重算 hash 即可。
+
+### 14.3 APK 换标与改名
+
+- `title = 霜霜妙妙屋`（buildozer.spec）
+- 应用图标：`icon_src.jpg` → 构建时用 ImageMagick 转 512×512 png（runner 自带），
+  仓库不用提交生成的 png
+- 顶栏左侧标识：`seal.jpg` 圆形头像。Kivy 没有圆形裁剪，用
+  `RoundedRectangle(radius=[边长/2], texture=tex)` 当遮罩，比 StencilView 简单。
+  找不到图片时退回原来的红底「江湖」印章。
+- `seal.jpg` 进热更包，老 APK 更新一次即可换标。
+
+### 14.4 一个必须记住的坑：构建缓存 key 与签名
+
+`build-apk.yml` 的缓存 key 原来是 `hashFiles('buildozer.spec','main.py')`。
+**改这两个文件 → 缓存目录换新 → `~/.buildozer` 里自动生成的调试签名密钥也换新** →
+用户覆盖安装报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，只能卸载重装（本地缓存与最近查询全丢）。
+
+已改成固定 key `buildozer-${os}-stable-v1`。代价是 spec 改动不再让缓存失效，
+需要时手动清缓存。
+
+## 十五、v39：头像换图 + 经验基准重刷
+
+### 15.1 头像
+
+`apk/seal.jpg` 换成新的古风角色图，仍是圆形（`RoundedRectangle(radius=边长/2, texture=)`），
+不额外画边框。热更 v39 即可生效，不需要重装。
+
+### 15.2 经验增量为什么会出现「一眼假」的数字
+
+- 11 号那批快照的 `exp` 直接取自**排行榜**：浮点、对不活跃玩家长期不更新。
+- 之后 `merge_exp.py` 把榜单的 `exp` 改写成了**档案**（get_user_info）的整数。
+- 于是「当前值（档案）」减「基准（榜单）」= 两套口径相减，天然差 0.2%~1%，
+  表现为「+21.7 万」「-3.2 万」这种既不是真增长也不是真回落的数字。
+
+### 15.3 修法：`scripts/reset_exp_baseline.py`
+
+按档案值重写一条基准快照（日期=今天），旧快照全部丢弃：
+
+```
+4399     49 人（档案 49）  6 条 → 1 条
+taptap   98 人（档案 98） 11 条 → 1 条
+taptap_2 20 人（档案 20）  3 条 → 1 条
+taptap_3 29 人（档案 29）  3 条 → 1 条
+taptap_4 99 人（档案 95）  4 条 → 1 条
+```
+
+重置后只有 1 条快照，`exp.js` 判定 `baseSnap = null`，页面显示「暂无对比数据」+ 一条说明。
+明天 `refresh.yml` 抓完数据、`merge_exp.py` 追加第二条（同口径）后，区间增长恢复正常。
+
+## 十六、v41：蓝色水滴的真正根因
+
+用户两次反馈「点开输入框后屏幕上有颗蓝色小水滴不消失」。
+
+### 三处都改过，只有第三处是根因
+
+1. 收起顺序（清焦点 → 清选区 → 收键盘）—— 有用但治标；
+2. `setSelectAllOnFocus(True)` —— 一聚焦就整段全选，出选区必然出选择手柄，已关；
+3. **`beforeTextChanged` 的 `@java_method` 签名写错**：
+   ```python
+   @java_method("(Ljava/lang/CharSequence;II)V")      # 错：2 个 int
+   def beforeTextChanged(self, s, start, count, after)  # 实际 3 个 int
+   ```
+   Android 每次文字变化都调 `beforeTextChanged(CharSequence, int, int, int)`，
+   签名对不上就抛 `NotImplementedError`（logcat 里能看到一长串），
+   输入法的选区/光标状态跟着乱，屏幕上的**光标手柄**就一直挂着不撤。
+
+改对签名后实测：输入 778899 → 光标正常、无水滴；点顶栏空白收起 → 原生框与键盘
+一起消失、无残留、文本保留。
+
+### 附带改动
+
+- 收起时 `imm.updateSelection(edit, 0, 0, -1, -1)` 主动告知选区已空；
+- 收起时 `removeView(root)` 把 View 摘出窗口，输入法同步销毁会话（更稳，代价是重建几毫秒）；
+- 展开时不再全选，光标落末尾（全选会出选区手柄）。
+
+## 十七、v42：光标手柄（水滴）的处理闭环
+
+用户补充的复现路径很关键：**先输入内容，再点一下输入框**才会出水滴；把字全删再点就没有。
+说明它不是「收起残留」，而是系统的 **插入点手柄（InsertionHandleView）** ——
+只在光标可见、且点已有文字时才生成，正常 ~3 秒自动收。
+
+两处改动：
+
+1. **`Root.on_touch_down` 无脑收框** → 点在输入框自己身上也收，于是
+   「收掉 → Kivy 重新聚焦 → 再弹出」来回一次，手柄留在屏幕上。
+   现在用模块变量 `_INLINE_OWNER` 记住当前用覆盖框的控件，点击落在它身上就不收。
+2. **`setCursorVisible(False)`** → 不生成插入点手柄，从源头消除。
+   代价是看不到竖线光标，打字/删除/点击定位都不受影响（UID、昵称这种短字段可接受）。
+
+实测：输入 123456 → 再点框 → 无水滴；继续输入变 1234567；点顶栏空白收起 → 无残留。
+
+若以后要恢复光标，需要接受「点已有文字时弹手柄 3 秒」，或用自定义 View 画插入点。
+
+## 十八、v44：输入改用系统对话框（终结「删不掉 + 残影」）
+
+### 走过的弯路（按时间）
+
+| 版本 | 做法 | 结果 |
+|---|---|---|
+| v40 | 修 TextWatcher `beforeTextChanged` 签名（少一个 int） | 部分改善，仍有残影 |
+| v41–v42 | 关 `setSelectAllOnFocus`、光标不可见、`removeView`、触摸拦截 | 残影仍在 |
+| v43 | 收起时给 Kivy 输入框 `focus=False` + `setInputType(NULL)` | 残影消失，但**再点回来输入法没连上新控件，退格无效** |
+| v44 | **安卓点输入框直接弹系统 AlertDialog** | 一次解决 |
+
+### v43 为什么会让退格失效
+
+`setInputType(TYPE_NULL)` 是打在旧控件上的，但 Kivy 输入框同时失焦后，SDL 的
+输入会话也结束了；重新点击时新建的 `EditText` 还在 attach 过程中就
+`requestFocus + showSoftInput`，输入法没连上 —— 打字进不去、退格更进不去。
+
+### v44 的做法
+
+直接用项目里已有的 `native_input.ask()`（AlertDialog + EditText）。
+对话框有自己的 window 和 InputConnection，焦点/键盘/光标/删除全归系统管：
+
+- `_on_focus` 在安卓上先 `_try_dialog()`，成功就 return，不再碰内联覆盖层；
+- 桌面端与实现降级时仍走原逻辑；
+- 内联覆盖层保留为兜底路径，不再作为主路径。
+
+### 验证（uiautomator 读真实控件文本，不依赖截图）
+
+```
+点输入框 → 弹窗，EditText text='输入昵称或 UID'
+输入       → text='123456'
+退格 ×1    → text='12345'
+点「查询」 → 直接发起查询，输入框文字深色、无残影
+```
+
+## 十九、v45：输入方案整体回退到 v42
+
+### 19.1 决策
+
+v43 用「收起时 Kivy 输入框失焦 + `setInputType(TYPE_NULL)`」消掉了光标残影，
+但导致再点回输入框时输入法连不上，退格失效；v44 改系统 AlertDialog，又出现
+「弹窗里能删、确定或点外面关掉后主界面仍旧值」的写回问题。用户判断明确：
+**有残影只是难看，删不掉字是不能用，v44 比前几版更难用。**
+
+「完整像别的 App」需要新增 Java 层实现 `InputConnection`（Flutter
+`InputConnectionAdaptor` 那套：commitText / deleteSurroundingText /
+setComposingText / updateSelection 双向同步），热更换不到，必须重打 APK + 重装，
+中文输入法组合态还要逐项联调 → 按天算。按「架构改动很久就先不动」的既有原则，
+**先回退止血，完整实现单独排期**。
+
+### 19.2 做法
+
+从 GitHub commit `7b8c19e1`（热更 v42）取回两个文件整体覆盖：
+
+- `apk/app_ui.py`
+- `apk/inline_input.py`
+
+其余 10 个 py、`cacert.pem`、`seal.jpg` 全部保持最新 —— 签名、TLS、圆形头像、
+P1 修复、转数筛选等**都不受影响**。v44 版本备份在
+`E:/workbuddy2/_agent_tmp/v44_backup/`。
+
+丢弃的是 v43/v44 期间所有实验性改动：失焦、`TYPE_NULL`、`invalidate` 强制重绘、
+`_TouchEater` 触摸拦截、`setTextCursorDrawable(None)`、`setImeOptions`、
+`_try_dialog` / `_dlg_busy` 系统弹窗主路径、延迟聚焦。
+保留 v40/v41/v42 的全部修复（字号 PX=0、TextWatcher 签名、`_INLINE_OWNER` 点框自身不收、
+`setCursorVisible(False)`）。
+
+### 19.3 验证（uiautomator 读真实控件文本）
+
+```
+热更后版本 45
+点输入框       → EditText '输入昵称或 UID'
+输入 123456    → '123456'
+点窗口外       → 原生框收起
+再点回输入框   → '123456'
+退格 ×3        → '123'          ← v43/v44 在这里完全无反应
+完整查询       → 观云者 / 2559 级 / 第 3 名，顶栏刷新与返回正常，无异常日志
+```
+
+### 19.4 已知代价
+
+~~光标手柄残影回来~~ —— **已在 v46 彻底解决，见第二十章**。
+
+（v45 时的判断是「它是系统 HandleView 窗口，不随内容滚动」。这个判断是错的：
+它确实跟着内容滚，是 Kivy 自己画的 widget。因此「只能靠完整 InputConnection
+或换渲染层」的结论也随之作废 —— 一行 `use_handles = False` 就够了。）
+
+
+## 二十、v46：蓝色水滴的真凶是 Kivy 自己的手柄（已彻底修复）
+
+### 20.1 结论先行
+
+**那颗蓝色水滴不是 Android 的 `HandleView`，是 Kivy `TextInput` 自己画的光标手柄。**
+v40–v45 一直在 Android 侧（`setCursorVisible` / `updateSelection` / `removeView` /
+失焦 / `TYPE_NULL` / AlertDialog）找原因，方向从一开始就错了，所以只能拿到「部分改善」。
+
+### 20.2 怎么证伪旧结论的
+
+| 观察 | 旧结论（系统 HandleView 窗口）预测 | 实测 |
+|---|---|---|
+| `dumpsys window windows` 找手柄窗口 | 应该有 `HandleView`/`PopupWindow` | **没有**，9 个窗口全是系统栏/IME/App |
+| `dumpsys SurfaceFlinger --list` 比图层 | 应该多一层 | **83 层，前后完全一致** |
+| `am force-stop` 杀掉 App | 应该一起消失 | **水滴还在**（已渲染进 App 图层，进程死了像素还留着） |
+| `am force-stop` 杀掉输入法 | 应该一起消失 | **水滴还在** |
+| 按 HOME 切桌面再回来 | 应该消失 | **完全不变** |
+| 页面滚动 | 悬浮窗口不随内容动 | **跟着滚**（y 651→529→649） |
+
+最后一条是决定性的：**它跟着页面内容一起滚动**，说明它画在 App 自己的画布上。
+
+### 20.3 根因（Kivy 2.3.0 源码）
+
+`kivy/uix/textinput.py` 里 `use_handles` 在触屏上默认 `True`（`use_handles = BooleanProperty(not _is_desktop)`）。
+单击已有文字的输入框、且当前没有选区时，`on_touch_up` 走这一段：
+
+```python
+# textinput.py:1715-1730
+if self.use_handles and self._selection_to == self._selection_from:
+    self._hide_handles()
+    handle_middle = self._handle_middle
+    if handle_middle is None:
+        self._handle_middle = handle_middle = Selector(
+            source=self.handle_image_middle,     # ← 默认贴图 shape-drop.png
+            window=win, target=self,
+            size_hint=(None, None), size=('45dp', '45dp'))
+    if not self._handle_middle.parent and self.text:
+        EventLoop.window.add_widget(handle_middle, canvas='after')
+```
+
+`shape-drop.png` 就是那颗浅蓝色水滴。它是 `Window` 里的一个 Widget，加在
+`canvas='after'`，由 App 自己的 SDL/OpenGL 渲染 —— 所以：
+
+- 不进 `dumpsys window`（不是 Window）；
+- 不是独立 SurfaceFlinger 图层（和 App 同一图层）；
+- 进程杀了、输入法杀了都不消失（已经画进帧缓冲）；
+- 会跟着页面滚动（是窗口坐标系里的 widget）。
+
+而 Kivy 侧根本不需要它：这个输入框的文字编辑全部交给 `inline_input.py` 的原生
+EditText 覆盖层，Kivy 的 TextInput 只是个"长得像输入框"的占位。
+
+### 20.4 复现路径（精确）
+
+1. 点输入框 → 弹出原生覆盖层；
+2. 输入任意内容（**必须先有内容**）；
+3. 点空白处收起；
+4. **再点一次输入框**（此时框里有字）→ 水滴出现；
+5. 再收起 → 水滴留在屏幕上，切页、切后台都不走。
+
+只"点开→收起"不输入**不会**出现（`_show_handles` 里有 `not self.text` 的短路）。
+
+### 20.5 修复（一行）
+
+```python
+# apk/app_ui.py  class RoundInput
+from kivy.properties import BooleanProperty
+
+class RoundInput(TextInput):
+    # 关掉 Kivy 自带的光标手柄；编辑全部走原生覆盖层，Kivy 侧不需要它
+    use_handles = BooleanProperty(False)
+```
+
+只关 `use_handles`，**不动 `use_bubble`**：`use_handles` 在桌面端本来就是
+`not _is_desktop` = False，所以桌面端行为完全不变；触屏端只是不再画水滴。
+
+### 20.6 为什么这次没有副作用
+
+v43 之所以把退格改坏，是因为它在**原生覆盖层**上动了 `setInputType(TYPE_NULL)` 和
+失焦，破坏了 InputConnection。v46 改的是 **Kivy 那个不参与输入的 TextInput 的
+一个绘制开关**，与输入法会话没有任何关系。
+
+### 20.7 验证（v46，真实热更链路）
+
+删掉 `files/live` 模拟老用户升级，启动后日志：
+
+```
+[launcher] TLS 校验已开启（CA: cacert.pem）
+[launcher] 发现新版本 v46，开始下载
+[launcher] 已切换到 v46
+[launcher] 加载更新包：/data/user/0/com.fzjh.fzjhlookup/files/live
+```
+
+| 用例 | 结果 |
+|---|---|
+| 输入 246813 → 收起 → 重开 → 收起（原复现路径） | 无水滴 |
+| 连续 3 轮「点开→输入→收起」 | 无水滴 |
+| 退格 ×2：246813 → 2468 | 正常 |
+| 完整查询 → 结果页（观云者 / 2559 级 / 第 3 名） | 正常 |
+| 结果页按返回 → 查询页 | 正常 |
+| 缓存命中标记「· 缓存」 | 正常 |
+| 打开/关闭内嵌高手榜 WebView | 正常 |
+| `logcat` | 无 `Traceback` / `NotImplementedError` |
+
+### 20.8 验证方法上的一个坑
+
+MuMu 会**画面冻结**：连续三次 `screencap` 得到的 PNG 哈希完全相同，连状态栏时钟
+都不走。这时截图会骗人（看起来"什么都没发生"）。判定 UI 状态一律以
+`uiautomator dump` 读到的控件树为准，截图只用于看像素级残留。
+
+另外本次写了个按颜色找水滴的检测脚本
+（`E:/workbuddy2/_agent_tmp/detect.py`，浅蓝色 `R 100-160 / G 180-220 / B 210-245`
+且 `B > R+60`），比人眼看截图可靠，回归时逐张跑。
+

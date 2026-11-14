@@ -2,7 +2,7 @@
 
 > 项目：`E:/workbuddy2/fzjh-rank`　仓库：`fzpaihang/lanlandeku`
 > 应用名：**霜霜妙妙屋**（`package.domain = com.fzjh`，`package.name = fzjhlookup`）
-> 最后校准：2026-11-14　线上热更：**v45**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
+> 最后校准：2026-11-14　线上热更：**v46**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
 > 本文汇总的是「改这个 APK 实际会用到的全部操作」；逐次改动的背景与推理见 `docs/UI优化-实施记录.md`。
 
 ---
@@ -10,6 +10,10 @@
 ## 0. 三十秒速查
 
 **日常改界面 / 逻辑（热更）**
+
+> 环境提示：本机是 PowerShell，没有 Git Bash。命令请改写成等价的
+> PowerShell / Python 写法；**提交一律走 §9.1 的 GitHub API**，不执行
+> `git add/commit/push`（本地 git 与远端长期分叉）。
 
 ```bash
 cd /e/workbuddy2/fzjh-rank
@@ -450,29 +454,64 @@ cd E:/workbuddy2/_agent_tmp
 | **v42** | 点框自身不收（`_INLINE_OWNER`）、`setCursorVisible(False)` | **能正常删除，仅有光标残影** |
 | v43 | 收起时 Kivy 输入框失焦 + `setInputType(TYPE_NULL)` + 强制重绘 | 残影没了，**退格失效** |
 | v44 | 改系统 AlertDialog 主路径 | **更难用**：弹窗里能删，确定/点外面后主界面仍旧值 |
-| **v45** | **整体回退到 v42** | 删除与查询恢复正常，残影回来 |
+| v45 | **整体回退到 v42** | 删除与查询恢复正常，残影回来 |
+| **v46** | **`RoundInput.use_handles=False`** | **残影彻底消失，其余功能全部正常** |
+
+### 8.1.1 先看结论（v46 已解决）
+
+水滴**不是** Android 的 `HandleView`，是 **Kivy `TextInput` 自己画的光标手柄**
+（`use_handles`，贴图 `shape-drop.png`）。它画在 App 的 GL 画布上，所以不进
+`dumpsys window`、不是独立图层、杀进程也不消失，**而且会跟着页面滚动**。
+
+修复就一行，见 §8.5。§8.2–§8.4 保留的是当时的（错误）推理过程，作历史记录看，
+不要照着做。
 
 ### 8.2 为什么会有残影（原理）
 
 - 网页/原生 App：输入框是标准 View 树里的一员，"删字 → `onTextChanged` → `Editor` 收手柄 → `invalidate` → 整棵树重绘"是**同一条事件链**。
 - 本 App：Kivy 界面是 SDL 用 OpenGL 画在 Surface 上，Android 不认识它；为了输入中文额外 `addContentView` 了一个原生 EditText。于是"删字"走 Kivy 软件层、"手柄"走 Android `Editor`，中间**没有跨层通知通路**；手柄是独立 `PopupWindow`，底层 Surface 又是独立合成层不会被强制补帧 → 上一帧像素留在屏幕上。
 
-### 8.3 当前状态（v45，用户已确认接受）
+### 8.3 当前状态（v46，已解决）
 
 - 主路径：内联原生 EditText 覆盖层（`inline_input.py`）
 - 系统对话框（`native_input.py`）保留为兜底，不做主路径
-- **已知代价**：光标手柄残影，且不局限于输入框下沿，切到结果页后仍悬在屏幕固定位置
+- **残影已消失**：`RoundInput.use_handles = BooleanProperty(False)`，Kivy 不再生成手柄
 - 判断原则：**能用 > 好看**。发现"修 A 坏 B"且 B 更严重时直接回退，不要继续叠加补丁
 
-### 8.4 彻底解决的路线（单独排期，尚未做）
+### 8.4 曾经的"彻底解决路线"（已作废）
 
-完整实现 `InputConnection`（参考 Flutter `InputConnectionAdaptor`）：新增 Java 层 View 重写 `onCreateInputConnection`，实现 `commitText` / `deleteSurroundingText` / `setComposingText` / `setSelection`，把编辑操作转发给 Kivy、用 `updateSelection` 回报 IME。
+v45 曾判断"只能靠完整 `InputConnection` 或换渲染层"，**这个判断是错的** ——
+真凶是 Kivy 自己的 `use_handles`，一行就解决了，不需要动 Java 层、不需要重打 APK。
 
-- **必须重打 APK + 重装**（Java 层不在热更范围，需 `buildozer.spec` 加 `android.add_src`）
-- 中文输入法组合态（拼音候选、 composing text）要逐项真机联调
-- 按天算，收益仅是"输入框看起来像原生 App"，对查角色核心功能无加成
+保留此条只为提醒：定性错误会导致方案成本被严重高估。下次遇到"某个像素不消失"，
+先按 §8.5 的判定表走一遍，再下结论。
 
-结论沿用项目约定：**架构改动很久就先不动**，先保证可用性。
+### 8.5 怎么判定一个残影到底是谁画的（可复用）
+
+| 检查 | 命令 | 说明 |
+|---|---|---|
+| 是不是独立窗口 | `dumpsys window windows` 找 `PopupWindow`/`HandleView` | 有 → 可能是 IME/系统手柄 |
+| 是不是独立图层 | `dumpsys SurfaceFlinger --list` 前后对比 | 有差异 → 独立 Surface |
+| 杀 App 还留不留 | `am force-stop <pkg>` | 还留 → 已画进帧缓冲，是**旧帧**或**同层残留** |
+| 杀 IME 还留不留 | `am force-stop <ime>` | 还留 → 与输入法无关 |
+| **跟不跟着页面滚** | 滚动后再截图对比坐标 | **跟着滚 → 画在 App 自己的画布上，是 App/框架画的** |
+
+最后一条最快、最决定性。本次就是靠它翻案的。
+
+定位到"框架画的"之后，直接去查框架源码里对应的 widget 开关（Kivy 的
+`use_handles`/`use_bubble`），而不是继续在 Android 侧打补丁。
+
+### 8.6 残影回归用的检测脚本
+
+```bash
+python E:/workbuddy2/_agent_tmp/detect.py <screenshot.png>
+```
+
+按颜色找那颗浅蓝水滴（`R 100-160 / G 180-220 / B 210-245` 且 `B > R+60`），
+输出 `found` / `count` / `bbox` / `center`。比人眼看截图可靠，回归时逐张跑。
+
+⚠️ **MuMu 会画面冻结**：连续 `screencap` 可能拿到完全相同的 PNG（连状态栏时钟都不走）。
+判定 UI 状态以 `uiautomator dump` 为准，截图只用于看像素残留。
 
 ---
 
@@ -551,7 +590,7 @@ python scripts/stamp_assets.py     # 改完 assets/*.js 或 style.css 必跑
 | TLS 报错 | `[tls]` 日志；确认 `cacert.pem` 在 `live/` 或 app 目录，且是最小根证书集 |
 | 内嵌网页跳浏览器 | `logcat` 找 `JavaException`，多半是 pyjnius 类型转换 |
 | 输入框打不了字 / 退格无效 | `uiautomator dump` 看 EditText 是否存在、文本是否变化；查 `NotImplementedError`；对照 §8 |
-| 水滴/残影不消失 | 当前 v45 已知代价，见 §8.2，不要再用「失焦 + TYPE_NULL」去修 |
+| 水滴/残影不消失 | v46 已修复（`use_handles=False`）；若复现，先按 §8.5 判定是谁画的，再动代码 |
 | 武学全挤在「其他」 | `run-as cat files/live/skill_class.py \| head`，多半热更包漏文件 |
 | 查询 `errcode=-1` / 空数据 | 一个 uuid 只保留一个会话，并发互踢；等 2 分钟重试 |
 | 线上 404 | 文件是否在 `apk/update/`、是否推上 main；Pages 源是 main 根目录 |
@@ -569,6 +608,7 @@ python scripts/stamp_assets.py     # 改完 assets/*.js 或 style.css 必跑
 - 不要为了省一次构建把 `apk/**` 从 workflow 的 `paths` 里去掉。
 - 不要改回带 hash 的 CI 缓存 key。
 - **不要为了消光标手柄再做「失焦 + `setInputType(TYPE_NULL)`」**（v43 已证明会废掉退格）。
+- **不要在没做 §8.5 判定前就假设残影是 Android 的窗口**（v40–v45 因此白改了六版）。
 - 不要在修 bug 时夹带架构级改动；遇到需要重打 APK 的改造，先交付可用版本再单独排期。
 - 不要只推 `code.zip` 或只推 `version.json`。
 - 不要漏跑 `stamp_assets.py`。
