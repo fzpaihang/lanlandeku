@@ -1,8 +1,8 @@
 {
-  "version": 46,
-  "md5": "1569024a47aef85dc45529115bdd8ec0",
-  "size": 179678,
-  "notes": "修复蓝色水滴残影：Kivy TextInput.use_handles=False，不再生成光标手柄",
-  "builtAt": "2026-11-14 16:49:13",
-  "sig": "b000f9e74e96b2477f6de3f1add27ecd2d3ca96e21c5f1c73055c2b62c9507afdd82bd3b510e4ddec0461042b413ae7e929dc28962554d0964b6bdc3a8390d07"
+  "version": 47,
+  "md5": "4ad3b8c27d93fe9d2b51d69daf7c6e24",
+  "size": 182585,
+  "notes": "修 8 项界面问题：滚动越界、单位字号、刷新文案、填入状态、武学升满级 1100、刀斧合并、基本功归类、未找到重复提示、30s 查询冷却",
+  "builtAt": "2026-11-14 17:54:37",
+  "sig": "a65b7202bbd2457c047d0659ef439e013122faff72521d3ebfbe6848d470fc709e6e292a545606107c34620ba3dd7331200d9cd6256f69b943b2c6c08aa0f409"
 }

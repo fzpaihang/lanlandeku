@@ -21,7 +21,7 @@ try:
 except Exception:                      # 老版本热更包里可能还没有这个模块
     CLASS_MAP = {}
     POS_ORDER = ["内功", "轻功", "拳脚", "招架", "剑法", "刀法", "棍法",
-                 "枪法", "鞭法", "斧法", "暗器", "双持", "乐器", "学识"]
+                 "枪法", "鞭法", "暗器", "双持", "乐器", "学识"]
 
 OTHER = "其他"
 ORDER = list(POS_ORDER) + [OTHER]
@@ -34,7 +34,7 @@ NAME_RULES = [
     ("棍法", ("棍", "杖")),
     ("枪法", ("枪",)),
     ("鞭法", ("鞭",)),
-    ("斧法", ("斧", "锤", "戟", "钺")),
+    ("刀法", ("斧", "锤", "戟", "钺")),   # 刀斧合并：斧类也进刀法栏
     ("暗器", ("暗器", "箭", "针", "镖")),
     ("拳脚", ("拳", "掌", "指", "爪", "抓", "腿", "脚", "手", "肘", "膝")),
     ("轻功", ("身法", "步", "轻功", "遁", "纵", "踏", "飞", "翔", "腾")),
@@ -52,7 +52,7 @@ ID_RULES = [
     ("棍法", ("staff", "club", "stick")),
     ("枪法", ("spear", "pike")),
     ("鞭法", ("whip",)),
-    ("斧法", ("axe", "hammer", "halberd")),
+    ("刀法", ("axe", "hammer", "halberd")),   # 刀斧合并
     ("暗器", ("hidden", "dart", "needle", "bow", "arrow")),
     ("拳脚", ("fist", "palm", "claw", "finger", "leg", "foot", "kick",
               "elbow", "hand", "punch")),
@@ -60,9 +60,26 @@ ID_RULES = [
 ]
 
 
+# 「基本X」这类武学在上游 skill.json 里 wxclassify 和 dsc 都是空的，
+# CLASS_MAP 里留成 ""（774 门里 12 门，全是基本功），于是全部掉进「其他」。
+# 但它们的名字本身就说明了位置，直接映射，不走关键词兜底
+# （兜底会把「基本双持」判成别的类别）。
+BASIC_POS = {
+    "基本内功": "内功", "基本轻功": "轻功", "基本拳脚": "拳脚",
+    "基本招架": "招架", "基本剑法": "剑法", "基本刀法": "刀法",
+    "基本棍法": "棍法", "基本枪法": "枪法", "基本鞭法": "鞭法",
+    "基本斧法": "斧法", "基本暗器": "暗器", "基本双持": "双持",
+    "基本乐器": "乐器", "基本学识": "学识", "基本读书": "学识",
+    "基本毒术": "学识",
+}
+
+
 def _fallback(name, sid):
     """表里没有位置信息时的关键词兜底。"""
     name = str(name or "")
+    # 基本功优先：名字就是位置，别再让关键词规则乱猜
+    if name in BASIC_POS:
+        return BASIC_POS[name]
     for cat, keys in NAME_RULES:
         if any(k in name for k in keys):
             return cat
@@ -84,6 +101,16 @@ def positions_of(skill):
     return [_fallback(skill.get("n"), sid)]
 
 
+def normalize(positions):
+    """把「刀法」「斧法」合并成一栏（用户要求：刀斧不分家）。"""
+    out = []
+    for p in positions:
+        p = "刀法" if p == "斧法" else p
+        if p not in out:
+            out.append(p)
+    return out
+
+
 def group(skills):
     """按位置分组：[(位置, [武学...])]，多位置的武学会出现在多个组里。
 
@@ -91,8 +118,11 @@ def group(skills):
     """
     buckets = {}
     for s in skills or []:
-        for pos in positions_of(s):
-            buckets.setdefault(pos, []).append(s)
+        # normalize 会把「斧法」并进「刀法」：用户要求刀斧合成一栏
+        for pos in normalize(positions_of(s)):
+            bucket = buckets.setdefault(pos, [])
+            if s not in bucket:          # 合并后可能撞车，同一门只留一次
+                bucket.append(s)
     out = []
     for pos in ORDER:
         items = buckets.pop(pos, None)

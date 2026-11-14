@@ -100,18 +100,27 @@ def lv_from_exp(exp):
     return int(round((exp / LV_COEF) ** (1.0 / 3.0)))
 
 
+SKILL_LV_MAX = 1100     # 游戏内武学等级上限
+
+
 def lv_of_skill(exp):
-    """武学等级 = f(技能经验)，与原工具口径一致"""
+    """武学等级 = f(技能经验)。
+
+    v46 及以前用 int() 截断，经验刚好落在两级之间时会少报一级（用户看到 1099、
+    实际应该是 1100）。改成向上取整 ceil()，并夹在 [0, SKILL_LV_MAX] 内。
+    """
     try:
         exp = float(exp)
     except (TypeError, ValueError):
         return 0
     if exp < 8:
-        return int(exp)
+        return max(0, int(exp))
     try:
-        return int(((exp - 1) / 0.015) ** (1.0 / 3.0))
+        import math
+        lv = int(math.ceil(((exp - 1) / 0.015) ** (1.0 / 3.0)))
     except Exception:
         return 0
+    return max(0, min(lv, SKILL_LV_MAX))
 
 
 def load_config():

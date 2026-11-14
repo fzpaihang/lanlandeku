@@ -1367,7 +1367,13 @@ class PlayerLookup(App):
         self.appbar.bind_right(lambda *a: self._open_web())
         self.appbar.bind_back(lambda *a: self.show_query())
 
-        sv = ScrollView(size_hint=(1, 1), do_scroll_x=False)
+        # scroll_type 只保留 ['bars'] + 关掉越界拖动：
+        # 默认 DampedScrollEffect 允许把内容拖过头顶再弹回，手机上就是
+        # 「页面已经到顶了还能继续往上滑」。改用 ScrollEffect（无阻尼/无回弹），
+        # 并且 do_scroll_* 保留默认，滚动本身不受影响。
+        from kivy.effects.scroll import ScrollEffect as _ScrollEffect
+        sv = ScrollView(size_hint=(1, 1), do_scroll_x=False,
+                        effect_cls=_ScrollEffect)
         self.body = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(12),
                               padding=(dp(16), dp(14), dp(16), dp(18)))
         self.body.bind(minimum_height=self.body.setter("height"))
@@ -1761,6 +1767,9 @@ class PlayerLookup(App):
         self.appbar.set_content(title="", sub="放置江湖 · 多平台自助查询",
                                 right="", back=False, seal=True)
         self.appbar.bind_sub(None)
+        # 结果页把右侧按钮改成了「重新查询」，回查询页要还原成高手榜入口，
+        # 否则右侧按钮空着、bind_right 仍指着 _on_refresh。
+        self.appbar.bind_right(lambda *a: self._open_web())
         self._apply_metrics()
         self.body.spacing = dp(12)
         self._set_body_card(False)
@@ -1782,13 +1791,11 @@ class PlayerLookup(App):
         self.tone_bar.height = dp(36)
         self.appbar.set_content(title=p["serverName"],
                                 sub="UID %s" % (p.get("uid") or ""),
-                                right="刷新", back=True)
-        # right_btn 是常驻控件，每次进结果页重新绑一次（先解绑，避免累积）
-        try:
-            self.appbar.right_btn.unbind(on_release=self._on_refresh)
-        except Exception:
-            pass
-        self.appbar.right_btn.bind(on_release=self._on_refresh)
+                                right="重新查询", back=True)
+        # 必须走 bind_right：它会先把查询页绑的那个 _open_web 解掉。
+        # 直接 right_btn.bind() 是在已有绑定上再叠一个，点一下会同时
+        # 触发「重新查询」和「打开高手榜」（实测点成了 WebView）。
+        self.appbar.bind_right(lambda *a: self._on_refresh())
         self.appbar.bind_sub(lambda: self.copy_uid())
         self.prep_open = False
         self.skill_open = False
@@ -2016,7 +2023,7 @@ class PlayerLookup(App):
             b.bind(width=lambda inst, v: setattr(inst, "text_size", (v, None)))
             b.bind(on_release=lambda inst, u=r.get("uid"), k=r.get("server"): self._fill(u, k))
             row.add_widget(b)
-            pill = PillButton("示例" if is_ex else "填入", width=52 if is_ex else 46)
+            pill = PillButton("填入", width=46)
             pill.bind(on_release=lambda inst, u=r.get("uid"), k=r.get("server"): self._fill(u, k))
             row.add_widget(_vcenter(pill, 48))
             card.add_widget(row)
@@ -2027,12 +2034,78 @@ class PlayerLookup(App):
     def _fill(self, uid, server_key=None):
         if uid is None:
             return
+        # 顺序：收原生覆盖层 → 等它真正收完 → 再写 text。
+        #
+        # inline_input.hide() 内部会 setText("")，TextWatcher 把 "" 回写到
+        # RoundInput.text；而 hide() 是投递到 Android 主线程异步执行的
+        # （_run_ui + Event 等待），所以「先写 text 再 hide」一定会被清空 ——
+        # 这就是「填了却显示灰色占位」的真正原因，和颜色渲染无关。
+        # 这里先把 hide 发起，下一帧再写 text，确保覆盖层已经收干净。
+        self._hide_inline()
+        Clock.schedule_once(lambda dt: self._apply_fill(uid, server_key), 0)
+        self.set_status("已填入 %s，点「查询玩家」开始" % uid, C_INK2)
+        return
+
+    def _apply_fill(self, uid, server_key=None):
+        """真正把 UID 写进输入框（延后一帧，避开 inline hide 的清空回写）。"""
+        if self.inp is None:
+            return
         self.inp.text = str(uid)
         if server_key and server_key in dict(self.servers):
             nm = self._name_of(server_key)
             if nm:
                 self.spin.text = nm
+        # 走到这里 text 已经写进去了，但 Kivy 在「从未获得过焦点」的 TextInput 上
+        # 不会把文字纹理真正提交到画布（实测：text/hint/foreground_color 全对，
+        # 屏幕上却一个深色像素都没有 —— 那不是灰字，是根本没画）。
+        #
+        # 最可靠的做法是把它当作用户点了输入框：聚焦一次。焦点变化会走完整的
+        # 纹理重建路径，同时弹出原生覆盖层，用户可以直接确认/修改。
+        try:
+            self.inp.focus = True
+        except Exception:
+            pass
+        self._force_repaint()
         self.set_status("已填入 %s，点「查询玩家」开始" % uid, C_INK2)
+
+    def _force_repaint(self):
+        """让 Kivy 重绘一次刚改过的文字。
+
+        两个约束（都是实测踩出来的）：
+          1. 不能改 sv/body 尺寸 —— ScrollView 一变尺寸就立刻重排，而这段代码在
+             on_release 里跑，会把这次触摸的后续处理打断（按钮直接没反应）；
+          2. 不能再调 INLINE.hide() —— 它会把原生框 setText("") 并回写，
+             把刚填入的 text 清空。
+        """
+        # 这里**不要**再碰 INLINE.hide()：它在 _fill 的第一步已经调用过，
+        # 而且它会把原生框 setText("")，进而把刚写进去的 text 清掉。
+        #
+        # 关键：数据层是对的（实测 text/hint/foreground_color 全对），但屏幕上
+        # 仍是旧的灰色占位 —— 说明 Kivy 没有重建这段文字的纹理。
+        # _trigger_refresh_text() 对「属性没变」的情况会被短路掉，所以这里先
+        # 把 text 置空再写回，强制走一次完整的属性变更 → 纹理重建。
+        try:
+            inp = getattr(self, "inp", None)
+            if inp is not None:
+                keep = inp.text
+                inp.text = ""
+                inp.text = keep
+                inp._trigger_refresh_text()
+        except Exception:
+            pass
+        for w in (getattr(self, "inp", None), getattr(self, "body", None),
+                  getattr(self, "sv", None)):
+            if w is None:
+                continue
+            try:
+                w.canvas.ask_update()
+            except Exception:
+                pass
+        try:
+            from kivy.core.window import Window
+            Window.canvas.ask_update()
+        except Exception:
+            pass
 
     # ---------- 昵称搜索 ----------
     def _on_query_text(self, _inst, value):
@@ -2184,7 +2257,11 @@ class PlayerLookup(App):
             elif not NI:
                 self.set_status("当前版本不支持昵称查询，请输入 UID", C_ACCENT)
             else:
-                self.set_status("没找到「%s」，试试完整昵称或直接输 UID" % raw, C_ACCENT)
+                # 输入过程中 _do_search 已经把同一句写进输入框下方的提示行（sug），
+                # 这里再往 q_status 写一次就是同一句话上下各出现一遍（v46 反馈）。
+                # 没命中时只保留 sug 那一条，这里不再重复。
+                if not (self.sug.text or "").strip():
+                    self.set_status("没找到「%s」，试试完整昵称或直接输 UID" % raw, C_ACCENT)
             return
         if len(hits) == 1:
             self._fill(hits[0]["u"], hits[0]["s"])
@@ -2223,10 +2300,39 @@ class PlayerLookup(App):
         self.body.add_widget(err, index=len(self.body.children))
         self._scroll_top()
 
+    # 两次「真正打接口」的查询之间至少隔这么久。缓存命中不消耗冷却，
+    # 只有 force/首次查询才算 —— 目的是挡住连点造成的限流（用户反馈
+    # 快速连续查询会报「网络繁忙」）。
+    QUERY_COOLDOWN = 30.0
+
+    def _cooldown_left(self):
+        """距离下次可查询还剩几秒（0 表示现在就能查）。"""
+        try:
+            last = float(getattr(self, "_last_query_at", 0) or 0)
+        except Exception:
+            last = 0
+        left = self.QUERY_COOLDOWN - (time.time() - last)
+        return left if left > 0 else 0.0
+
     def _begin(self, uid, force=False, server=None):
         if self._hidden(uid):
             self._deny()
             return
+        left = self._cooldown_left()
+        if left > 0:
+            self.set_status("操作太快了，请 %.0f 秒后再查" % (left + 0.5), C_ACCENT)
+            # 提示行自己消失，否则看起来像卡住了
+            seq = getattr(self, "_cool_seq", 0) + 1
+            self._cool_seq = seq
+
+            def _resume(_dt):
+                if seq != getattr(self, "_cool_seq", 0):
+                    return
+                if self.mode == "query" and not self.busy:
+                    self.set_status("")
+            Clock.schedule_once(_resume, left + 0.2)
+            return
+        self._last_query_at = time.time()
         self.busy = True
         self.btn.disabled = True
         self.btn.text = "查询中…"
@@ -2398,7 +2504,9 @@ class PlayerLookup(App):
             num_txt, unit = split_num(v)
             markup = num_txt
             if unit:
-                markup += "[size=11][color=%s]%s[/color][/size]" % (hex_of(C_INK2), unit)
+                # 单位原来只有 11，压在 15.5 的数字后面像蝇头小字（用户反馈太小）。
+                # 收到 15：比数字小一号，又能一眼看出量级。
+                markup += "[size=15][color=%s]%s[/color][/size]" % (hex_of(C_INK2), unit)
             cell.add_widget(lab(markup, 15.5, C_INK, height=29, markup=True, shorten=True))
             grid.add_widget(cell)
         grid.height = dp(44) * 3 + dp(6) * 2
@@ -2631,7 +2739,7 @@ class PlayerLookup(App):
         if not uid or self.busy:
             return
         self._begin(uid, force=True, server=prof.get("server"))
-        self._flash("正在刷新…")
+        self._flash("正在重新查询…")
 
     def copy_uid(self):
         uid = str((self.prof or {}).get("uid") or "")
