@@ -486,6 +486,22 @@ class Root(BoxLayout):
             if w is not None and w.collide_point(*touch.pos):
                 return super(Root, self).on_touch_down(touch)
             INLINE.hide()
+            # 只关原生框不够：Kivy 输入框仍持有焦点，系统就一直把手柄挂在它上面
+            try:
+                if w is not None:
+                    w.focus = False
+                    # Kivy 失焦后文字会掉成浅灰，看起来像占位符，补一次颜色
+                    def _recolor(dt, w=w):
+                        try:
+                            w.foreground_color = C_INK
+                            w.disabled_foreground_color = C_INK
+                            # Kivy 只在需要时重绘文本，光改属性不会立刻生效
+                            w._trigger_refresh_text()
+                        except Exception:
+                            pass
+                    Clock.schedule_once(_recolor, 0.05)
+            except Exception:
+                pass
         return super(Root, self).on_touch_down(touch)
 
 
@@ -1114,9 +1130,9 @@ class RoundInput(TextInput):
         self.disabled_foreground_color = C_INK
         if value:
             self._bind_ime()
-            # 聚焦全选：点进输入框就该能直接覆盖，否则新输入会追加到旧内容后面
-            if self.text:
-                Clock.schedule_once(lambda dt: self.select_all(), 0.05)
+            # 以前这里会「聚焦即全选」，方便直接覆盖输入。但只要有选区，Android 就会
+            # 画出选择手柄（那颗蓝/绿色水滴），而且在部分 ROM 上不自动收回。
+            # 现在改成把光标落末尾，不做选区。
         else:
             self._unbind_ime()
 
@@ -2297,6 +2313,15 @@ class PlayerLookup(App):
             return
         try:
             INLINE.hide()
+            try:
+                if _INLINE_OWNER is not None:
+                    _INLINE_OWNER.focus = False
+            except Exception:
+                pass
+            # 原生浮标消失后要让 Kivy 也重绘一帧，否则那块区域会留残影
+            from kivy.core.window import Window as _W
+            _W.canvas.ask_update()
+            Clock.schedule_once(lambda dt: _W.canvas.ask_update(), 0.15)
         except Exception:
             pass
 
