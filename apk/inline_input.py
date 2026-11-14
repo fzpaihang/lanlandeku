@@ -254,9 +254,11 @@ def show(rect, text="", on_text=None, on_done=None, style=None):
 
         root.setVisibility(0)                # VISIBLE
         try:
-            # 光标不可见时，输入法不会画「光标手柄」（那颗蓝色小水滴）；
-            # 打字/删除行为不受影响，只是看不到插入点。
-            edit.setCursorVisible(True)
+            # 光标不可见 → 系统不生成「光标手柄」（那颗蓝/绿色小水滴）。
+            # 点已有文字的框时，系统会顺手弹一个插入点手柄，正常 3 秒自动收；
+            # 但部分 ROM/输入法组合下它不收回，只有把字全删才消失。
+            # 打字、删除、点击定位都不受影响，只是看不到那根竖线。
+            edit.setCursorVisible(False)
         except Exception:
             pass
         edit.requestFocus()

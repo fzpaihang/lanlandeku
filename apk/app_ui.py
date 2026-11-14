@@ -136,6 +136,11 @@ _BACK_KEYS = (27, 1073742094)
 # - NotoSansCJKsc-Regular.ttf 只有部分 ROM 有；DroidSansFallback 在 Android 9 后已移除。
 # 三条全落空时 FONT 会退回 Roboto（不含中文）→ 全屏豆腐块。MuMu 是 AOSP，一定有
 # 第一个文件，所以这个故障在模拟器上永远复现不出来。
+# 当前正在用原生覆盖框的 Kivy 控件。Root 靠它区分「点在输入框上」和
+# 「点在别处」——前者不能收框，否则一收一弹会留下输入法的光标手柄。
+_INLINE_OWNER = None
+
+
 def _asset(rel):
     """定位随包分发的图片/资源：__file__ 目录（热更时是 live/）→ ANDROID_APP_PATH → sys.path。"""
     cands = [os.path.dirname(os.path.abspath(__file__))]
@@ -472,7 +477,14 @@ class Root(BoxLayout):
     def on_touch_down(self, touch):
         # 原生输入框只盖住输入框那一小块，点别处时 Kivy 会收到触摸 →
         # 这时把原生框收掉，否则它会一直浮在页面上面（还会盖住分区下拉）。
+        #
+        # 但**点在输入框自己身上不能收**：原来无脑 hide，会导致
+        # 「点一下 → 收掉 → Kivy 重新聚焦 → 再弹出来」，这一收一弹之间
+        # 输入法的光标手柄（蓝色水滴）就留在屏幕上不走了。
         if INLINE is not None and INLINE.showing():
+            w = _INLINE_OWNER
+            if w is not None and w.collide_point(*touch.pos):
+                return super(Root, self).on_touch_down(touch)
             INLINE.hide()
         return super(Root, self).on_touch_down(touch)
 
@@ -942,6 +954,8 @@ class RoundInput(TextInput):
                              on_text=self._from_inline, on_done=self._inline_done,
                              style=self._inline_style())
             if ok:
+                global _INLINE_OWNER
+                _INLINE_OWNER = self      # 供 Root 判断“这次点击是不是点在框身上”
                 self._ime_on = True
                 self._inline = True
             return ok

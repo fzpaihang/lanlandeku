@@ -1,8 +1,8 @@
 {
-  "version": 41,
-  "md5": "b6b68536620dce2695ccc7153cabaddb",
-  "size": 178624,
-  "notes": "修 TextWatcher 的 beforeTextChanged 签名（少一个 int 参数，一直抛 NotImplementedError），这是蓝色水滴一直挂着的根因",
-  "builtAt": "2026-11-14 14:22:22",
-  "sig": "4f7d42766d1b334fa31f887bb4b7ee27bc00508172a361cac21a9733d52461491579845dbb388e2d0676fb0109ff4bc3617084c88ce8143fcb878c47bd964505"
+  "version": 42,
+  "md5": "75fe924e069b26d92f7427a4818da5bb",
+  "size": 179079,
+  "notes": "点输入框不再先收起再弹出（消除手柄残留）；光标改为不可见，彻底不产生系统光标手柄",
+  "builtAt": "2026-11-14 14:33:25",
+  "sig": "706c78b40e055911534f17047240209e7f751bb059ba57500bd7ffc997de4951df5a5558e5444e727600f37d9257b3c2d47c4355c46123a0f9c758454ba6d505"
 }
