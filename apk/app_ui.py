@@ -1881,6 +1881,15 @@ class PlayerLookup(App):
     # ---------- 分区 ----------
     @staticmethod
     def _servers():
+        """返回 [(key, name)]。
+
+        顺序：本地 config.json（含凭据，最权威）→ 远端分区清单 index.json
+        → 内置兜底。
+
+        为什么要读远端 index.json：新增分区时**凭据只在 CI Secret 里**，
+        APK 内置的 config.json 拿不到新分区；而 data/servers/index.json
+        是网页和 APK 共用的一份清单，随热更/站点更新，放新分区不用重打 APK。
+        """
         try:
             cfg = L.load_config()
             out = [(str(s["key"]), str(s["name"]))
@@ -1889,9 +1898,19 @@ class PlayerLookup(App):
                 return out
         except Exception:
             pass
+        try:
+            from kivy.network.urlrequest import UrlRequest  # noqa: F401
+        except Exception:
+            pass
+        try:
+            remote = L.remote_servers()
+            if remote:
+                return remote
+        except Exception:
+            pass
         return [("taptap", "苍松迎客"), ("taptap_2", "白鹤亮翅"),
                 ("taptap_3", "丹凤朝阳"), ("taptap_4", "墨羽惊鸿"),
-                ("4399", "4399")]
+                ("4399", "4399"), ("yyh", "应用汇")]
 
     def _picked_key(self):
         try:

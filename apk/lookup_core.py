@@ -133,6 +133,40 @@ def load_config():
     raise RuntimeError("找不到 config.json（含五区凭据）")
 
 
+SERVERS_INDEX_URL = "https://fzpaihang.github.io/lanlandeku/data/servers/index.json"
+SERVERS_MIRROR = "https://cdn.jsdelivr.net/gh/fzpaihang/lanlandeku@main/data/servers/index.json"
+_SRV_CACHE = {"ts": 0, "rows": []}
+SRV_CACHE_TTL = 6 * 3600      # 6 小时内不重复下载
+
+
+def remote_servers():
+    """远端分区清单 [(key, name)]；失败返回 []。
+
+    用于「新增分区不必重打 APK」：凭据在 CI Secret 里，APK 内置的
+    config.json 永远拿不到新分区，但 data/servers/index.json 会随站点更新。
+    """
+    import time
+    now = time.time()
+    if _SRV_CACHE["rows"] and now - _SRV_CACHE["ts"] < SRV_CACHE_TTL:
+        return list(_SRV_CACHE["rows"])
+    ctx = getattr(F, "ctx", None)
+    for url in (SERVERS_INDEX_URL, SERVERS_MIRROR):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "fzjh-lookup"})
+            with urllib.request.urlopen(req, timeout=15, context=ctx) as r:
+                d = json.loads(r.read().decode("utf-8"))
+            rows = [(str(s["key"]), str(s["name"]))
+                    for s in (d.get("servers") or []) if s.get("key")]
+            # 远端清单不含凭据，但要保证本地有凭据的分区排在前面（默认区正确）
+            if rows:
+                _SRV_CACHE["rows"] = rows
+                _SRV_CACHE["ts"] = now
+                return list(rows)
+        except Exception:
+            continue
+    return list(_SRV_CACHE["rows"])
+
+
 _NAMES = None
 
 
@@ -221,11 +255,12 @@ UID_PREFIX_SERVER = (
     ("21", "taptap_3"),   # 丹凤朝阳
     ("22", "taptap_4"),   # 墨羽惊鸿
     ("4", "4399"),
+    ("6", "yyh"),         # 应用汇
 )
 
 # 本项目未收录、但已知归属的前缀（留档，将来补分区时直接用）
 UID_PREFIX_FUTURE = {
-    "5": "当乐", "6": "应用汇", "7": "啪啪游戏厅", "9": "其他",
+    "5": "当乐", "7": "啪啪游戏厅", "9": "其他",
     "10": "华为", "11": "oppo", "12": "vivo", "13": "应用宝",
     "14": "小七", "20": "小米",
 }

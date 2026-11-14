@@ -1,8 +1,8 @@
 {
-  "version": 53,
-  "md5": "6f7863901241a7cfc3cbb18428e23bde",
-  "size": 188172,
-  "notes": "自动识别分区：按 UID 前缀规则直接定位，只请求 1 次（原来要试 2-3 个区）",
-  "builtAt": "2026-11-14 23:47:45",
-  "sig": "34857d573212269c867e597f472e0afe281de39e504a3bdd0d4d896d6878326b7290c54d17511b0bb452d84b2a5e8a267f1883ed12fd16d68e0ffb2d0261080f"
+  "version": 54,
+  "md5": "c3b04226abfc7a9db3676ae95fdff629",
+  "size": 188962,
+  "notes": "新增应用汇分区：UID 6 开头自动识别；分区清单改读远端 index.json，以后加区不必重打 APK",
+  "builtAt": "2026-11-15 00:10:51",
+  "sig": "9874b492f3085969a1db0d7c81c8cee37f375a16fc1a612d780fc19cbd4e2cb73ea9efeda5ce6aa6661dd1597810cd7459940b7c89ec3f57d7a1312855be1e0f"
 }
