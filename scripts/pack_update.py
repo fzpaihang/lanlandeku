@@ -31,6 +31,7 @@ FILES = [
     "skill_groups.py",
     "skill_class.py",
     "native_input.py",
+    "inline_input.py",
 ]
 
 

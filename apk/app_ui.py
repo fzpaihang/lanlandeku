@@ -66,6 +66,10 @@ try:
     import native_input as NATIVE      # 安卓原生输入框，绕开 Kivy 软键盘
 except Exception:
     NATIVE = None
+try:
+    import inline_input as INLINE      # 盖在输入框上的原生 EditText（正常键盘）
+except Exception:
+    INLINE = None
 
 
 # ---------- 屏幕适配 ----------
@@ -254,6 +258,7 @@ C_MUTED = (0.545, 0.498, 0.455, 1)       # #8B7F74 弱文字 / 标签
 # 顶栏压到浅一档的绛棕当框架，按钮提亮成朱砂当行动点，强调文字单独留深色。
 C_BAR = (0.549, 0.290, 0.243, 1)         # #8C4A3E 原顶栏底色（v24 起顶栏改浅底，保留备用）
 C_SEAL = (0.482, 0.176, 0.149, 1)        # #7B2D26 「江湖」印章底色
+C_TONE = (0.706, 0.353, 0.243, 1)        # #B45A3E 结果页顶部装饰条（比印章浅一档）
 C_BTN = (0.761, 0.353, 0.227, 1)         # #C25A3A 主按钮
 C_BTN_DK = (0.678, 0.290, 0.180, 1)      # #AD4A2E 按钮按下
 C_ACCENT = (0.659, 0.282, 0.173, 1)      # #A8482C 强调文字 / 聚焦描边
@@ -423,13 +428,20 @@ class Root(BoxLayout):
         super(Root, self).__init__(**kw)
         from kivy.graphics import Color, Rectangle
         with self.canvas.before:
-            Color(*C_BG)
+            self._bgc = Color(*C_BG)
             self._bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._sync, size=self._sync)
 
     def _sync(self, *a):
         self._bg.pos = self.pos
         self._bg.size = self.size
+
+    def on_touch_down(self, touch):
+        # 原生输入框只盖住输入框那一小块，点别处时 Kivy 会收到触摸 →
+        # 这时把原生框收掉，否则它会一直浮在页面上面（还会盖住分区下拉）。
+        if INLINE is not None and INLINE.showing():
+            INLINE.hide()
+        return super(Root, self).on_touch_down(touch)
 
 
 class HLine(BoxLayout):
@@ -503,6 +515,28 @@ def gap(h=8):
     return Widget(size_hint_y=None, height=dp(h))
 
 
+class ToneBar(BoxLayout):
+    """结果页顶部的朱砂色装饰条（纯色块，不含文字）。
+
+    分区名和 UID 放在它下面、页面米色底上：红块只做「这一页是档案」的色标，
+    文字仍然用深色压在最容易读的底色上。
+    """
+
+    def __init__(self, **kw):
+        kw.setdefault("size_hint_y", None)
+        kw.setdefault("height", 0)
+        super(ToneBar, self).__init__(orientation="vertical", **kw)
+        from kivy.graphics import Color, Rectangle
+        with self.canvas.before:
+            self._c = Color(*C_TONE)
+            self._r = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self._sync, size=self._sync)
+
+    def _sync(self, *a):
+        self._r.pos = self.pos
+        self._r.size = self.size
+
+
 class AppBar(BoxLayout):
     """浅米底顶栏 + 红印章，复刻网页高手榜的头部。
 
@@ -519,8 +553,9 @@ class AppBar(BoxLayout):
         from kivy.graphics import Color, Rectangle
         # 顶栏和页面同色，且不画分隔线：那条 1px 横线在手机上很抢眼，
         # 像给页面横切了一刀。头部靠印章和字号自己立住，不靠线。
+        # Color 必须存下来：结果页要把这块底色切成朱砂红。
         with self.canvas.before:
-            Color(*C_BG)
+            self._bgc = Color(*C_BG)
             self._bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._sync, size=self._sync)
 
@@ -585,7 +620,27 @@ class AppBar(BoxLayout):
         self._seal_bg.pos = self.seal.pos
         self._seal_bg.size = self.seal.size
 
-    def set_content(self, title="", sub="", right="", back=False, seal=False):
+    def _set_tone(self, dark):
+        """结果页顶栏换成朱砂红底 + 白字（查询页保持米色，只有印章是红的）。
+
+        红色块和下面米色卡片形成明确的分层，也把分区名从正文里「提」出来。
+        """
+        if dark:
+            self._bgc.rgba = C_SEAL
+            self.title_lab.color = (1, 1, 1, 1)
+            self.sub_lab.color = (1, 1, 1, 0.72)
+            self.back.color = (1, 1, 1, 1)
+            self.right_btn.color = (1, 1, 1, 1)
+        else:
+            self._bgc.rgba = C_BG
+            self.title_lab.color = C_INK
+            self.sub_lab.color = C_INK2
+            self.back.color = C_INK
+            self.right_btn.color = C_ACCENT
+
+    def set_content(self, title="", sub="", right="", back=False, seal=False,
+                    dark=False):
+        self._set_tone(dark)
         self.title_lab.text = title or ""
         self.sub_lab.text = sub or ""
         if seal:
@@ -593,8 +648,8 @@ class AppBar(BoxLayout):
             self.seal.size = (dp(44), dp(44))
             self.seal.opacity = 1
             self.title_lab.height = dp(0)
-            self.sub_lab.font_size = sp(13)
-            self.sub_lab.color = C_INK2
+            self.sub_lab.font_size = sp(14)
+            self.sub_lab.color = C_INK          # 原来是 C_INK2，真机上偏灰，加深
             self.sub_lab.height = dp(24)
             self.col.padding = (0, dp(17), 0, dp(17))
         else:
@@ -710,6 +765,7 @@ class RoundInput(TextInput):
         self.use_native = use_native
         self._native_ok = None
         self._ime_on = False
+        self._inline = False
         from kivy.graphics import Color, RoundedRectangle, Line
         self._r = dp(radius)
         with self.canvas.before:
@@ -739,20 +795,20 @@ class RoundInput(TextInput):
         return bool(self._native_ok)
 
     def _bind_ime(self):
-        """把 SDL 的文本事件接到这个控件上。
+        """聚焦时接管输入。
 
-        真机结论（一加 Ace 6T / Android 17 / 搜狗）：
-        - Kivy 2.3 的 TextInput 在 keyboard_mode='system' 下聚焦时既不走
-          _bind_keyboard()，也不会把 Window.on_textinput 转给控件
-          （WindowBase.request_keyboard 里那段绑定被 allow_vkeyboard=False 跳过），
-          所以键盘弹得出来、字却一个都进不来；
-        - 而 Kivy 自己那套 request_keyboard 又会被 0.2 秒一次的
-          is_keyboard_shown() 轮询把键盘收走（表现为「闪一下就没了」）。
+        优先走「原生 EditText 内联覆盖」（inline_input.py）：它是真正的文本控件，
+        输入法给的是普通拼音键盘，长按菜单也是系统那套（可跟随 App locale 显示中文）。
 
-        因此这里完全不用 Kivy 的键盘管理：直接 SDL_StartTextInput 弹键盘，
-        文字/退格由 Window 的 on_textinput / on_key_down 自己接。
+        为什么不用 SDL 自带的目标：那个 DummyEdit 是 View 子类，inputType 写死在
+        Java 的 onCreateInputConnection 里（老版 SDL 给的是 VISIBLE_PASSWORD=0x91），
+        输入法会当密码框切成安全键盘，Python 侧改不了。
+
+        inline 不可用时退回 SDL_StartTextInput（安全键盘，但至少能输数字）。
         """
         if not self._android():
+            return
+        if self._show_inline():
             return
         try:
             from kivy.core.window import Window
@@ -763,8 +819,42 @@ class RoundInput(TextInput):
         self._ime_on = True
         _sdl_start_text_input()
 
+    def _show_inline(self):
+        """把自己的位置换算成安卓像素，盖一个 EditText 上去。"""
+        if INLINE is None or not INLINE.available():
+            return False
+        try:
+            from kivy.core.window import Window
+            wx, wy = self.to_window(self.x, self.y)
+            top = Window.height - (wy + self.height)
+            ok = INLINE.show((wx, top, self.width, self.height), self.text,
+                             on_text=self._from_inline, on_done=self._inline_done)
+            if ok:
+                self._ime_on = True
+                self._inline = True
+            return ok
+        except Exception as e:
+            print("[input] inline failed: %r" % (e,))
+            return False
+
+    def _from_inline(self, val):
+        """原生框里的文字回写到 Kivy 控件（不回调回去，避免来回打架）。"""
+        self.text = val
+
+    def _inline_done(self):
+        """IME 上点「完成」：当成回车处理（查 UID 时直接发起查询）。"""
+        self.dispatch("on_text_validate")
+
     def _unbind_ime(self):
         if not self._android():
+            return
+        if self._inline:
+            self._inline = False
+            try:
+                if INLINE is not None:
+                    INLINE.hide()
+            except Exception:
+                pass
             return
         try:
             from kivy.core.window import Window
@@ -1089,6 +1179,7 @@ class PlayerLookup(App):
 
         root = Root(orientation="vertical", padding=0, spacing=0)
         # 全站统一顶栏：查询页 / 结果页只换内容，不换壳
+        self.tone_bar = ToneBar()
         self.appbar = AppBar()
         self.appbar.bind_right(lambda *a: self._open_web())
         self.appbar.bind_back(lambda *a: self.show_query())
@@ -1103,6 +1194,7 @@ class PlayerLookup(App):
         # 内容从下面穿过去。放进 ScrollView 后它就是页面自己的头部，随内容一起走。
         self.inner = BoxLayout(orientation="vertical", size_hint_y=None, spacing=0)
         self.inner.bind(minimum_height=self.inner.setter("height"))
+        self.inner.add_widget(self.tone_bar)     # 先加 = 视觉最上面（vertical 逆序铺）
         self.inner.add_widget(self.appbar)
         self.inner.add_widget(self.body)
         sv.add_widget(self.inner)
@@ -1445,10 +1537,12 @@ class PlayerLookup(App):
     def show_query(self):
         self.mode = "query"
         self.prof = None
+        self._hide_inline()
         self._drop_flash()
         self._drop_popup()
         self._set_foot(False)
         # 顶部不放「高手榜」：页面底部已经有入口卡，一个动作不占两个位置
+        self.tone_bar.height = 0
         self.appbar.set_content(title="", sub="放置江湖 · 多平台自助查询",
                                 right="", back=False, seal=True)
         self.appbar.bind_sub(None)
@@ -1465,10 +1559,12 @@ class PlayerLookup(App):
     def show_result(self, p):
         self.mode = "result"
         self.prof = p
+        self._hide_inline()
         self._drop_flash()
         self._drop_popup()
         # 顶栏不再放「修改」：左边的 ‹ 就是回查询页，同一个动作不占两个位置，
         # 少一个按钮也把标题行的空间让给分区名。
+        self.tone_bar.height = dp(36)
         self.appbar.set_content(title=p["serverName"],
                                 sub="UID %s" % (p.get("uid") or ""),
                                 right="", back=True)
@@ -1892,6 +1988,15 @@ class PlayerLookup(App):
         # 逆序铺的：children 末尾才是视觉第一行。所以置顶要显式插到末尾。
         self.body.add_widget(err, index=len(self.body.children))
         self._scroll_top()
+
+    def _hide_inline(self):
+        """切页时收掉盖在上面的原生输入框。"""
+        if INLINE is None:
+            return
+        try:
+            INLINE.hide()
+        except Exception:
+            pass
 
     def set_status(self, text, color=C_MUTED):
         self.q_status.text = text or ""
