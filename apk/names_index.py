@@ -28,6 +28,7 @@ CACHE = os.path.join(DATA_DIR, "lookup-index.json")
 CHECK_GAP = 6 * 3600        # 两次联网检查的最小间隔
 TIMEOUT = 20
 SCAN_CAP = 600              # 单次搜索最多收集这么多命中，避免超大结果集
+MAX_LOCAL = 500             # 本地补录保留条数（用户查过的角色）
 
 _CTX = ssl.create_default_context()
 _CTX.check_hostname = False
@@ -40,14 +41,18 @@ _state = "idle"             # idle | loading | ready | empty
 _source = ""                # cache | net | ""
 _started = False
 
+# 本地补录：用户查过的角色，即使不在榜单/普查名单里，也应该能按昵称再搜到。
+# 存在 ANDROID_PRIVATE/local-names.json，与远端索引合并后参与 search()。
+LOCAL = os.path.join(DATA_DIR, "local-names.json")
+_local = []                 # [(uid, name, server_key, server_name, lv)]
+
 
 def state():
     return _state
 
 
 def count():
-    with _lock:
-        return len(_players)
+    return len(_all_rows())
 
 
 def _fetch(url):
@@ -107,6 +112,84 @@ def _parse(raw):
     return out
 
 
+def _read_local():
+    """读本地补录（用户查过的角色）。失败就当作空。"""
+    try:
+        with io.open(LOCAL, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception:
+        return []
+    out = []
+    for p in d.get("players") or []:
+        try:
+            uid = int(p.get("u"))
+        except (TypeError, ValueError):
+            continue
+        name = str(p.get("n") or "").strip()
+        if not name:
+            continue
+        out.append((uid, name, str(p.get("s") or "taptap"),
+                    str(p.get("sn") or ""), p.get("lv")))
+    return out
+
+
+def _write_local(rows):
+    """原子写回本地补录。最多留 MAX_LOCAL 条（新的在前）。"""
+    tmp = LOCAL + ".tmp"
+    try:
+        items = [{"u": u, "n": n, "s": k, "sn": sn, "lv": lv}
+                 for (u, n, k, sn, lv) in rows[:MAX_LOCAL]]
+        with io.open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps({"players": items}, ensure_ascii=False,
+                               separators=(",", ":")))
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+        os.replace(tmp, LOCAL)
+    except Exception:
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
+
+
+def remember(uid, name, server_key="", server_name="", lv=None):
+    """查询成功后调用：把这个角色记进本地补录，下次能按昵称搜到。
+
+    这是「查完 UID 之后应该能按昵称搜回来」这个需求的落地点。
+    远端索引只覆盖榜单 + 苍松 5 转普查，散人查过也不会进去，
+    所以必须在本机留一份，并且立刻参与 search()。
+    """
+    global _local
+    try:
+        uid = int(uid)
+    except (TypeError, ValueError):
+        return False
+    name = str(name or "").strip()
+    if not name:
+        return False
+    with _lock:
+        rows = [r for r in _local if r[0] != uid]
+        rows.insert(0, (uid, name, str(server_key or "taptap"),
+                        str(server_name or ""), lv))
+        _local = rows
+        _write_local(rows)
+    return True
+
+
+def _all_rows():
+    """远端索引 ∪ 本地补录；同一 uid 以本地为准（昵称可能改过）。"""
+    with _lock:
+        local = list(_local)
+        snap = list(_players)
+    if not local:
+        return snap
+    overridden = set(r[0] for r in local)
+    return local + [r for r in snap if r[0] not in overridden]
+
+
 def _read_cache():
     """读缓存时同步恢复隐藏名单——离线也不能让隐藏玩家被搜出来。"""
     global _hidden
@@ -142,6 +225,11 @@ def _write_cache(raw):
 def _load_blocking():
     """先吃本地缓存让功能立刻可用，再视情况联网刷新。"""
     global _players, _state, _source, _hidden
+
+    global_local = _read_local()
+    if global_local:
+        with _lock:
+            _local[:] = global_local
 
     rows, mtime = _read_cache()
     if rows:
@@ -210,8 +298,8 @@ def search(text, limit=8):
     q = str(text or "").strip().lower()
     if not q:
         return []
+    snap = _all_rows()
     with _lock:
-        snap = _players
         blocked = set(_hidden)
     if not snap:
         return []
@@ -248,8 +336,7 @@ def get(uid):
     key = str(uid or "").strip()
     if not key.isdigit() or is_hidden(key):
         return None
-    with _lock:
-        for u, n, k, sn, lv in _players:
-            if str(u) == key:
-                return {"u": u, "n": n, "s": k, "sn": sn, "lv": lv}
+    for u, n, k, sn, lv in _all_rows():
+        if str(u) == key:
+            return {"u": u, "n": n, "s": k, "sn": sn, "lv": lv}
     return None

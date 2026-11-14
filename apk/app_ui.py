@@ -2388,6 +2388,16 @@ class PlayerLookup(App):
                 self._fail("该分区未找到，试试「自动探测」", "确认分区选对了吗？")
             return
         L.add_recent(prof)
+        # 查过的角色立刻进本地昵称索引：远端索引只覆盖榜单 + 苍松 5 转普查，
+        # 散人（比如墨羽惊鸿的 22039038872「魔法困」）查完不会进远端索引，
+        # 不在这里记一笔，用户下次输昵称就会「没找到」。
+        try:
+            if NI:
+                NI.remember(prof.get("uid"), prof.get("name"),
+                            prof.get("server"), prof.get("serverName"),
+                            prof.get("lv"))
+        except Exception:
+            pass
         # 缓存命中：告诉用户这是旧结果，并且下次同一 UID 再查会绕过缓存
         cached = bool(prof.get("_cached"))
         self._cached_uid = prof.get("uid") if cached else None
