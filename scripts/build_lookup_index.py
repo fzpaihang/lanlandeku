@@ -44,6 +44,21 @@ def load_zhuan5():
         return []
 
 
+def load_extra_names():
+    """APK 查过的角色（data/extra-names.json）。
+
+    这是**全局共享**的关键一环：任何用户查一次没收录的角色，APK 会把它
+    POST 进 extra-names.json；这里把它并进 lookup-index.json，
+    其他所有用户下次就都能按昵称搜到。没人被收录过，就永远是搜不到。
+    """
+    p = os.path.join(DATA, "extra-names.json")
+    try:
+        with io.open(p, encoding="utf-8") as f:
+            return json.load(f).get("items") or []
+    except Exception:
+        return []
+
+
 def load_hidden():
     """返回 (uid 黑名单, [[uid, server], ...])。
 
@@ -111,6 +126,32 @@ def main():
                 "r": r.get("rank"),
             })
 
+    # 合并 APK 查过的角色：全局共享，别人查过的我也能搜到
+    extra_added = 0
+    for it in load_extra_names():
+        if not isinstance(it, dict):
+            continue
+        uid = it.get("u")
+        name = str(it.get("n") or "").strip()
+        if uid is None or not name or str(uid) in hidden:
+            continue
+        key = str(it.get("s") or "taptap")
+        k = (str(uid), key)
+        if k in seen:
+            # 榜单里已有：昵称以榜单为准（榜单是最新抓的），只补等级
+            continue
+        seen.add(k)
+        extra_added += 1
+        players.append({
+            "u": int(uid),
+            "n": name,
+            "s": key,
+            "sn": it.get("sn") or key,
+            "lv": it.get("lv"),
+            "m": "",
+            "r": None,
+        })
+
     # 按等级降序，前端同名多区时优先展示强的
     players.sort(key=lambda x: (-(x.get("lv") or 0), x["n"]))
 
@@ -151,8 +192,8 @@ def main():
     os.replace(tmp, OUT)
 
     size = os.path.getsize(OUT)
-    print("已生成 %s：%d 个分区 / %d 名玩家 / 5 转 %d 人 / %.1f KB"
-          % (OUT, boards, len(players), len(zhuan5), size / 1024.0))
+    print("已生成 %s：%d 个分区 / %d 名玩家（含查过的 %d 人）/ 5 转 %d 人 / %.1f KB"
+          % (OUT, boards, len(players), extra_added, len(zhuan5), size / 1024.0))
 
 
 if __name__ == "__main__":
