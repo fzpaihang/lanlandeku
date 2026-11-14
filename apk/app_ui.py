@@ -863,6 +863,9 @@ class RoundInput(TextInput):
         self.disabled_foreground_color = C_INK
         if value:
             self._bind_ime()
+            # 聚焦全选：点进输入框就该能直接覆盖，否则新输入会追加到旧内容后面
+            if self.text:
+                Clock.schedule_once(lambda dt: self.select_all(), 0.05)
         else:
             self._unbind_ime()
 
