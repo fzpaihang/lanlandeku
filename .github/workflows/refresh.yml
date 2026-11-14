@@ -49,9 +49,10 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    # 单区全量实测 7–8 分钟；五区一次跑（server=all）实测 29 分钟，
-    # 因此放宽到 45 分钟，避免「手动全量」卡在 30 分钟上限被中断导致数据不提交。
-    timeout-minutes: 45
+    # 单区全量实测 7–8 分钟；六区一次跑（server=all）历史最长 29 分钟（五区时），
+    # 加了应用汇后预计 32–35 分钟。提到 60 分钟留足余量，避免「手动全量」
+    # 被中断导致整批数据不提交（提交失败会留 artifact，但数据仍是白跑一次）。
+    timeout-minutes: 60
 
     steps:
       - name: 检出仓库
