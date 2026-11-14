@@ -443,8 +443,12 @@ def _vcenter(w, row_h):
 
     BoxLayout 会把子项贴底（cy = 容器底 + padding_bottom），48dp 行里塞 26dp
     胶囊就会明显偏下；外面包一层带顶部 padding 的容器即可居中。
+
+    ⚠️ 单位必须统一：row_h 传进来的是 dp 数值（如 48），而 w.height 和
+    padding 都是**像素**。原实现直接相减再填 padding，在 density=2.5 的机器上
+    gap 只有应有值的 1/2.5，胶囊就贴在偏下的位置（v47 用户反馈「填入没居中」）。
     """
-    gap = max(0, (row_h - w.height) / 2.0)
+    gap = max(0, (dp(row_h) - w.height) / 2.0)
     wrap = BoxLayout(size_hint=(None, 1), width=w.width, padding=(0, gap, 0, 0))
     wrap.add_widget(w)
     return wrap
@@ -1480,7 +1484,7 @@ class PlayerLookup(App):
         grp2.add_widget(self.sug)
         card.add_widget(grp2)
 
-        card.add_widget(gap(8))
+        card.add_widget(gap(2))
         self.btn = PrimaryButton(
             text="查询玩家", font_name=FONT, font_size=sp(16), bold=True,
             size_hint_y=None, height=dp(48),
@@ -2506,7 +2510,7 @@ class PlayerLookup(App):
             if unit:
                 # 单位原来只有 11，压在 15.5 的数字后面像蝇头小字（用户反馈太小）。
                 # 收到 15：比数字小一号，又能一眼看出量级。
-                markup += "[size=15][color=%s]%s[/color][/size]" % (hex_of(C_INK2), unit)
+                markup += "[size=17][color=%s]%s[/color][/size]" % (hex_of(C_INK2), unit)
             cell.add_widget(lab(markup, 15.5, C_INK, height=29, markup=True, shorten=True))
             grid.add_widget(cell)
         grid.height = dp(44) * 3 + dp(6) * 2
