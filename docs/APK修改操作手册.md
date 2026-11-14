@@ -2,7 +2,7 @@
 
 > 项目：`E:/workbuddy2/fzjh-rank`　仓库：`fzpaihang/lanlandeku`
 > 应用名：**霜霜妙妙屋**（`package.domain = com.fzjh`，`package.name = fzjhlookup`）
-> 最后校准：2026-11-14　线上热更：**v48**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
+> 最后校准：2026-11-14　线上热更：**v49**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
 > 本文汇总的是「改这个 APK 实际会用到的全部操作」；逐次改动的背景与推理见 `docs/UI优化-实施记录.md`。
 
 ---
