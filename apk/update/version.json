@@ -1,8 +1,8 @@
 {
-  "version": 38,
-  "md5": "100dab58a8eb0c17cadaa2d8f6c9e050",
-  "size": 219644,
-  "notes": "顶栏标识改成圆形头像（整图裁圆）",
-  "builtAt": "2026-11-14 13:13:40",
-  "sig": "81a3238690d320155b8b60678ce94438e709160e62b5d943c649d378a87361e26403aba7af30154ab5e7c4e7c4bbf32dc9a2e9004f36ca62408912c3a759e40f"
+  "version": 39,
+  "md5": "d7307557402775b4241fb08f22e4f0f7",
+  "size": 177809,
+  "notes": "顶栏头像换成新的古风角色图（仍为圆形）",
+  "builtAt": "2026-11-14 13:39:48",
+  "sig": "edcb3fff3665474cc2fef8fb0362d1069824a4b3aebe6d60082f79e9f9bd8c21a0968bd8a807bcfe0402f348f9c68846c57cfd4f2dbd7a1e384117272226a102"
 }
