@@ -189,21 +189,21 @@ def check_update_pack():
     except Exception as e:
         problems.append("读取打包清单失败：%r" % (e,))
 
-    # 热更包是否落后于源码（按 zip 内时间戳粗判，2 秒粒度）
+    # 热更包内容是否与源码逐字节一致。
+    # 不能用 mtime：git 检出 / reset 会把文件时间刷新，导致整包被误判为「源码更新」。
     try:
         with zipfile.ZipFile(zf) as z:
-            newest = max(i.date_time for i in z.infolist())
-        import time
-        newest_ts = time.mktime(newest + (0, 0, -1))
-        newer = []
-        for f in pk.FILES + pk.EXTRA:
-            fp = os.path.join(APK, f)
-            if os.path.getmtime(fp) > newest_ts + 2:
-                newer.append(f)
-        if newer:
-            problems.append("源码比热更包新，需重新打包：%s" % ", ".join(newer[:4]))
-    except Exception:
-        pass
+            names = set(z.namelist())
+            diff = []
+            for f in pk.FILES + pk.EXTRA:
+                if f not in names:
+                    diff.append(f + "（包里缺）")
+                elif z.read(f) != read(os.path.join(APK, f), "rb"):
+                    diff.append(f)
+        if diff:
+            problems.append("热更包与源码不一致，需重新打包：%s" % ", ".join(diff[:4]))
+    except Exception as e:
+        problems.append("热更包比对失败：%r" % (e,))
 
     # 本地验签（需私钥；没有私钥就跳过，不误报）
     key = os.path.join(ROOT, ".keys", "update.key")

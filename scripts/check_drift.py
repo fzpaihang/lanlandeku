@@ -99,12 +99,10 @@ BINARY_EXT = (".png", ".jpg", ".jpeg", ".ico", ".zip", ".gz", ".ttf", ".otf", ".
 
 
 def eol_rule(rel):
-    """与 .gitattributes 对齐：.bat/.cmd 用 CRLF，二进制不动，其余 LF。"""
+    """文本文件在仓库里一律是 LF（`eol=crlf` 只影响检出），二进制不动。"""
     low = rel.lower()
     if low.endswith(BINARY_EXT):
         return None
-    if low.endswith((".bat", ".cmd")):
-        return "crlf"
     return "lf"
 
 
@@ -143,10 +141,12 @@ def main():
             continue
         if rel not in remote:
             added.append((rel, size))
-        elif remote[rel][1] not in (sha, raw_sha):
+        elif remote[rel][1] == sha:
+            pass                      # 与规范化后的 blob 一致，无需发布
+        elif remote[rel][1] == raw_sha:
+            eol_only.append((rel, size))   # 内容一致但仓库里存的是 CRLF，发布会重写
+        else:
             modified.append((rel, size))
-        elif remote[rel][1] != raw_sha:
-            eol_only.append((rel, size))
     for rel in remote:
         if only and not rel.startswith(only.strip("/")):
             continue
