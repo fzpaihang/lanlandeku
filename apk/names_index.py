@@ -35,8 +35,10 @@ _CTX.check_hostname = False
 _CTX.verify_mode = ssl.CERT_NONE
 
 _lock = threading.Lock()
+_IO_LOCK = threading.Lock()      # 冷启动加载和手动刷新可能撞在一起，串行化
 _players = []               # [(uid, name, server_key, server_name, lv)]
 _hidden = set()             # 不允许查询的 uid（来自 lookup-index.json 的 hidden 字段）
+_meta = {"count": 0, "updatedTs": 0, "updatedAt": ""}   # 索引文件自身的元信息
 _state = "idle"             # idle | loading | ready | empty
 _source = ""                # cache | net | ""
 _started = False
@@ -69,6 +71,32 @@ def _parse_hidden(raw):
                    if isinstance(x, (list, tuple)) and x and x[0] is not None)
     except Exception:
         return set()
+
+
+def _parse_meta(raw):
+    """索引文件的元信息：给查询页那行状态条用（人数 / 时间戳）。
+
+    updatedTs 是 Unix 秒，界面用本机时区格式化；索引里的 updatedAt 字符串
+    在 CI（UTC）和本地（北京时间）跑出来口径不一致，不能直接拿去显示。
+    """
+    try:
+        d = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+        return {
+            "count": int(d.get("count") or 0),
+            "updatedTs": int(d.get("updatedTs") or 0),
+            "updatedAt": str(d.get("updatedAt") or ""),
+        }
+    except Exception:
+        return {"count": 0, "updatedTs": 0, "updatedAt": ""}
+
+
+def info():
+    """返回索引状态，供界面展示：(人数, 时间戳, 来源, 状态)。"""
+    with _lock:
+        return {"count": _meta.get("count", 0),
+                "updatedTs": _meta.get("updatedTs", 0),
+                "updatedAt": _meta.get("updatedAt", ""),
+                "source": _source, "state": _state}
 
 
 def _parse(raw):
@@ -192,13 +220,14 @@ def _all_rows():
 
 def _read_cache():
     """读缓存时同步恢复隐藏名单——离线也不能让隐藏玩家被搜出来。"""
-    global _hidden
+    global _hidden, _meta
     try:
         with io.open(CACHE, encoding="utf-8") as f:
             raw = f.read()
         rows = _parse(raw)
         with _lock:
             _hidden = _parse_hidden(raw)
+            _meta = _parse_meta(raw)
         return rows, os.path.getmtime(CACHE)
     except Exception:
         return [], 0
@@ -222,53 +251,66 @@ def _write_cache(raw):
             pass
 
 
-def _load_blocking():
-    """先吃本地缓存让功能立刻可用，再视情况联网刷新。"""
-    global _players, _state, _source, _hidden
+def _load_blocking(force=False):
+    """先吃本地缓存让功能立刻可用，再视情况联网刷新。
 
-    global_local = _read_local()
-    if global_local:
-        with _lock:
-            _local[:] = global_local
+    force=True 由「刷新昵称索引」按钮调用：无视 CHECK_GAP 与 _started，
+    强制联网拉一次。加新分区后不必再等 6 小时 + 一次冷启动。
+    """
+    global _players, _state, _source, _hidden, _meta
 
-    rows, mtime = _read_cache()
-    if rows:
-        with _lock:
-            _players = rows
-        _state, _source = "ready", "cache"
+    with _IO_LOCK:
+        global_local = _read_local()
+        if global_local:
+            with _lock:
+                _local[:] = global_local
 
-    if mtime and time.time() - mtime < CHECK_GAP:
-        if not rows:
-            _state = "empty"
-        return
+        rows, mtime = _read_cache()
+        if rows:
+            with _lock:
+                _players = rows
+            _state, _source = "ready", "cache"
 
-    raw = None
-    for url in URLS:
+        if not force and mtime and time.time() - mtime < CHECK_GAP:
+            if not rows:
+                _state = "empty"
+            return
+
+        raw = None
+        for url in URLS:
+            try:
+                raw = _fetch(url)
+                break
+            except Exception:
+                continue
+
+        if not raw:
+            # 手动刷新失败要能看出来：把 source 标成 failed，界面据此提示
+            _state = "ready" if rows else "empty"
+            if force:
+                _source = "failed"
+            return
+
         try:
-            raw = _fetch(url)
-            break
+            fresh = _parse(raw)
         except Exception:
-            continue
+            _state = "ready" if rows else "empty"
+            if force:
+                _source = "failed"
+            return
 
-    if not raw:
-        _state = "ready" if rows else "empty"
-        return
+        if not fresh:
+            _state = "ready" if rows else "empty"
+            if force:
+                _source = "failed"
+            return
 
-    try:
-        fresh = _parse(raw)
-    except Exception:
-        _state = "ready" if rows else "empty"
-        return
-
-    if not fresh:
-        _state = "ready" if rows else "empty"
-        return
-
-    _write_cache(raw)
-    with _lock:
-        _players = fresh
-        _hidden = _parse_hidden(raw)
-    _state, _source = "ready", "net"
+        _write_cache(raw)
+        with _lock:
+            _players = fresh
+            _hidden = _parse_hidden(raw)
+            _meta = _parse_meta(raw)
+        _state, _source = "ready", "net"
 
 
 def load_async(on_done=None):
@@ -287,6 +329,27 @@ def load_async(on_done=None):
         if on_done:
             try:
                 on_done(_state, count())
+            except Exception:
+                pass
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def refresh_async(on_done=None):
+    """手动刷新：无视 6 小时间隔强制联网拉一次，不阻塞 UI。
+
+    on_done(状态, 可搜总条数, 来源) 在**后台线程**里调用，界面层要自己
+    schedule 回主线程再更新控件。来源 "failed" 表示这次没下载成功，
+    但旧缓存仍然可用，功能不受影响。
+    """
+    def run():
+        try:
+            _load_blocking(force=True)
+        except Exception:
+            pass
+        if on_done:
+            try:
+                on_done(_state, count(), _source)
             except Exception:
                 pass
 

@@ -1559,6 +1559,7 @@ class PlayerLookup(App):
         elif st == "empty":
             if self.mode == "query":
                 self.set_status("昵称索引不可用，先按 UID 查", C_MUTED)
+        self._update_index_status()
         if self.inp.text and not self.inp.text.strip().isdigit():
             self._do_search(self.inp.text)
 
@@ -1910,6 +1911,7 @@ class PlayerLookup(App):
         self._set_body_card(False)
         self.body.clear_widgets()
         self.body.add_widget(self.form_card)
+        self.body.add_widget(self._index_card())
         self.body.add_widget(self._recent_card())
         self.body.add_widget(self._entry_card())
         self.set_status("")
@@ -2176,6 +2178,79 @@ class PlayerLookup(App):
         except Exception:
             self._show_idle()
         return True
+
+    # ---------- 昵称索引状态条（查询页） ----------
+    # 加新服之后，索引只在「冷启动 + 缓存满 6 小时」才更新，用户完全无从判断
+    # 手上这份是不是旧的。把这行信息摆出来，并给一个立即刷新的入口。
+    def _index_card(self):
+        card = Card(radius=14, pad=10, spacing=0)
+        card.bind(minimum_height=card.setter("height"))
+        row = BoxLayout(size_hint_y=None, height=dp(28), spacing=dp(8))
+        self.index_lab = lab("", 11.5, C_INK2, height=28, shorten=True)
+        self.index_lab.halign = "left"
+        self.index_lab.bind(width=lambda inst, v: setattr(inst, "text_size", (v, None)))
+        row.add_widget(self.index_lab)
+        self.index_btn = PillButton("刷新", width=52, height=26)
+        self.index_btn.bind(on_release=lambda *a: self._refresh_index())
+        row.add_widget(_vcenter(self.index_btn, 28))
+        card.add_widget(row)
+        self._update_index_status()
+        return card
+
+    def _update_index_status(self):
+        w = getattr(self, "index_lab", None)
+        if w is None:
+            return
+        try:
+            inf = NI.info() if NI else {}
+        except Exception:
+            inf = {}
+        n = int(inf.get("count") or 0)
+        ts = int(inf.get("updatedTs") or 0)
+        # updatedTs 是 Unix 秒；索引里的 updatedAt 字符串在 CI 是 UTC、
+        # 本地跑是北京时间，口径不一致，所以统一用时间戳按本机时区格式化。
+        when = time.strftime("%m-%d %H:%M", time.localtime(ts)) if ts else "未知"
+        src = inf.get("source")
+        tail = " · 本地缓存" if src == "cache" else (" · 刷新失败" if src == "failed" else "")
+        w.text = ("昵称索引 %d 人 · 更新于 %s%s" % (n, when, tail)) if n else "昵称索引未加载"
+
+    def _refresh_index(self, *a):
+        if getattr(self, "_index_busy", False):
+            return
+        self._index_busy = True
+        try:
+            self.index_btn.text = "刷新中"
+            self.index_btn.disabled = True
+        except Exception:
+            pass
+        try:
+            NI.refresh_async(lambda st, n, src: Clock.schedule_once(
+                lambda dt: self._on_index_refreshed(st, n, src)))
+        except Exception:
+            self._on_index_refreshed("ready", 0, "failed")
+
+    def _on_index_refreshed(self, st, n, src):
+        self._index_busy = False
+        try:
+            self.index_btn.text = "刷新"
+            self.index_btn.disabled = False
+        except Exception:
+            pass
+        self._update_index_status()
+        if src == "failed":
+            self.set_status("刷新失败，仍在使用本地缓存的索引", C_ACCENT)
+        else:
+            try:
+                cnt = int((NI.info() if NI else {}).get("count") or 0)
+            except Exception:
+                cnt = 0
+            self.set_status("昵称索引已更新（%d 人）" % cnt, C_INK2)
+            # 输入框里若正输着中文昵称，刷新完立刻重搜一次
+            try:
+                if self.mode == "query" and self.inp.text and not self.inp.text.strip().isdigit():
+                    self._do_search(self.inp.text)
+            except Exception:
+                pass
 
     def _recent_card(self):
         hist = L.recent_queries()
