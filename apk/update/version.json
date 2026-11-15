@@ -1,8 +1,8 @@
 {
-  "version": 66,
-  "md5": "3a65a10467be75a1f40bcc7089257aaa",
-  "size": 196821,
-  "notes": "v66：传承历程补 0 转（初代），与网页档案页口径一致",
-  "builtAt": "2026-11-15 21:58:59",
-  "sig": "1e156b4d7858ac85758010db631b96c79bccda31882a113055a3346b61eeb7a3d74a1b6e4324ca67636d34dbb829744c431a15f592f5e0ee40d8acee90125b09"
+  "version": 67,
+  "md5": "8a280f20963bf985a9861ab9735bdeda",
+  "size": 196900,
+  "notes": "v67：bump PROFILE_VER 到 3，旧档案缓存作废以显示真实 0 转初代名",
+  "builtAt": "2026-11-15 22:11:48",
+  "sig": "724abba02447b009852f83009b9fae859f6a18ce0a573542f66ae015f99298175a00da33df5934e4dcd9978483418a037f9a12bae001ffbdac9f004852c4510c"
 }

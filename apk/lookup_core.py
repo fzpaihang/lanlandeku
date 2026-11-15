@@ -695,7 +695,9 @@ def _lookup_single(uid, srv, cache, hotver, note, deadline=None):
 # ---------- 结果缓存：同一个 UID 10 分钟内直接复用 ----------
 PROFILE_TTL = 600      # 秒。游戏侧档案本身也不是秒级刷新，再短没意义
 PROFILE_MAX = 12       # 最多留 12 份；单份 profile 约 20 KB
-PROFILE_VER = 2        # 结构变了就 +1，旧缓存自动作废（防止缺字段把界面打崩）
+PROFILE_VER = 3        # 结构变了就 +1，旧缓存自动作废（防止缺字段把界面打崩）
+                       # v66：history 多存 p（parentName / 0 转初代名），
+                       # 旧缓存没有 p 会退化成占位「初代」，bump 后强制重查一次。
 
 
 def _pkey(uid, server):
