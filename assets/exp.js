@@ -256,7 +256,13 @@
       })
     ]).then(function (res) {
       var board = res[0], hist = res[1];
-      var snaps = (hist.snapshots || []).slice().sort(function (a, b) { return a.ts - b.ts; });
+      // 只认 src === 'profile' 的快照。
+      // 历史坑（v39）：11-11 那批快照的 exp 是排行榜浮点值，与档案整数值相减会
+      // 出现「+21.7 万 / −3.2 万」这种假增长。应用汇首次导入时也混进过一条
+      // src 缺失的手工快照，同样会算出负增长。这里统一过滤掉，口径只留一种。
+      var snaps = (hist.snapshots || []).filter(function (s) {
+        return s && s.src === 'profile';
+      }).sort(function (a, b) { return a.ts - b.ts; });
 
       if (snaps.length < 2) {
         el.banner.hidden = false;
