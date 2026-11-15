@@ -1,8 +1,8 @@
 {
-  "version": 56,
-  "md5": "d455a9b35639a9deb0c97e14130d68c8",
-  "size": 190843,
-  "notes": "网页/Worker 武学等级改为向上取整并封顶 1100；App 逻辑本已正确，仅同步注释",
-  "builtAt": "2026-11-15 09:53:26",
-  "sig": "4a22afdbf4e6f51f29a0dd7579b63ddf94d5b5be35d49d436e66f15c764fd5e35bc7268bbd407705bf99a4ae97d3b2933adf396a417cb53d315a3183be0c3801"
+  "version": 57,
+  "md5": "b602b98c95f87267a8b568d9d733bf87",
+  "size": 190891,
+  "notes": "新增第七区「其他服」：高手榜前50、昵称索引前100，uid 9 开头直接命中该区",
+  "builtAt": "2026-11-15 12:15:08",
+  "sig": "71b934ef804e1fb776e7d004b3a38f6b11df425f49aead7a328d8d9b869a30a2581702626a05ac4ebf292bdb6c612f7358e99bf8cffd032f235ae69775a49001"
 }

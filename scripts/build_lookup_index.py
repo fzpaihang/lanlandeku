@@ -106,6 +106,18 @@ def main():
                 rows = json.load(f).get("rows") or []
         except Exception:
             continue
+        # 只进索引、不进榜单的 51–100 名（fetch.py 的 indexRank 产出）。
+        # 两个文件去重后合并，索引才能覆盖前 100 名。
+        ep = os.path.join(SERVERS, key, "index-extra.json")
+        if os.path.isfile(ep):
+            try:
+                with io.open(ep, encoding="utf-8") as f:
+                    extra = json.load(f).get("rows") or []
+            except Exception:
+                extra = []
+            if extra:
+                had = set(str(r.get("userid")) for r in rows)
+                rows = rows + [r for r in extra if str(r.get("userid")) not in had]
         boards += 1
         for r in rows:
             uid = r.get("userid")

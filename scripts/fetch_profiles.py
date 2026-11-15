@@ -207,25 +207,43 @@ def fetch_server(srv, names, args):
         board = json.load(f)
     rows = {r["userid"]: r for r in board.get("rows", [])}
 
+    # 只进昵称索引的 51–100 名（fetch.py 的 indexRank 产出）：也要抓档案，
+    # 否则索引里能搜到人、点开却没有档案。排在榜单之后，保持名次顺序。
+    extra = []
+    ep = os.path.join(out_dir0, "index-extra.json")
+    if os.path.exists(ep):
+        try:
+            with io.open(ep, encoding="utf-8") as f:
+                extra = [r for r in (json.load(f).get("rows") or []) if r.get("userid")]
+        except Exception:
+            extra = []
+    for r in extra:
+        rows.setdefault(r["userid"], r)
+
     if "--only" in args:
         i = args.index("--only")
         targets = [int(x) for x in args[i + 1:] if x.isdigit()]
     else:
         targets = [r["userid"] for r in board.get("rows", [])]
+        targets += [r["userid"] for r in extra if r["userid"] not in set(targets)]
         if "--limit" in args:
             targets = targets[: int(args[args.index("--limit") + 1])]
         else:
             # 双保险：榜单可能因抓取失败保留上一版（人数会超过 maxRank），
             # 这里再按上限截断一次，避免多抓几十份档案。
-            mr = srv.get("maxRank")
-            if mr:
+            # 上限取 max(maxRank, indexRank)：只有榜单前 50，但索引要前 100。
+            caps = []
+            for k in ("maxRank", "indexRank"):
                 try:
-                    mr = int(mr)
+                    v = int(srv.get(k) or 0)
                 except (TypeError, ValueError):
-                    mr = 0
-                if mr and len(targets) > mr:
-                    print("      榜单 %d 人超过抓取上限 %d，按上限截断" % (len(targets), mr))
-                    targets = targets[:mr]
+                    v = 0
+                if v:
+                    caps.append(v)
+            cap = max(caps) if caps else 0
+            if cap and len(targets) > cap:
+                print("      目标 %d 人超过抓取上限 %d，按上限截断" % (len(targets), cap))
+                targets = targets[:cap]
 
     # 隐私名单：跳过这些玩家，并删掉已存在的档案文件
     hidden_uids = F.hidden_uids_for(F.load_hidden(), srv["key"])

@@ -283,6 +283,10 @@ def update_history(rows, now_ts, out_dir, drop=None):
         "date": bj_date(now_ts),
         "time": bj_time(now_ts, "%H:%M"),
         "exp": {str(r["userid"]): r["exp"] for r in rows if r.get("exp") is not None},
+        # 榜单口径的快照：经验变化页只认 src=="profile" 的快照，
+        # 这条一定会被 merge_exp.py 用档案值覆盖成 profile；覆盖不了（档案抓失败）时
+        # 也不会被当成增长基准，避免「第一次抓到的榜单落后值」污染基准。
+        "src": "board",
     }
 
     if snaps and int(now_ts) - snaps[-1].get("ts", 0) < 300:
@@ -421,6 +425,8 @@ def load_servers():
             "device": s.get("device", cfg.get("device", "")),
             "default": bool(s.get("default")) or i == 0,
             "maxRank": s.get("maxRank"),
+            # 只进昵称索引、不进榜单的名次上限（例如其他服：榜前 50、索引前 100）
+            "indexRank": s.get("indexRank"),
         })
 
     for s in out:
@@ -479,6 +485,9 @@ def fetch_server(srv, board, max_pages):
 
     print("[2/3] 抓取 %s（每页 10 条，间隔 %.1fs）…" % (BOARD_CN.get(board, board), SLEEP))
     max_rank = srv.get("maxRank")
+    # 只进索引、不进榜单的名次上限：需要多抓几页，抓完再把 50 之后的部分单独存
+    idx_rank = srv.get("indexRank")
+    limit = max(int(max_rank or 0), int(idx_rank or 0))
     rows, seen = [], set()
     stale = 0
     for p in range(1, max_pages + 1):
@@ -495,10 +504,11 @@ def fetch_server(srv, board, max_pages):
                 rows.append(r)
                 added += 1
         print("      第 %2d 页 +%2d 条  累计 %d" % (p, added, len(rows)))
-        # 只抓前 maxRank 名（例如 4399 只取前 50 名）
-        if max_rank and len(rows) >= int(max_rank):
-            rows = rows[: int(max_rank)]
-            print("      已抓满前 %d 名，停止" % int(max_rank))
+        # 抓满 max(maxRank, indexRank) 名就停（例如其他服：榜 50、索引 100）
+        if limit and len(rows) >= limit:
+            rows = rows[:limit]
+            print("      已抓满前 %d 名，停止%s" % (
+                limit, "（其中 %d 名只进索引）" % (limit - int(max_rank)) if idx_rank and limit > int(max_rank or 0) else ""))
             break
         stale = stale + 1 if added == 0 else 0
         if stale >= 2:
@@ -542,6 +552,15 @@ def fetch_server(srv, board, max_pages):
         for i, x in enumerate(out_rows, 1):
             x["rank"] = i
 
+    # 榜单只保留前 maxRank 名；maxRank 之后的部分另存 index-extra.json，
+    # 仅供 build_lookup_index.py 生成昵称索引用（页面上看不到这些人）。
+    board_rows = out_rows[: int(max_rank)] if max_rank else out_rows
+    extra_rows = []
+    if idx_rank and int(idx_rank) > len(board_rows):
+        extra_rows = out_rows[len(board_rows): int(idx_rank)]
+    for i, x in enumerate(board_rows, 1):
+        x["rank"] = i
+
     # 排名变化：与上一版对比
     cur_path = os.path.join(out_dir, "gaoshoubang.json")
     prev_rank = {}
@@ -553,7 +572,7 @@ def fetch_server(srv, board, max_pages):
                     prev_rank[x["userid"]] = x["rank"]
         except Exception:
             pass
-    for x in out_rows:
+    for x in board_rows:
         pr = prev_rank.get(x["userid"])
         x["prevRank"] = pr
         x["delta"] = (pr - x["rank"]) if pr else None
@@ -564,20 +583,51 @@ def fetch_server(srv, board, max_pages):
         "updatedAt": bj_time(t, "%Y-%m-%d %H:%M:%S"),
         "updatedTs": int(t),
         "hasPrev": has_prev,
-        "total": len(out_rows),
-        "rows": out_rows,
+        "total": len(board_rows),
+        "rows": board_rows,
     }
     tmp = cur_path + ".tmp"
     with io.open(tmp, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=1)
     os.replace(tmp, cur_path)
 
-    n_hist = update_history(out_rows, t, out_dir, drop)
+    # 索引专用名单：字段精简，只留搜索/展示要用的
+    ip = os.path.join(out_dir, "index-extra.json")
+    if idx_rank:
+        ipay = {
+            "updatedAt": payload["updatedAt"],
+            "updatedTs": int(t),
+            "from": len(board_rows) + 1,
+            "to": len(board_rows) + len(extra_rows),
+            "rows": [{
+                "rank": x["rank"],
+                "userid": x["userid"],
+                "name": x["name"],
+                "menpai": x["menpai"],
+                "lv": x["lv"],
+                "exp": x["exp"],
+            } for x in extra_rows],
+        }
+        itmp = ip + ".tmp"
+        with io.open(itmp, "w", encoding="utf-8") as f:
+            json.dump(ipay, f, ensure_ascii=False, indent=1)
+        os.replace(itmp, ip)
+    elif os.path.exists(ip):
+        # 分区不再配置 indexRank 时，删掉上一轮留下的名单，避免索引里残留已下榜的人
+        try:
+            os.remove(ip)
+        except OSError:
+            pass
+
+    n_hist = update_history(board_rows, t, out_dir, drop)
 
     print("[3/3] 已写入 %s" % cur_path)
-    print("      共 %d 人  |  更新于 %s" % (len(out_rows), payload["updatedAt"]))
+    print("      榜单 %d 人  |  更新于 %s" % (len(board_rows), payload["updatedAt"]))
+    if idx_rank:
+        print("      索引名单 %d 人（第 %d–%d 名）" % (
+            len(extra_rows), len(board_rows) + 1, len(board_rows) + len(extra_rows)))
     print("      经验快照：%d 条在库（保留最近 8 天）" % n_hist)
-    for x in out_rows[:3]:
+    for x in board_rows[:3]:
         print("      #%d %s（%s）武学 %s" % (x["rank"], x["name"], x["menpai"], x["kongfu"]))
     return 0
 
