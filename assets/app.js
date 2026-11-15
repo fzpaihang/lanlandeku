@@ -453,6 +453,11 @@
     return location.pathname + (q.length ? '?' + q.join('&') : '');
   }
 
+  // 档案会话缓存：同一次浏览里反复点同一个玩家，不再重复下载（单份约 16 KB）。
+  // 只放内存，刷新页面即失效，所以不会看到「昨天的数据」；key 带分区路径，
+  // 避免切区后同名 uid 串档。
+  var PF_CACHE = Object.create(null);
+
   function openProfile(row) {
     pfName.textContent = row.name || '—';
     pfSub.textContent = '第 ' + row.rank + ' 名 · ' + (row.menpai || '—') + ' · UID ' + row.userid;
@@ -468,12 +473,21 @@
     history.replaceState(null, '', urlFor(row.userid));
 
     var base = (window.FZJH && FZJH.base) ? FZJH.base : './data/servers/taptap/';
-    fetch(base + 'profiles/' + row.userid + '.json', { cache: 'no-cache' })
+    var cacheKey = base + 'profiles/' + row.userid + '.json';
+    var hit = PF_CACHE[cacheKey];
+    if (hit) {
+      renderProfile(hit);
+      return;
+    }
+    fetch(cacheKey, { cache: 'no-cache' })
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       })
-      .then(function (p) { renderProfile(p); })
+      .then(function (p) {
+        PF_CACHE[cacheKey] = p;
+        renderProfile(p);
+      })
       .catch(function (e) {
         pfBody.textContent = '';
         pfBody.appendChild(h('p', 'pf-err', '读取失败：' + e.message + '。该玩家可能未抓到详情，或详情文件还没生成。'));

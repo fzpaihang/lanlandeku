@@ -137,7 +137,7 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 ## 已知隐患（不改，仅记录）
 
 1. `data/cangsong-5zhuan.json` `count=7787` 但 `players=7785`（历史删人没更新 count，不影响功能）
-2. `assets/lookup.js` 是死代码（`worker/src/lookup.js` 才是活的）
+2. ~~`assets/lookup.js` 是死代码~~ → **已删除**（2026-11-15，499 行 / 17 KB，删除前确认零引用）
 3. 两份 `names.json`（`data/` 与 `apk/`）无同步机制，当前内容一致（md5 `8325e44d8a1a`）
 4. ~~`merge-exp.yml` 没有 artifact 兜底~~ → **已修**（2026-11-15，与 `refresh.yml` 一致）
 
