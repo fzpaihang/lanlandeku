@@ -112,7 +112,7 @@ Python 访问 GitHub API 用 `urllib.request.build_opener(urllib.request.ProxyHa
 - `buildozer.spec`：`source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf,pem`（`pem` 是为了带 CA 包加的）。
 - `apk/main.py` 的 `REQUIRED` 只校验 4 个老文件；**新增 `.py` 必须同时加进 `scripts/pack_update.py` 的 `FILES`**，否则包里没有，功能静默降级。
 - 缓存与用户数据写 `ANDROID_PRIVATE`（`/data/data/com.fzjh.fzjhlookup/files/`），**绝不写 `live/`** —— 每次热更 `live/` 会被整个删掉重建。
-- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 192 KB（v64 = 196,270 字节）。
+- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 192 KB（v65 = 196,333 字节）。
 
 ### 2.3 启动器怎么装热更包
 
@@ -304,7 +304,7 @@ App 里根本没有「失败后展示榜单数据」的行为。
 
 | 位置 | 实现 |
 |---|---|
-| `app_ui.py` | 查询页表单下方 `_index_card()`：一行「索引 N 人 · 时间」+「刷新」按钮；`_refresh_index()` / `_on_index_refreshed()` |
+| `app_ui.py` | 查询页表单下方 `_index_card()`：一行「手动刷新昵称索引 · 时间」+「刷新」按钮（v65 起不再显示人数）；`_refresh_index()` / `_on_index_refreshed()` |
 | `names_index.py` | `refresh_async()` 调 `_load_blocking(force=True)` 绕过 6h；`info()` 在后台线程未跑完时同步读缓存兜底；`_IO_LOCK` 防止冷启动加载与手动刷新撞车 |
 | `lookup-index.yml` | 加 `push: paths: data/extra-names.json` 触发（见《网页维护操作手册》§5.1.2） |
 
@@ -317,8 +317,8 @@ App 里根本没有「失败后展示榜单数据」的行为。
 
 **验收**
 
-1. 冷启动看状态条应显示「索引 N 人 · MM-DD HH:MM」，不是「昵称索引未加载」
-2. 点「刷新」→ 按钮变「刷新中」→ 回「刷新」，提示「昵称索引已更新（N 人）」，
+1. 冷启动看状态条应显示「手动刷新昵称索引 · MM-DD HH:MM」，不是「昵称索引未加载」
+2. 点「刷新」→ 按钮变「刷新中」→ 回「刷新」，提示「昵称索引已更新」（不带人数），
    `adb shell ls -l <私有目录>/lookup-index.json` 的 mtime 应更新
 3. 断网点「刷新」→ 提示失败，但旧索引仍可正常搜索（`source="failed"` 不覆盖缓存）
 4. 查一个 `data/extra-names.json` 里没有的 UID → 等半分钟 → 该文件条数 +1，

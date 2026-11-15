@@ -11,7 +11,7 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v64** |
+| APK 热更版本 | **v65** |
 | 分区数 | **8**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为） |
 | 索引人数 | ~800（其他服、华为各 100 人 + APK 归档） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
@@ -99,7 +99,7 @@ APK 归档新昵称（`data/extra-names.json`）会自动触发重建，不用�
 
 | 改动 | 位置 |
 |---|---|
-| 查询页状态条「索引 N 人 · 时间」+「刷新」按钮 | `app_ui.py::_index_card()` / `_refresh_index()` |
+| 查询页状态条「手动刷新昵称索引 · 时间」+「刷新」按钮（v65 起不显示人数） | `app_ui.py::_index_card()` / `_refresh_index()` |
 | `refresh_async()` 强制联网、绕过 6h | `names_index.py`（`_load_blocking(force=True)`） |
 | `info()` 在后台线程未跑完时同步读缓存兜底 | `names_index.py`（避免状态条一直显示「未加载」） |
 | `lookup-index.yml` 加 `push: paths: data/extra-names.json` | 有人归档新昵称就自动重建索引 |
