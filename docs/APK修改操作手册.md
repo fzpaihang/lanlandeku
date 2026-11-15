@@ -86,8 +86,8 @@ Python 访问 GitHub API 用 `urllib.request.build_opener(urllib.request.ProxyHa
 | 文件 | 职责 | 热更包内 |
 |---|---|---|
 | `main.py` | 启动器：比对版本 → 下载 → md5 → **验签** → 解压到 `live/` → 加载 `app_ui` | ✗ 改它必须重装 |
-| `app_ui.py` | 全部界面与交互（查询页、结果页、顶栏、圆形头像、输入焦点、内嵌网页入口） | ✓ |
-| `lookup_core.py` | 接口与数据层：分区、档案解析、缓存、20s 查询预算、失败归因 | ✓ |
+| `app_ui.py` | 全部界面与交互（查询页、结果页、榜单兜底页、顶栏及右上角开关、圆形头像、输入焦点、内嵌网页入口） | ✓ |
+| `lookup_core.py` | 接口与数据层：分区、档案解析、缓存、20s 查询预算、失败归因、**榜单兜底取数** | ✓ |
 | `fetch.py` | 游戏接口请求、握手、AES 会话、TLS 上下文 | ✓ |
 | `aes_pure.py` | 纯 Python AES | ✓ |
 | `names_index.py` | 昵称索引、模糊搜索、隐私名单 | ✓ |
@@ -112,7 +112,7 @@ Python 访问 GitHub API 用 `urllib.request.build_opener(urllib.request.ProxyHa
 - `buildozer.spec`：`source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf,pem`（`pem` 是为了带 CA 包加的）。
 - `apk/main.py` 的 `REQUIRED` 只校验 4 个老文件；**新增 `.py` 必须同时加进 `scripts/pack_update.py` 的 `FILES`**，否则包里没有，功能静默降级。
 - 缓存与用户数据写 `ANDROID_PRIVATE`（`/data/data/com.fzjh.fzjhlookup/files/`），**绝不写 `live/`** —— 每次热更 `live/` 会被整个删掉重建。
-- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 186 KB（190,843 字节）。
+- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 190 KB（v60 = 194,021 字节）。
 
 ### 2.3 启动器怎么装热更包
 
@@ -241,6 +241,8 @@ sleep 45
 - [ ] 结果页按系统返回键回查询页，不退出 App
 - [ ] 内嵌高手榜能开能关，关完还能继续操作
 - [ ] 缓存命中副标题带「· 缓存」，点「刷新」后标记消失
+- [ ] 结果页右上角「榜单兜底」开关能开能关，重启 App 后状态还在（§3.9）
+- [ ] 兜底页有「非实时」提示条、无导出按钮；关掉开关后失败仍回错误卡
 - [ ] 无水滴之外的残留、`logcat` 无 `NotImplementedError` / `Traceback`
 
 ### 3.8 回滚
@@ -252,6 +254,46 @@ sleep 45
 3. 按 §3.4 推送。
 
 v45 就是这么做的：从 `7b8c19e1`（v42）取回 `app_ui.py` + `inline_input.py`，其余文件保持最新。
+
+### 3.9 榜单兜底（v59 起，默认关闭）
+
+**这条链路是新增的，不是给已有页面打补丁**：v58 及以前，查询失败只有一张错误卡，
+App 里根本没有「失败后展示榜单数据」的行为。
+
+用户 11-15 定的口径：
+
+| 项 | 值 |
+|---|---|
+| 展示形式 | **App 内直接渲染榜单数据**（不跳排行榜网页、不打开内嵌网页） |
+| 默认 | **关闭** |
+| 开关 | 结果页顶栏右上角，文字按钮「榜单兜底 开/关」，与「重新查询」同一行 |
+| 存储 | `lookup_cache.json` → `boardFallback` 键；`L.board_fallback_on()` / `set_board_fallback()` |
+
+代码分工：
+
+- `lookup_core.py`
+  - `board_fallback_on()` / `set_board_fallback()`：读写开关，缺省 `False`。
+  - `board_profile(uid, server, cache)`：只从 `cache["boardCache"]` 找人，**不发网络请求**；
+    命中返回带 `_board=True`、`_boardTs` 的精简档案。榜单没 `lv` 时用 **`lv_from_exp()`**
+    （0.100402·lv³）反算人物等级，**别用 `lv_of_skill()`**——那是武学等级的 0.015·lv³，口径完全不同。
+- `app_ui.py`
+  - `_begin()` 记 `self._last_uid`；`_done()` 里 `prof is None` 且开关开 → 调 `board_profile()`。
+  - `_render()` 见到 `_board` 就转 `_render_board()`：单独一套版式（顶部「非实时」提示条 +
+    身份卡 + 数据卡 + 关闭指引），**不复用实时页**，避免武学/装备/气血全是一屏「—」。
+  - `AppBar` 新增 `fb_btn` / `set_fallback()` / `bind_fallback()`；`set_content(..., fallback=None)`
+    控制它显不显（查询页不显示，结果页显示）。
+  - `_set_foot(on, exportable=...)`：兜底页不给「导出」（档案是残缺的）。
+
+**验收（真机 / 模拟器）**
+
+1. 冷启动拉到 v59+ → 正常查一个人出结果页 → 右上角应显示「榜单兜底 关」
+2. 点一下变「开」，`adb shell grep boardFallback <私有目录>/lookup_cache.json` 应出现 `true`
+3. 制造一次失败（最省事：选一个**错误分区**查榜单上某人的 UID，接口会回「档案不存在」）
+4. 应出现「非实时 · 来自高手榜快照」页面，且**没有**导出按钮、顶部没有网页跳转
+5. 把开关点回「关」，再重复第 3 步 → 应回到原来的错误卡
+
+> 覆盖范围有限：只有上过榜、且该区榜单缓存还在（1 天 TTL）的人才有兜底。
+> 没上榜或缓存为空，行为跟以前完全一样。
 
 ---
 

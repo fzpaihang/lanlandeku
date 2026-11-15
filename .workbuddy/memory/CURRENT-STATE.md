@@ -11,7 +11,7 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v58** |
+| APK 热更版本 | **v60** |
 | 分区数 | **8**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为） |
 | 索引人数 | ~799（其他服、华为各 100 人） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
@@ -69,6 +69,26 @@
 `main.py` 启动 → 比对 `apk/update/version.json` → 下载 `code.zip` → md5 → **Ed25519 验签** → 解压到 `files/live/` → 插到 sys.path。
 
 **版本号只升不降**。`main.py`、`names.json`、字体、图标、Java 层不在热更范围。
+
+### 1.1 榜单兜底（v59 起，默认关闭）
+
+实时查询失败时，如果开了开关，就用**本地缓存的榜单快照**渲染一张「非实时」结果页，
+不跳网页、不打开高手榜。设计要点（用户 11-15 拍板）：
+
+| 项 | 值 |
+|---|---|
+| 默认 | **关闭**，玩家自己开 |
+| 开关位置 | **结果页顶栏右上角**（「榜单兜底 开/关」，和「重新查询」同一行） |
+| 开关存储 | `lookup_cache.json` 的 `boardFallback` 键（`L.board_fallback_on()` / `set_board_fallback()`） |
+| 数据来源 | `lookup_core.board_profile()` 读 `cache["boardCache"]`，**不发网络请求**；榜单缓存 1 天 TTL |
+| 覆盖范围 | 只有上过榜的人；没上榜、缓存为空 → 仍走原来的错误卡 |
+| 非实时标识 | 页面顶部「非实时 · 来自高手榜快照」+ 快照抓取时间；顶栏副标题只留 UID |
+
+刻意**不复用** `_render()`：武学、装备、气血榜单里没有，按实时页排会是一屏「—」。
+`_render_board()` 只列榜单真有的（等级/武学造诣/经验/名次/传承/分区），并隐藏「导出」按钮。
+
+触发条件：`_done()` 里 `prof is None` 且开关开 → `L.board_profile(self._last_uid, server)` 命中就 `show_result()`。
+所以限流、断网、选错分区等**任何失败**都会兜底。`self._last_uid` 在 `_begin()` 里记。
 
 ### 2. 分区凭据走私有 gist
 凭据不能进公开仓库（Pages 源是 main 根目录）。所以：
