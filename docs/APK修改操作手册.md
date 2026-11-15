@@ -2,8 +2,9 @@
 
 > 项目：`E:/workbuddy2/fzjh-rank`　仓库：`fzpaihang/lanlandeku`
 > 应用名：**霜霜妙妙屋**（`package.domain = com.fzjh`，`package.name = fzjhlookup`）
-> 最后校准：2026-11-14　线上热更：**v49**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
+> 最后校准：2026-11-15　线上热更：**v56**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
 > 本文汇总的是「改这个 APK 实际会用到的全部操作」；逐次改动的背景与推理见 `docs/UI优化-实施记录.md`。
+> **接手新任务先读 `.workbuddy/memory/CURRENT-STATE.md`**（一页纸：六区表、cron、关键设计、必做步骤）。
 
 ---
 
@@ -612,6 +613,9 @@ python scripts/stamp_assets.py     # 改完 assets/*.js 或 style.css 必跑
 - 不要在修 bug 时夹带架构级改动；遇到需要重打 APK 的改造，先交付可用版本再单独排期。
 - 不要只推 `code.zip` 或只推 `version.json`。
 - 不要漏跑 `stamp_assets.py`。
+- **不要手工造经验快照不写 `src: 'profile'`**（会造成假增量，见 §14）。
+- **不要把 `fetch.ctx` 拿去访问 `api.github.com`**（见 §16）。
+- 不要忘了：加分区要**同时**更新 gist 和 CI Secret，两处缺一不可。
 
 ---
 
