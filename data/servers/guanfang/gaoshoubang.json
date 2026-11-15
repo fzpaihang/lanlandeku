@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-15 13:16:44",
- "updatedTs": 1794719804,
+ "updatedAt": "2026-11-15 14:50:00",
+ "updatedTs": 1794725400,
  "hasPrev": true,
  "total": 50,
  "rows": [
@@ -847,21 +847,21 @@
    "userid": 9047804941,
    "name": "束慕晴",
    "menpai": "崆峒派",
-   "lv": 2874,
-   "kongfu": 1637.78,
+   "lv": 2878,
+   "kongfu": 1642.67,
    "exp": 2394281050.0,
-   "money": 536632400.04768,
-   "yueli": 322079,
+   "money": 538501825.8746,
+   "yueli": 323379,
    "xiayi": 182,
    "looks": 210,
    "fuyuan": 97,
-   "age": 311,
+   "age": 312,
    "sex": "女",
    "wuxing": 30,
    "inheritCount": 5,
    "prevRank": 39,
    "delta": 0,
-   "expBoard": 2384099330.2654,
+   "expBoard": 2394281049.8908,
    "expSrc": "profile"
   },
   {
@@ -1108,5 +1108,5 @@
   }
  ],
  "expSrc": "mixed",
- "mergedAt": "2026-11-15 13:41:33"
+ "mergedAt": "2026-11-15 14:50:37"
 }

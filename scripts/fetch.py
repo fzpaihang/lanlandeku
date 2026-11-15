@@ -594,24 +594,31 @@ def fetch_server(srv, board, max_pages):
     # 索引专用名单：字段精简，只留搜索/展示要用的
     ip = os.path.join(out_dir, "index-extra.json")
     if idx_rank:
-        ipay = {
-            "updatedAt": payload["updatedAt"],
-            "updatedTs": int(t),
-            "from": len(board_rows) + 1,
-            "to": len(board_rows) + len(extra_rows),
-            "rows": [{
-                "rank": x["rank"],
-                "userid": x["userid"],
-                "name": x["name"],
-                "menpai": x["menpai"],
-                "lv": x["lv"],
-                "exp": x["exp"],
-            } for x in extra_rows],
-        }
-        itmp = ip + ".tmp"
-        with io.open(itmp, "w", encoding="utf-8") as f:
-            json.dump(ipay, f, ensure_ascii=False, indent=1)
-        os.replace(itmp, ip)
+        # 本轮没抓满 indexRank（限流/中途断页）时不要写空表：
+        # 那会把索引从 100 名直接砍到 maxRank，而且没有任何报错。
+        # 宁可用上一版（最多多出几个已下榜的人），也不能莫名少一半。
+        if len(out_rows) < int(idx_rank) and os.path.exists(ip):
+            print("      本轮只抓到 %d 名（目标 %d），保留上一版索引名单不动" % (
+                len(out_rows), int(idx_rank)))
+        else:
+            ipay = {
+                "updatedAt": payload["updatedAt"],
+                "updatedTs": int(t),
+                "from": len(board_rows) + 1,
+                "to": len(board_rows) + len(extra_rows),
+                "rows": [{
+                    "rank": x["rank"],
+                    "userid": x["userid"],
+                    "name": x["name"],
+                    "menpai": x["menpai"],
+                    "lv": x["lv"],
+                    "exp": x["exp"],
+                } for x in extra_rows],
+            }
+            itmp = ip + ".tmp"
+            with io.open(itmp, "w", encoding="utf-8") as f:
+                json.dump(ipay, f, ensure_ascii=False, indent=1)
+            os.replace(itmp, ip)
     elif os.path.exists(ip):
         # 分区不再配置 indexRank 时，删掉上一轮留下的名单，避免索引里残留已下榜的人
         try:
