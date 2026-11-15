@@ -1,8 +1,8 @@
 {
-  "version": 64,
-  "md5": "b186371340c3c62fc10c5cac07e378e1",
-  "size": 196270,
-  "notes": "v64：同步 names_index.py 文件头注释（索引重建/刷新机制的准确描述）",
-  "builtAt": "2026-11-15 21:15:59",
-  "sig": "128c7c271b567a84ab91acbc9ac23e2d0a3488e7a229e4f34d3d3f2d02b5e9eab4beef20643384211e7338b0af28bea195d9d6338bad7b9e97d5b918f6f89f0e"
+  "version": 65,
+  "md5": "c38ee7577da9bf3606fa97c0759de468",
+  "size": 196333,
+  "notes": "v65：索引刷新提示去掉人数括号；状态条改为「手动刷新昵称索引」，时间保留",
+  "builtAt": "2026-11-15 21:29:12",
+  "sig": "f06c7e2fc03432099e9f5e452f703d79136bd6fa736ba198ebde05327de48964086d6dcef1678151cc7b32eb890ebe91e2f4a996f981a69c1866cf28693e3807"
 }

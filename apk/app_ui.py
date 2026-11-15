@@ -2216,8 +2216,9 @@ class PlayerLookup(App):
         src = inf.get("source")
         # 360dp 宽度下「昵称索引 799 人 · 更新于 … · 本地缓存」会被 shorten 截断，
         # 压成短格式，来源只在非联网成功时才用一个短尾巴标注。
+        # 文案只说明这一行的用途，人数不再展示；更新时间照旧紧跟在后面。
         tail = " · 缓存" if src == "cache" else (" · 失败" if src == "failed" else "")
-        w.text = ("索引 %d 人 · %s%s" % (n, when, tail)) if n else "昵称索引未加载"
+        w.text = ("手动刷新昵称索引 · %s%s" % (when, tail)) if n else "昵称索引未加载"
 
     def _refresh_index(self, *a):
         if getattr(self, "_index_busy", False):
@@ -2245,11 +2246,8 @@ class PlayerLookup(App):
         if src == "failed":
             self.set_status("刷新失败，仍在使用本地缓存的索引", C_ACCENT)
         else:
-            try:
-                cnt = int((NI.info() if NI else {}).get("count") or 0)
-            except Exception:
-                cnt = 0
-            self.set_status("昵称索引已更新（%d 人）" % cnt, C_INK2)
+            # 只报结果，不在提示里重复索引人数（人数变化与刷新是否成功无关）
+            self.set_status("昵称索引已更新", C_INK2)
             # 输入框里若正输着中文昵称，刷新完立刻重搜一次
             try:
                 if self.mode == "query" and self.inp.text and not self.inp.text.strip().isdigit():
