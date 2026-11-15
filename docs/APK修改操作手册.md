@@ -112,7 +112,7 @@ Python 访问 GitHub API 用 `urllib.request.build_opener(urllib.request.ProxyHa
 - `buildozer.spec`：`source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf,pem`（`pem` 是为了带 CA 包加的）。
 - `apk/main.py` 的 `REQUIRED` 只校验 4 个老文件；**新增 `.py` 必须同时加进 `scripts/pack_update.py` 的 `FILES`**，否则包里没有，功能静默降级。
 - 缓存与用户数据写 `ANDROID_PRIVATE`（`/data/data/com.fzjh.fzjhlookup/files/`），**绝不写 `live/`** —— 每次热更 `live/` 会被整个删掉重建。
-- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 192 KB（v65 = 196,333 字节）。
+- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 192 KB（v67 = 196,900 字节）。
 
 ### 2.3 启动器怎么装热更包
 
@@ -326,6 +326,28 @@ App 里根本没有「失败后展示榜单数据」的行为。
 
 > 只改 `names_index.py` 的注释也要重新 `pack_update.py`：热更包里有这个文件，
 > `preflight.py` 会逐字节比对源码与包内容，不打包就报 FAIL。
+
+### 3.11 传承历程的 0 转（初代，v66 起）
+
+`inheritHistory` **每一条是一次传承事件**：`parentName` 是传承前的名字，
+`inheritName` 是传承后的名字。5 条 = 5 次传承，链条上应有 **6 个名字**
+（0 转初代 + 1~5 转）。网页 `fetch_profiles.py` 一直把 `p` 存进档案，
+`profile.js` 也以「初代」节点起头。
+
+v65 及以前 `apk/lookup_core.py::parse_profile()` 只存 `n` / `t`，把 `parentName`
+丢掉；`_timeline_card()` 又从 1 开始编号，于是同一角色网页 6 世、APK 只有 5 世
+（11-15 用户指出「是不是少了零转」）。
+
+| 版本 | 改动 |
+|---|---|
+| v66 | `history` 多存 `p`（`parentName`）；`_timeline_card()` 在链首补编号 `0` 的一行，日期列留空（初代没有传承时间），末项当前角色仍红色高亮 |
+| v67 | `PROFILE_VER` 2 → 3：结构变了，旧缓存自动作废，重查一次即显示真名；不 bump 的话 10 分钟内命中旧缓存只会一直显示占位「初代」 |
+
+`p` 缺失时（接口没给 / 老缓存）显示占位「初代」，与网页同口径，链条长度不随缓存新旧变化。
+
+**验收**：查应用汇 `6196504694`（慕少艾，5 转），传承历程应为
+`0 洪玄公`（无日期）→ `1 柳青侯 18-04` → `2 阿土伯 18-06` → `3 淮南子 18-08`
+→ `4 白首男 18-10` → `5 慕少艾 19-02`（红色）。
 
 ---
 

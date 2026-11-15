@@ -11,7 +11,7 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v65** |
+| APK 热更版本 | **v67** |
 | 分区数 | **8**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为） |
 | 索引人数 | ~800（其他服、华为各 100 人 + APK 归档） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
