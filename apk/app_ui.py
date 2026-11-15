@@ -3011,17 +3011,25 @@ class PlayerLookup(App):
         card.bind(minimum_height=card.setter("height"))
         card.add_widget(lab("传承历程 · %d 转" % len(rows), 13, C_INK,
                             bold=True, height=26, shorten=True))
+        # 0 转（初代）：inheritHistory 第一条的 parentName 是「从未传承过」的角色名。
+        # 网页档案页一直以「初代」节点起头，这里补齐，否则同一条链 APK 会少一世。
+        # 老缓存里的 profile 是 v65 之前存的、没有 p 字段，这时仍显示一行占位「初代」，
+        # 不让链条长度随缓存新旧而变。0 转没有传承时间，右侧日期留空（fmt_date(0) = ""）。
+        origin = ((rows[0].get("p") or "").strip() or "初代") if rows else ""
+        items = [(0, origin, 0)] if rows else []
         for i, h in enumerate(rows, 1):
-            last = i == len(rows)   # 末项就是当前角色
+            items.append((i, h.get("n") or "", h.get("t") or 0))
+        for pos, (i, name, ts) in enumerate(items):
+            last = pos == len(items) - 1   # 末项就是当前角色
             row = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(8))
             idx = lab(str(i), 10.5, C_ACCENT if last else C_MUTED, height=36,
                       bold=last)
             idx.size_hint_x = None
             idx.width = dp(16)
             row.add_widget(idx)
-            row.add_widget(lab(h["n"] or "—", 12.5, C_ACCENT if last else C_INK2,
+            row.add_widget(lab(name or "—", 12.5, C_ACCENT if last else C_INK2,
                                bold=last, height=36, shorten=True))
-            dt = lab(fmt_date(h.get("t")), 10.5, C_MUTED, height=36, halign="right")
+            dt = lab(fmt_date(ts), 10.5, C_MUTED, height=36, halign="right")
             dt.size_hint_x = None
             dt.width = dp(48)
             row.add_widget(dt)

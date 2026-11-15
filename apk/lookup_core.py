@@ -508,11 +508,15 @@ def parse_profile(data, board_row=None):
         })
 
     # 传承
+    # inheritHistory 每一条是一次传承事件：parentName = 上一世，inheritName = 这一世。
+    # 第一条的 parentName 是「0 转 / 初代」的名字，必须保留，否则传承链会少一世
+    # （网页 fetch_profiles.py 一直存了 p，网页档案页也以「初代」节点起头）。
     history = []
     for x in (data.get("inheritHistory") or []):
         if not isinstance(x, dict):
             continue
         history.append({"n": x.get("inheritName") or "",
+                        "p": x.get("parentName") or "",
                         "t": int(x.get("inheritTime") or 0)})
     history.sort(key=lambda x: x["t"])
 
