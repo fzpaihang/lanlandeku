@@ -2214,8 +2214,10 @@ class PlayerLookup(App):
         # 本地跑是北京时间，口径不一致，所以统一用时间戳按本机时区格式化。
         when = time.strftime("%m-%d %H:%M", time.localtime(ts)) if ts else "未知"
         src = inf.get("source")
-        tail = " · 本地缓存" if src == "cache" else (" · 刷新失败" if src == "failed" else "")
-        w.text = ("昵称索引 %d 人 · 更新于 %s%s" % (n, when, tail)) if n else "昵称索引未加载"
+        # 360dp 宽度下「昵称索引 799 人 · 更新于 … · 本地缓存」会被 shorten 截断，
+        # 压成短格式，来源只在非联网成功时才用一个短尾巴标注。
+        tail = " · 缓存" if src == "cache" else (" · 失败" if src == "failed" else "")
+        w.text = ("索引 %d 人 · %s%s" % (n, when, tail)) if n else "昵称索引未加载"
 
     def _refresh_index(self, *a):
         if getattr(self, "_index_busy", False):
