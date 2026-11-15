@@ -1,8 +1,8 @@
 {
-  "version": 61,
-  "md5": "4dae431a3be51dc6b52a479debf8feae",
-  "size": 195738,
-  "notes": "v61：查询页新增昵称索引状态条与「刷新」按钮；有人归档新昵称时自动重建索引",
-  "builtAt": "2026-11-15 20:55:47",
-  "sig": "e0b7945bce929809b662c6a866253cf5fa316664004b885a6a3e20ed6132de99d21eb3d046c089666b1debdf952725ee63ebe7c15ae26e9fe568dc3f5ba88106"
+  "version": 62,
+  "md5": "ffd2410405e931d623a4cbac0bb53a45",
+  "size": 196064,
+  "notes": "v62：修查询页索引状态条初始显示未加载（元信息同步兜底 + 延迟刷新）",
+  "builtAt": "2026-11-15 21:01:33",
+  "sig": "b66c2e40304a8f67effb1a8c32ca98f59211b4369e6115dc03a07993324221c1f4d97222aa4f8733a1a3011dbf27449f0c5f9883f4dab0df41114248b8fa400f"
 }

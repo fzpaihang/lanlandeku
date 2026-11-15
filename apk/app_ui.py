@@ -1915,6 +1915,9 @@ class PlayerLookup(App):
         self.body.add_widget(self._recent_card())
         self.body.add_widget(self._entry_card())
         self.set_status("")
+        # 后台加载线程可能比状态条先跑完，也可能后跑完；这里延后补一次，
+        # 两条路径总有一条能把「N 人 · 更新于 X」填上，不会一直显示「未加载」。
+        Clock.schedule_once(lambda dt: self._update_index_status(), 0.5)
         self._scroll_top()
 
     def show_result(self, p):

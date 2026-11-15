@@ -91,12 +91,29 @@ def _parse_meta(raw):
 
 
 def info():
-    """返回索引状态，供界面展示：(人数, 时间戳, 来源, 状态)。"""
+    """返回索引状态，供界面展示：(人数, 时间戳, 来源, 状态)。
+
+    查询页可能在后台加载线程还没跑完时就建好状态条，那时 _meta 还是空的。
+    这里同步读一次本地缓存补齐元信息（不联网、不改动数据），保证界面
+    无论什么时候来问都能拿到真实值。
+    """
     with _lock:
-        return {"count": _meta.get("count", 0),
-                "updatedTs": _meta.get("updatedTs", 0),
-                "updatedAt": _meta.get("updatedAt", ""),
-                "source": _source, "state": _state}
+        meta = dict(_meta)
+        source, state = _source, _state
+    if not meta.get("count"):
+        try:
+            with io.open(CACHE, encoding="utf-8") as f:
+                fresh = _parse_meta(f.read())
+            if fresh.get("count"):
+                meta = fresh
+                with _lock:
+                    _meta.update(fresh)
+        except Exception:
+            pass
+    return {"count": meta.get("count", 0),
+            "updatedTs": meta.get("updatedTs", 0),
+            "updatedAt": meta.get("updatedAt", ""),
+            "source": source, "state": state}
 
 
 def _parse(raw):
