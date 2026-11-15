@@ -12,15 +12,18 @@
 
 **日常改界面 / 逻辑（热更）**
 
-> 环境提示：本机是 PowerShell，没有 Git Bash。命令请改写成等价的
-> PowerShell / Python 写法；**提交一律走 §9.1 的 GitHub API**，不执行
+> 环境提示：本手册命令按 **WorkBuddy 的 Git Bash**（Bash 工具）写，路径用 `/e/workbuddy2/...`；
+> 在 Windows PowerShell 里要换成 `E:/workbuddy2/...` 并改写 `export` 等语法。
+> **提交一律走 `scripts/publish.py`（底层是 §9.1 的 GitHub API）**，不执行
 > `git add/commit/push`（本地 git 与远端长期分叉）。
 
 ```bash
 cd /e/workbuddy2/fzjh-rank
+python scripts/preflight.py                                     # 0 发布前自检（语法/缓存戳/热更包/等级/names/隐私）
 python -m py_compile apk/app_ui.py apk/inline_input.py          # 1 语法
 python scripts/pack_update.py "这次改了什么"                     # 2 打包 + 自动签名 + 版本号 +1
-# 3 用 §9.1 的 GitHub API 脚本推 apk/*.py + apk/update/{code.zip,version.json}
+python scripts/publish.py --check "热更 vNN：说明" apk/*.py apk/update/code.zip apk/update/version.json
+# 3 确认无误后去掉 --check 正式发布（底层仍是 §9.1 的 GitHub API）
 # 4 curl 确认线上版本号；模拟器删 files/live 重启做全量验收
 ```
 
@@ -109,7 +112,7 @@ Python 访问 GitHub API 用 `urllib.request.build_opener(urllib.request.ProxyHa
 - `buildozer.spec`：`source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf,pem`（`pem` 是为了带 CA 包加的）。
 - `apk/main.py` 的 `REQUIRED` 只校验 4 个老文件；**新增 `.py` 必须同时加进 `scripts/pack_update.py` 的 `FILES`**，否则包里没有，功能静默降级。
 - 缓存与用户数据写 `ANDROID_PRIVATE`（`/data/data/com.fzjh.fzjhlookup/files/`），**绝不写 `live/`** —— 每次热更 `live/` 会被整个删掉重建。
-- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 175 KB。
+- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 186 KB（190,843 字节）。
 
 ### 2.3 启动器怎么装热更包
 
@@ -173,7 +176,15 @@ cat apk/update/version.json
 
 ### 3.4 发布
 
-**实际常用：GitHub API 建 commit**（本地 git 与远端经常分叉，直接 `git push` 会被拒；API 方式不需要 worktree，也不影响工作区）：模板见 §9.1。
+**推荐：`scripts/publish.py`**（封装了下面的 API 流程，自动带 `base_tree`、跳过无变化文件、
+强制 `code.zip` + `version.json` 成对、拒绝 `config.json` / `gh.json` / `.keys`）：
+
+```bash
+python scripts/publish.py --check "热更 vNN：xxx" apk/app_ui.py apk/update/code.zip apk/update/version.json
+python scripts/publish.py         "热更 vNN：xxx" apk/app_ui.py apk/update/code.zip apk/update/version.json
+```
+
+**底层：GitHub API 建 commit**（本地 git 与远端经常分叉，直接 `git push` 会被拒；API 方式不需要 worktree，也不影响工作区）：模板见 §9.1。
 
 要点：
 - 用 `base_tree` 增量建 tree，只改本次涉及的文件，不会覆盖 CI 抓下来的数据文件；
@@ -623,7 +634,8 @@ python scripts/stamp_assets.py     # 改完 assets/*.js 或 style.css 必跑
 
 | 文档 | 内容 |
 |---|---|
-| `docs/UI优化-实施记录.md` | v30–v45 逐次改动的背景、推理与验证（§13 起是签名/TLS/输入） |
+| `docs/代码流程梳理.md` | 代码地图、重复实现、僵尸产物、待改造清单 |
+| `docs/UI优化-实施记录.md` | v30–v56 逐次改动的背景、推理与验证（§13 起是签名/TLS/输入） |
 | `docs/武学分类校对表.md` | 武学分组人工校对 |
 | 工作区记忆 `.workbuddy/memory/2026-11-13.md`、`2026-11-14.md` | 跨会话的关键结论与用户偏好 |
 

@@ -1152,3 +1152,60 @@ device index players: 299
 
 两个都在墨羽惊鸿，UID 记混了。现在两个都能按昵称搜到。
 
+
+---
+
+## 二十五、代码流程梳理与工具化（v56 之后，无版本变更）
+
+用户要求「不影响网页与 APK 功能，把现有代码流程梳理优化一遍」。这一轮只做**只读排查 + 工具化 + 文档纠错**，
+没有改任何运行时代码。
+
+### 25.1 先量了一遍「本地到底旧不旧」
+
+新写的 `scripts/check_drift.py` 按 git blob sha 比对本地与远端 main（绕开本地 git 的旧 HEAD）：
+
+```
+已修改 301 / 仅本地有 28 / 仅远端有 30 / 仅换行差异 1
+apk / assets / scripts / .github / cloud  →  0 差异
+非 data 的差异只有 .gitignore 与 refresh.bat（后者是纯换行）
+```
+
+结论：**代码与线上完全一致**，所谓「本地落后」只是 `data/` 比线上旧。这一点以前没人量过，
+导致每次改代码前都要先怀疑「我这份是不是旧的」。
+
+顺带发现：`.gitattributes` 规定 `* text=auto eol=lf`，但 API 发布不走 git 的换行规范化，
+两份 CRLF 文档在 GitHub 上会显示成「整篇 1277 行都改了」。工具里补了归一化。
+
+### 25.2 重复实现（按风险）
+
+| 重复 | 实测规模 | 后果 |
+|---|---|---|
+| 游戏协议层 | `scripts/fetch.py` 641 行 vs `apk/fetch.py` 682 行，diff 仅 55 行 | 协议一变要改两处 |
+| 武学等级 | 3 份活代码 + 1 份过期 staging 产物 | v56 刚踩过 |
+| 昵称归档 | 3 份（Issue / APK / Vercel） | 字段改动不同步 |
+| 槽位/装备名 | 各 26 条 ×2 | 新增槽位只改一处会显示英文 key |
+| 隐私名单 | `hidden.json` + `app_ui.HIDDEN_UIDS` 硬编码 | 拉黑只改一边 |
+| `names.json` | 两份 64 KB，md5 相同 | 只改一份产物悄悄不一致 |
+
+特意记一条**反面结论**：`app.js` / `exp.js` 有 10 个同名函数，但只有 `fmtBig` 逐字相同，
+`sorted` / `bindSortbar` 语义本来就不同——**不能当重复合并**，否则会改坏两页各自的排序。
+
+### 25.3 本次新增的三个工具（都不影响运行）
+
+- `scripts/preflight.py`：7 项发布前自检（Python/JS 语法、缓存戳、热更包 md5+验签+清单、
+  等级口径、两份 names、隐私名单）。`--fix` 会顺手跑 `stamp_assets.py`。
+- `scripts/publish.py`：统一发布（base_tree、跳过无变化、强制热更两件套成对、拒绝敏感文件、换行归一化）。
+  以后不用再在 `_agent_tmp` 里手写 `publish_vXX.py`。
+- `scripts/check_drift.py`：本地 vs 远端真实差异，区分「仅换行差异」。
+
+### 25.4 修正的文档错误
+
+1. `CURRENT-STATE.md` §5 把等级公式的第四处写成 `assets/profile.js`；实测该文件只显示 `s.lv`，
+   不做换算，第四处应是 `api/build/staging` 的构建产物。
+2. `scripts/fetch_profiles.py` docstring 还写「产出 `data/players.json`」，实际输出是
+   `data/servers/<key>/profiles/<uid>.json`，该文件不存在。
+
+### 25.5 没做的事
+
+合并 `fetch.py`、抽公共等级模块、统一归档实现、CI 映射脚本化、本地 git 对齐——都列进
+`docs/代码流程梳理.md` §7，按项目约定等确认后再动。

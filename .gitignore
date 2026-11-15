@@ -8,9 +8,15 @@ apk/gh.json
 data/logs/
 *.tmp
 __pycache__/
+# 本机查询缓存（含玩家档案，仅本地调试用；buildozer 也把它排除在 APK 外）
+apk/lookup_cache.json
+# 会话记忆与交接文档：只在本机，避免误提交内部笔记
+.workbuddy/
 
 # 腾讯云函数打包产物（本地生成、手动上传，不进仓库）
 api/build/
 
 # 构建产物（体积大，不进仓库）
 dist/
+# 热更包签名私钥，丢了无法再发包，绝不进仓库
+.keys/

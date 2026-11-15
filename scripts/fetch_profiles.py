@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
-"""抓取高手榜全部玩家的详情，产出 data/players.json（供页面点击弹窗用）
+"""抓取高手榜全部玩家的详情，产出 data/servers/<key>/profiles/<uid>.json
+
+每个档案只保留页面要用的字段（技能 id/等级、装备、准备位等），由
+merge_exp.py 再把经验写回榜单。旧版曾写入 data/players.json，已废弃。
 
 依赖：
-  data/gaoshoubang.json  榜单（先用 fetch.py 生成）
-  data/names.json        技能/装备中文名（由 build_names.py 生成）
+  data/servers/<key>/gaoshoubang.json  榜单（先用 fetch.py 生成）
+  data/names.json                     技能/装备中文名（由 build_names.py 生成）
 
 用法:
   python scripts/fetch_profiles.py              # 抓全部（约 100 次请求，1 分钟左右）
