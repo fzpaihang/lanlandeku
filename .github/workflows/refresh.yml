@@ -9,6 +9,7 @@ name: 刷新高手榜
 #   0 8 * * *   → 当日 16:00  其他服（guanfang）
 #   0 18 * * *  → 次日 02:00  华为（huawei）
 # 单区全量约 5–8 分钟，各任务互不重叠，也避免连续请求触发限流。
+# 昵称索引（data/lookup-index.json）不在这条链路里重建，见 lookup-index.yml。
 on:
   schedule:
     - cron: '0 22 * * *'   # 06:00 苍松迎客
@@ -140,11 +141,10 @@ jobs:
           if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/merge_exp.py
           else python scripts/merge_exp.py --server "$T"; fi
 
-      - name: 重建昵称索引
-        # 榜单变了索引就得跟着变，否则查询页搜到的还是上一次的昵称。
-        # 会在 5 转玩家（data/cangsong-5zhuan.json）基础上合并，不影响那部分。
-        if: (github.event_name == 'schedule') || (inputs.mode == 'full')
-        run: python scripts/build_lookup_index.py
+      # 昵称索引（data/lookup-index.json）**不在这里重建**：
+      # 它是「昵称 → uid」的静态对照表，只有进榜/掉榜、改名、隐私名单变化时才需要变。
+      # 每天跟着抓取重建只会让那一行随榜单抖动，制造无意义提交。
+      # 现在由 .github/workflows/lookup-index.yml 每周跑一次，也可随时手动触发。
 
       - name: 提交数据
         env:

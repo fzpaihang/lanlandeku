@@ -57,6 +57,10 @@
 - `concurrency: fzjh-data`，`cancel-in-progress: false`
 - 手动触发：`mode=probe|board|full`，`server=all|<key>`
 
+**昵称索引不在上面这条链路里**（`lookup-index.yml`，每周一 04:00 + 手动）：
+`data/lookup-index.json` 是「昵称 → uid」静态表，只有 APK 读，不参与榜单展示与经验计算。
+每天重建只会跟着榜单抖动造提交，所以拆出去了。**加分区、改 `hidden.json`、补 5 转表之后必须手动跑一次**。
+
 ---
 
 ## 关键设计（改代码前必看）

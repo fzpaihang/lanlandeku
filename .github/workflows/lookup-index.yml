@@ -1,0 +1,69 @@
+name: 重建昵称索引
+
+# data/lookup-index.json 是「昵称 → uid」的静态对照表，供 APK 本地模糊搜索。
+# 它只在下面这些情况才需要变：
+#   有人进榜 / 掉榜、改名、换门派、等级变化、隐私名单（hidden.json）变化、
+#   APK 回写了新昵称（data/extra-names.json）
+# 每天跟着抓取重建没有意义（榜单每次都会动，索引里那行也跟着动，纯制造提交），
+# 因此从 refresh.yml 拆出来单独跑：每周一次兜底 + 随时可手动触发。
+# 加新分区、改 hidden.json 之后，务必手动跑一次。
+on:
+  schedule:
+    - cron: '0 20 * * 0'   # 周一 04:00（北京）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# 和 refresh.yml 共用同一个并发组：两者都会改 data/，串行排队才不会互相覆盖。
+concurrency:
+  group: fzjh-data
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 纯本地计算：读 data/servers/*/gaoshoubang.json、index-extra.json、
+      # extra-names.json、hidden.json、cangsong-5zhuan.json，不联网、不需要 Secrets。
+      - name: 重建索引
+        run: python scripts/build_lookup_index.py
+
+      - name: 提交索引
+        run: |
+          set -e
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/lookup-index.json
+          if git diff --staged --quiet; then
+            echo "索引无变化，跳过提交"
+            exit 0
+          fi
+          git commit -m "重建昵称索引 $(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M')"
+          # 和 refresh.yml 同样的策略：抓取任务可能刚推过数据，先 rebase 再推。
+          for i in 1 2 3; do
+            git fetch origin main
+            if ! git rebase FETCH_HEAD; then
+              git rebase --abort 2>/dev/null || true
+              echo "rebase 冲突，放弃本次提交"
+              exit 1
+            fi
+            if git push; then
+              echo "索引已推送"
+              exit 0
+            fi
+            echo "第 $i 次推送失败，5 秒后重试…"
+            sleep 5
+          done
+          echo "推送连续失败"
+          exit 1

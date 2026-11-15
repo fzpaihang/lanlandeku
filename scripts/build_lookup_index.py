@@ -2,11 +2,20 @@
 # -*- coding: utf-8 -*-
 """生成跨区昵称索引：data/lookup-index.json
 
-用途：查询页允许输入「昵称」而不是 UID。前端加载这一份索引（约 30KB），
+用途：APK 查询页允许输入「昵称」而不是 UID。客户端下载这一份索引，
 在本地做模糊匹配，找到 uid 后复用原有的实时查询链路。
+（网页侧 lookup.html 已停用，现在只有 apk/names_index.py 读它。）
 
-数据来源：各分区 gaoshoubang.json（榜单快照，随定时任务更新）。
-隐私：hidden.json 里的玩家在生成榜单时已被剔除，这里天然拿不到。
+数据来源：各分区 gaoshoubang.json + index-extra.json（榜单快照）、
+         data/extra-names.json（APK / Issue 回写的昵称）、data/cangsong-5zhuan.json。
+隐私：hidden.json 里的玩家在生成榜单时已被剔除，这里再挡一次（写进 hidden 字段）。
+
+**多久跑一次**：这份索引是「昵称 → uid」的静态对照表，不需要每天重建。
+它由 .github/workflows/lookup-index.yml 每周跑一次，也可随时手动触发。
+下面这些情况**必须手动跑一次**，否则改动不会生效：
+  - 新增分区（data/servers/index.json 多了一条）
+  - 改 data/hidden.json（隐私名单要进 hidden 字段，否则仍能被昵称搜到）
+  - 手工补了 data/cangsong-5zhuan.json
 
 用法： python scripts/build_lookup_index.py
 """
