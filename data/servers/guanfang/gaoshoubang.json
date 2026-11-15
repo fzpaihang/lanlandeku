@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-15 12:13:17",
- "updatedTs": 1794715997,
+ "updatedAt": "2026-11-15 12:18:46",
+ "updatedTs": 1794716326,
  "hasPrev": true,
  "total": 50,
  "rows": [
@@ -892,10 +892,10 @@
    "name": "中森花菜",
    "menpai": "永夜楼",
    "lv": 2794,
-   "kongfu": 1619.89,
+   "kongfu": 1621.44,
    "exp": 2192163634.0,
-   "money": 166972564.36094,
-   "yueli": 544113,
+   "money": 167364690,
+   "yueli": 544453,
    "xiayi": -102670,
    "looks": 546,
    "fuyuan": 72,
@@ -905,7 +905,7 @@
    "inheritCount": 5,
    "prevRank": 41,
    "delta": 0,
-   "expBoard": 2190553556.3633,
+   "expBoard": 2192163634.4281,
    "expSrc": "profile"
   },
   {
@@ -937,7 +937,7 @@
    "menpai": "财神帮",
    "lv": 2618,
    "kongfu": 1606,
-   "exp": 1807167866.0,
+   "exp": 1808395907.0,
    "money": 326853956.12,
    "yueli": 314229,
    "xiayi": 2307680.6,
@@ -1108,5 +1108,5 @@
   }
  ],
  "expSrc": "mixed",
- "mergedAt": "2026-11-15 12:13:56"
+ "mergedAt": "2026-11-15 12:26:43"
 }
