@@ -1379,3 +1379,101 @@ A/B 判定无法零影响，未做。
    底部只有「再查一个」，logcat 无异常
 
 发布：v59 `e3f4207`，v60（顶栏副标题修正）`ba6e27e`。
+
+---
+
+## 二十九、手机搜不到华为昵称：缓存机制 + 刷新按钮 + 共享闭环（v61~v64）
+
+### 29.1 用户反馈与定位
+
+手机截图：搜索「天道」→「没找到『天道』，试试完整昵称或直接输 UID」。
+但同一份 App 代码在模拟器上搜「天道自然」→「找到『天道自然 · 华为』」。
+
+逐层排除：
+
+| 检查点 | 结果 |
+|---|---|
+| 线上索引（Pages / jsdelivr / raw 三个源） | 全是新版，`count=799 / huawei=100 / updatedAt 15:06` |
+| 模拟器设备缓存 | 251,370 B / 19:00 / 华为 100 条 |
+| 用 `names_index.search()` 测华为第 1/50/51/76/100 名 | 全部命中（天道自然 / 咸语 / 许剑一 / 廿二十 / 星刖） |
+| 搜索算法 | 完全相等 > 前缀 > 包含，搜「天道」能命中「天道自然」 |
+| 手机分区下拉 | 有「华为」，但那来自 `servers/index.json` 且 v58 内置兜底列表也写死了，**不能证明索引新** |
+
+结论：**手机本地那份 `lookup-index.json` 还是旧的**。
+
+### 29.2 根因：两个条件都要满足才会更新
+
+`names_index.py` 里：
+
+```python
+CHECK_GAP = 6 * 3600
+if mtime and time.time() - mtime < CHECK_GAP: return   # 用旧缓存，不联网
+```
+
+- 6 小时的起算点是**手机自己上次成功下载**的缓存 mtime，跟「华为什么时候入库」无关；
+- `load_async()` 有 `_started` 一次性开关，只在 App 构建时调一次，**没有 `on_resume` 钩子**，
+  进程常驻后台永远不重新检查；
+- 所以必须「彻底冷启动 + 缓存满 6h + 下载成功」三者齐备才更新。
+
+这正是加新服后的体验缺口：**新人入库了，已装的 App 却不知道**。
+
+### 29.3 用户拍板的两个决策
+
+| 决策 | 选择 |
+|---|---|
+| 刷新按钮位置 | 查询页状态条（显示「索引 N 人 · 更新时间」+「刷新」），搜不到时人就在这一页 |
+| 归档后是否自动重建索引 | **是**，事件驱动；不恢复每日定时跑 |
+
+### 29.4 实现
+
+- `apk/names_index.py`
+  - `_load_blocking(force=True)`：绕过 CHECK_GAP；`refresh_async()` 供按钮调用。
+  - `_IO_LOCK` 串行化冷启动加载与手动刷新；下载失败标 `source="failed"`，旧缓存不动。
+  - `info()` 返回 `{count, updatedTs, updatedAt, source, state}`；
+    **后台线程还没跑完时同步读一次缓存补元信息**，否则状态条会一直显示「未加载」（真机实测踩到）。
+  - 状态条用 `updatedTs` 按本机时区格式化，不用 `updatedAt` 字符串（CI 是 UTC、本地是北京时间）。
+- `apk/app_ui.py`
+  - `_index_card()` 插在 `form_card` 与 `_recent_card()` 之间；`_refresh_index()` /
+    `_on_index_refreshed()` 处理按钮「刷新」→「刷新中」→「刷新」与结果提示。
+  - `show_query()` 末尾再 `Clock.schedule_once(..., 0.5)` 补一次状态刷新，覆盖回调早于卡片创建的时序。
+  - 文案从「昵称索引 N 人 · 更新于 … · 本地缓存」压成「索引 N 人 · …」（360dp 下不截断）。
+- `.github/workflows/lookup-index.yml`：新增 `push: branches: [main], paths: data/extra-names.json`。
+  工作流自己提交的是 `lookup-index.json`，不会自触发；`ARCHIVE` 用的是 PAT，`GITHUB_TOKEN`
+  产生的 push 不触发 Actions，所以归档侧不能换默认 token。
+
+### 29.5 共享链路（用户问「查到的昵称会共享吧」——确实有，且已闭环）
+
+```
+App 查 UID 成功
+  → apk/archive_local.py record() 写本地 pending_names.jsonl
+  → sync_async() 用 gh.json 的 PAT 走 Contents API 追加到 data/extra-names.json
+  → push 自动触发 lookup-index.yml
+  → build_lookup_index.py::load_extra_names() 合并进 data/lookup-index.json
+  → 其他人点查询页「刷新」即可按昵称搜到
+```
+
+`build-apk.yml` 会注入 `GH_TOKEN_APK` 生成 `gh.json`；没配 token 时 App 只本地记账、不写仓库。
+
+### 29.6 端到端验证（11-15 21:12）
+
+| 步骤 | 实测 |
+|---|---|
+| 归档前 | extra-names 322 条 / index 799 人 / 天道自然未归档 |
+| 模拟器（v63）查华为榜首 `10045041213` | 实时档案成功：天道自然 / 3856 级 / 第 1 名 |
+| 归档后 | extra-names **323 条**、`updatedAt 21:12:34`、天道自然已入库 |
+| 自动重建 | Actions run `43717805794`，`event=push`、completed **success** |
+| 索引 | **800 人**、`updatedTs 1794748367`（21:12:47） |
+
+刷新按钮单独验过：点 → 「刷新中」→ 「刷新」+「昵称索引已更新（799 人）」，
+设备缓存 mtime 从 19:00 更新到 21:05。离线测试还覆盖了「断网刷新保留旧索引、来源标 failed」。
+
+### 29.7 版本
+
+| 版本 | commit | 内容 |
+|---|---|---|
+| v61 | `608e8db` | 状态条 + 刷新按钮 + 工作流 push 触发 |
+| v62 | `172d2b0` | 修状态条初始「未加载」（`info()` 同步兜底 + 延迟刷新） |
+| v63 | `37ffbda` | 缩短状态条文案 |
+| v64 | `0f258f6` | 同步 `names_index.py` 文件头注释（原写「refresh.yml 每次抓取后重建」已过时） |
+
+`preflight` 全程 7 通过 / 1 警告 / 0 失败。

@@ -11,9 +11,9 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v60** |
+| APK 热更版本 | **v64** |
 | 分区数 | **8**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为） |
-| 索引人数 | ~799（其他服、华为各 100 人） |
+| 索引人数 | ~800（其他服、华为各 100 人 + APK 归档） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
 | 临时文件 | `E:/workbuddy2/_agent_tmp` |
 | token | `E:/workbuddy2/_agent_tmp/gh_token.txt` |
@@ -57,10 +57,10 @@
 - `concurrency: fzjh-data`，`cancel-in-progress: false`
 - 手动触发：`mode=probe|board|full`，`server=all|<key>`
 
-**昵称索引不在上面这条链路里**（`lookup-index.yml`，每周一 04:00 + 手动）：
+**昵称索引不在上面这条链路里**（`lookup-index.yml`，每周一 04:00 + 手动 + **归档 push**）：
 `data/lookup-index.json` 是「昵称 → uid」静态表，只有 APK 读，不参与榜单展示与经验计算。
 每天重建只会跟着榜单抖动造提交，所以拆出去了。**加分区、改 `hidden.json`、补 5 转表之后必须手动跑一次**。
-
+APK 归档新昵称（`data/extra-names.json`）会自动触发重建，不用等周一。
 ---
 
 ## 关键设计（改代码前必看）
@@ -89,6 +89,29 @@
 
 触发条件：`_done()` 里 `prof is None` 且开关开 → `L.board_profile(self._last_uid, server)` 命中就 `show_result()`。
 所以限流、断网、选错分区等**任何失败**都会兜底。`self._last_uid` 在 `_begin()` 里记。
+
+### 1.2 昵称索引的手动刷新与共享闭环（v61 起）
+
+旧逻辑的坑：`names_index.py` 只在**进程冷启动**时检查一次，且要本地缓存 mtime 满
+`CHECK_GAP=6h` 才联网（`_started` 一次性标志，无 `on_resume`）。所以加新服之后，
+手机常驻后台、或缓存刚下载过，就会一直用旧索引 —— 11-15 用户手机搜不到华为昵称就是这个原因，
+**不是索引没生成**（三个下载源当时都是新版）。
+
+| 改动 | 位置 |
+|---|---|
+| 查询页状态条「索引 N 人 · 时间」+「刷新」按钮 | `app_ui.py::_index_card()` / `_refresh_index()` |
+| `refresh_async()` 强制联网、绕过 6h | `names_index.py`（`_load_blocking(force=True)`） |
+| `info()` 在后台线程未跑完时同步读缓存兜底 | `names_index.py`（避免状态条一直显示「未加载」） |
+| `lookup-index.yml` 加 `push: paths: data/extra-names.json` | 有人归档新昵称就自动重建索引 |
+
+**共享闭环**（已端到端验证 11-15 21:12）：
+App 查 UID 成功 → `apk/archive_local.py` 用 PAT 写 `data/extra-names.json`
+→ push 触发 `lookup-index.yml` → `build_lookup_index.py` 合并 → 所有人点「刷新」即可搜到。
+实测：查华为榜首 `10045041213` → extra-names 322→323 → 工作流 `43717805794`（push，success）
+→ 索引 799→800 人。
+
+> 归档侧必须用 PAT（`GH_TOKEN_APK`）：`GITHUB_TOKEN` 产生的 push 不会触发 Actions，
+> 换成默认 token 会把这条链路悄悄断掉。
 
 ### 2. 分区凭据走私有 gist
 凭据不能进公开仓库（Pages 源是 main 根目录）。所以：

@@ -112,7 +112,7 @@ Python 访问 GitHub API 用 `urllib.request.build_opener(urllib.request.ProxyHa
 - `buildozer.spec`：`source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf,pem`（`pem` 是为了带 CA 包加的）。
 - `apk/main.py` 的 `REQUIRED` 只校验 4 个老文件；**新增 `.py` 必须同时加进 `scripts/pack_update.py` 的 `FILES`**，否则包里没有，功能静默降级。
 - 缓存与用户数据写 `ANDROID_PRIVATE`（`/data/data/com.fzjh.fzjhlookup/files/`），**绝不写 `live/`** —— 每次热更 `live/` 会被整个删掉重建。
-- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 190 KB（v60 = 194,021 字节）。
+- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 192 KB（v64 = 196,270 字节）。
 
 ### 2.3 启动器怎么装热更包
 
@@ -294,6 +294,38 @@ App 里根本没有「失败后展示榜单数据」的行为。
 
 > 覆盖范围有限：只有上过榜、且该区榜单缓存还在（1 天 TTL）的人才有兜底。
 > 没上榜或缓存为空，行为跟以前完全一样。
+
+### 3.10 昵称索引状态条与手动刷新（v61 起）
+
+**为什么要做**：`names_index.py` 只在进程冷启动时检查一次，且本地缓存 mtime 满 6 小时
+才联网（`_started` 一次性标志，没有 `on_resume`）。加新服之后，手机常驻后台或缓存刚下载过，
+就会一直用旧索引；用户完全看不出手上那份是不是旧的。11-15 手机搜不到华为昵称即此因，
+当时仓库/Pages/jsdelivr 三个源都已是新版。
+
+| 位置 | 实现 |
+|---|---|
+| `app_ui.py` | 查询页表单下方 `_index_card()`：一行「索引 N 人 · 时间」+「刷新」按钮；`_refresh_index()` / `_on_index_refreshed()` |
+| `names_index.py` | `refresh_async()` 调 `_load_blocking(force=True)` 绕过 6h；`info()` 在后台线程未跑完时同步读缓存兜底；`_IO_LOCK` 防止冷启动加载与手动刷新撞车 |
+| `lookup-index.yml` | 加 `push: paths: data/extra-names.json` 触发（见《网页维护操作手册》§5.1.2） |
+
+状态条用索引里的 **`updatedTs`** 按本机时区格式化，不用 `updatedAt` 字符串 ——
+后者在 CI（UTC）和本地（北京时间）跑出来口径不一致。
+
+**共享闭环**：App 查 UID 成功 → `archive_local.py` 用 `gh.json` 的 PAT 写 `data/extra-names.json`
+→ push 自动触发 `lookup-index.yml` 重建 → 其他人点「刷新」就能按昵称搜到。
+归档侧**不能改用 `GITHUB_TOKEN`**：它产生的 push 不会触发 Actions，链路会静默断掉。
+
+**验收**
+
+1. 冷启动看状态条应显示「索引 N 人 · MM-DD HH:MM」，不是「昵称索引未加载」
+2. 点「刷新」→ 按钮变「刷新中」→ 回「刷新」，提示「昵称索引已更新（N 人）」，
+   `adb shell ls -l <私有目录>/lookup-index.json` 的 mtime 应更新
+3. 断网点「刷新」→ 提示失败，但旧索引仍可正常搜索（`source="failed"` 不覆盖缓存）
+4. 查一个 `data/extra-names.json` 里没有的 UID → 等半分钟 → 该文件条数 +1，
+   且 Actions 出现一条 `event=push` 的「重建昵称索引」成功记录
+
+> 只改 `names_index.py` 的注释也要重新 `pack_update.py`：热更包里有这个文件，
+> `preflight.py` 会逐字节比对源码与包内容，不打包就报 FAIL。
 
 ---
 
