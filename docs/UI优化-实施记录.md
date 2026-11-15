@@ -1207,5 +1207,48 @@ apk / assets / scripts / .github / cloud  →  0 差异
 
 ### 25.5 没做的事
 
-合并 `fetch.py`、抽公共等级模块、统一归档实现、CI 映射脚本化、本地 git 对齐——都列进
-`docs/代码流程梳理.md` §7，按项目约定等确认后再动。
+合并 `fetch.py`、抽公共等级模块、统一归档实现原计划全部搁置，只留方案。随后用户确认了
+低风险部分（E/F/H + 本地 git 对齐），执行结果见 §26；A/B 仍不做，理由见 §26.4。
+
+---
+
+## 二十六、第二批：CI 映射脚本化、失败兜底、死文件清理、本地 git 对齐
+
+用户确认「E / F / H 先做、本地 git 先备份再对齐；A/B 不影响现有功能才做」。实际结论：E/F/H 已做，
+A/B 判定无法零影响，未做。
+
+### 26.1 E：cron→分区映射抽成 `scripts/plan_refresh.py`
+
+`refresh.yml` 原来在一个 `run:` 里用两段 shell `case` 做「cron→分区」和「分区→中文名」，
+改 cron 要同时改 `on.schedule`、两个 `case`，漏一处的后果是静默跑到 `*)` 的六区全量。
+
+现在映射表在脚本里（`SCHEDULE_MAP` / `LABELS`），工作流只负责调用并把 stdout 追加到
+`$GITHUB_OUTPUT`；任务摘要拆成独立一步。本地逐条验证过：5 条 cron、双空格、首尾空格、
+未知 cron（→`all`）、手动 `mode` + 6 个分区，输出与旧 shell 一致。
+
+### 26.2 F：merge-exp 补 artifact 兜底（并补 `yyh` 选项）
+
+原来 rebase 冲突 / 连续 push 失败时 `exit 1`，数据只在 runner 里。现在 `if: failure()` 上传
+`data/` artifact，保留 7 天，与 `refresh.yml` 对齐。顺带发现手动选项里**漏了 `yyh`**——
+应用汇没法单独合并经验，一并补上。
+
+### 26.3 H：删除重复入口
+
+`api/index.py` 与 `cloud/fc_index.py` 内容完全相同（18,790 B），前者是早期 Vercel 入口，
+`vercel.json` 只登记 `api/query.py`，Vercel 已停用。远端删除，本地同步；
+`scripts/serve_api.py` 的 docstring 一并纠正（它加载的是 `cloud/fc_index.py` 的 staging 副本）。
+
+### 26.4 A/B 为什么没做
+
+- A：合并两份 `fetch.py` 要么让 CI 依赖 APK 侧模块，要么抽新模块进热更包；两条路都要重打包/真机验证，
+  无法证明「改完零影响」。
+- B：抽公共等级模块同样要在热更包新增文件，漏打包会让 `import` 失败、查询页打不开；收益只有十几行。
+
+按「不影响现有功能才做」的前提，两项都留到游戏协议真正变动时一起做（那时本来就要回归）。防漂移
+改由 `preflight.py` 的数值比对 + staging 告警承担。
+
+### 26.5 本地 git 对齐
+
+本地 HEAD 停在 v29（`5344e87`），落后远端 27 个版本。先备份整树到
+`_agent_tmp/git_backup_20261115.zip`（421 文件 / 6.6 MB），再 `fetch` + `reset --hard FETCH_HEAD`。
+之后 `git status/log` 恢复可信，但发布仍走 `publish.py`（避免与 Actions 的 `data/` 提交互相覆盖）。

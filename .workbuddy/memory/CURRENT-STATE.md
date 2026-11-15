@@ -85,7 +85,13 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 
 ### 5. 武学等级
 `lv = min(1100, ceil(((exp - 1) / 0.015) ** (1/3)))`
-四处需同步：`apk/lookup_core.py`、`scripts/fetch_profiles.py`、`assets/profile.js`、`worker/`。
+
+三处**活代码**需同步：`apk/lookup_core.py`、`scripts/fetch_profiles.py`、
+`worker/src/profile.js`（未上线，仅本地）。第四处 `api/build/staging/lookup_core.py`
+是**构建产物**，跑 `build_api_zip.py` 自动跟随，不要手改。
+
+⚠️ `assets/profile.js` **不做等级换算**，只显示档案里的 `lv`（旧版本这里记错了）。
+自检：`python scripts/preflight.py` 会比对两处数值，并在 staging 过期时告警。
 
 ### 6. 隐私名单
 `data/hidden.json` 4 人：玲珑望月(4047491326) / 微生念(4168426) / 微生梦(6622657) / 咸味桃酥(21079748748)。
@@ -97,12 +103,18 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 
 | 改了什么 | 必须做什么 |
 |---|---|
+| 任何改动 | `python scripts/preflight.py`（语法/缓存戳/热更包/等级/names/隐私一次跑完） |
 | `assets/*.js` / `style.css` | **`python scripts/stamp_assets.py`**（否则 WebView 用缓存） |
 | `apk/*.py` | `python -m py_compile` → `scripts/pack_update.py "说明"` → 推 `code.zip`+`version.json` |
 | `config.json`（加分区） | 更新 gist + CI Secret `FZJH_SERVERS` |
 | `data/**` | 一般由 CI 自动提交 |
 
-**发布方式**：一律走 GitHub REST API（`blob → tree → commit → PATCH refs`），`force: false`，**必须用 `base_tree`**（否则覆盖 CI 刚写的数据）。
+**发布方式**：`python scripts/publish.py "说明" 文件...`（`--check` 先预览）。
+固定走 GitHub REST API（`blob → tree → commit → PATCH refs`），自动带 `base_tree`、
+自动跳过无变化文件、强制 `code.zip`+`version.json` 成对、拒绝敏感文件。
+**不要 `git push`**（本地 git 与远端长期分叉）。
+
+**看本地与线上差在哪**：`python scripts/check_drift.py`（按 git blob 比对，能区分仅换行差异）。
 
 **网络**：urllib 要 `ProxyHandler({})`；curl 访问 github.io 要 `--noproxy '*' `。
 
@@ -127,7 +139,7 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 1. `data/cangsong-5zhuan.json` `count=7787` 但 `players=7785`（历史删人没更新 count，不影响功能）
 2. `assets/lookup.js` 是死代码（`worker/src/lookup.js` 才是活的）
 3. 两份 `names.json`（`data/` 与 `apk/`）无同步机制，当前内容一致（md5 `8325e44d8a1a`）
-4. `merge-exp.yml` 提交失败时**没有** artifact 兜底（只有 `refresh.yml` 有）
+4. ~~`merge-exp.yml` 没有 artifact 兜底~~ → **已修**（2026-11-15，与 `refresh.yml` 一致）
 
 ---
 
@@ -135,9 +147,10 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 
 | 文档 | 内容 |
 |---|---|
+| `docs/代码流程梳理.md` | **代码地图、重复实现、僵尸产物、待改造清单**（改动前先看） |
 | `docs/APK修改操作手册.md` | APK 全部操作（热更/重打包/签名/模拟器验证） |
 | `docs/网页维护操作手册.md` | 网页+数据链路，§14 是已知隐患清单 |
-| `docs/UI优化-实施记录.md` | v30–v52 每次改动推理 |
+| `docs/UI优化-实施记录.md` | v30–v56 每次改动推理 |
 | `docs/武学分类校对表.md` | 武学分组人工校对 |
 | `.workbuddy/memory/2026-11-14.md`、`2026-11-15.md` | 逐日结论 |
 

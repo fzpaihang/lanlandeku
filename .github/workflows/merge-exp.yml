@@ -17,6 +17,7 @@ on:
           - taptap_3
           - taptap_4
           - 4399
+          - yyh
 
 permissions:
   contents: write
@@ -71,3 +72,15 @@ jobs:
             sleep 5
           done
           exit 1
+
+      # 提交失败时把 data/ 留成 artifact（与 refresh.yml 一致）。
+      # 以前没有兜底：rebase 冲突或连续 push 失败时，合并结果只留在 runner 里，
+      # 机器销毁就没了，只能重新跑一次。
+      - name: 失败时保留合并结果
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: merge-exp-data-${{ github.run_id }}
+          path: data/
+          if-no-files-found: ignore
+          retention-days: 7

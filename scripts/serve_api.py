@@ -6,8 +6,9 @@
   python scripts/serve_api.py 8788
   # 浏览器打开 http://127.0.0.1:8788/lookup.html?uid=21079729670
 
-它会用 config.json 里的五区凭据设置 FZJH_SERVERS / FZJH_HOTVER，
-再用 api/build/staging 里那份代码跑 api/index.py 的 main_handler。
+它会用 config.json 里的分区凭据设置 FZJH_SERVERS / FZJH_HOTVER，
+再加载 api/build/staging/index.py（由 cloud/fc_index.py 复制而来）的 main_handler。
+注意 lookup.html 已停用，联调时以 /api/query 的响应为准。
 """
 import http.server
 import io

@@ -67,7 +67,9 @@ jobs:
       - name: 安装依赖
         run: pip install -r requirements.txt
 
-      # 定时任务没有输入参数，靠 github.event.schedule 反查本次该抓哪个区
+      # 定时任务没有输入参数，靠 github.event.schedule 反查本次该抓哪个区。
+      # cron→分区→中文名的映射表在 scripts/plan_refresh.py（可本地逐条验证），
+      # 以前这里有两段 shell case，改 cron 要同步改两处，容易漏。
       - name: 解析本次目标分区
         id: t
         env:
@@ -75,37 +77,17 @@ jobs:
           PICK: ${{ inputs.server }}
           MODE: ${{ inputs.mode }}
         run: |
-          if [ -n "$MODE" ]; then
-            t="$PICK"
-          else
-            # github.event.schedule 原样返回 cron 字符串；历史上出现过双空格，
-            # 先压缩多余空格再匹配，避免落到 *) 误跑五区全量。
-            SCHED_N=$(printf '%s' "$SCHED" | tr -s ' ' | sed 's/^ *//;s/ *$//')
-            case "$SCHED_N" in
-              '0 22 * * *')  t='taptap' ;;
-              '55 15 * * *') t='taptap_2,taptap_3' ;;
-              '0 20 * * *')  t='yyh' ;;
-              '0 4 * * *')   t='taptap_4' ;;
-              '0 10 * * *')  t='4399' ;;
-              *)             t='all' ;;
-            esac
-          fi
+          python scripts/plan_refresh.py --schedule "$SCHED" --mode "$MODE" --pick "$PICK" >> "$GITHUB_OUTPUT"
 
-          case "$t" in
-            taptap)            n='苍松迎客' ;;
-            taptap_2,taptap_3) n='白鹤+丹凤' ;;
-            taptap_2)          n='白鹤亮翅' ;;
-            taptap_3)          n='丹凤朝阳' ;;
-            taptap_4)          n='墨羽惊鸿' ;;
-            4399)              n='4399' ;;
-            yyh)               n='应用汇' ;;
-            *)                 n='全部' ;;
-          esac
-
-          echo "target=$t" >> "$GITHUB_OUTPUT"
-          echo "label=$n"  >> "$GITHUB_OUTPUT"
+      - name: 写入任务摘要
+        if: always()
+        env:
+          MODE: ${{ inputs.mode }}
+          T: ${{ steps.t.outputs.target }}
+          N: ${{ steps.t.outputs.label }}
+        run: |
           {
-            echo "### 本次刷新：$n（$t）"
+            echo "### 本次刷新：$N（$T）"
             echo ""
             echo "- 触发方式：${MODE:-schedule}"
             echo "- UTC 时间：$(date -u '+%Y-%m-%d %H:%M:%S')"
