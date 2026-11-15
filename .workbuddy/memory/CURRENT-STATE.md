@@ -1,7 +1,7 @@
 # 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-15 12:20（热更 v57，新增第七区「其他服」）
+> 最后更新：2026-11-15 14:30（热更 v58，新增第八区「华为」）
 
 ---
 
@@ -11,16 +11,16 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v57** |
-| 分区数 | **7**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服） |
-| 索引人数 | ~699（其他服 100 人） |
+| APK 热更版本 | **v58** |
+| 分区数 | **8**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为） |
+| 索引人数 | ~799（其他服、华为各 100 人） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
 | 临时文件 | `E:/workbuddy2/_agent_tmp` |
 | token | `E:/workbuddy2/_agent_tmp/gh_token.txt` |
 
 ---
 
-## 七个分区
+## 八个分区
 
 | key | 名称 | channel | maxRank | UID 前缀 |
 |---|---|---|---|---|
@@ -30,13 +30,14 @@
 | `taptap_4` | 墨羽惊鸿 | taptap_4 | 不限（~99） | 22 |
 | `4399` | 4399 | 4399 | 50 | 4 |
 | `yyh` | 应用汇 | yyh | **20** | 6 |
-| `guanfang` | **其他服** | guanfang | **50**（索引 100） | **9** |
+| `guanfang` | 其他服 | guanfang | **50**（索引 100） | **9** |
+| `huawei` | **华为** | huawei | **50**（索引 100） | **10** |
 
 **位数优先于前缀**：`4168426`（7 位、4 开头）属于苍松，不是 4399。
 
 未收录前缀（留档）：5 当乐 / 7 啪啪 / 10 华为 / 11 oppo / 12 vivo / 13 应用宝 / 14 小七 / 20 小米
 
-其他服是官方合服（`payChannel=guanfang`），uid 一律 **9 开头 10 位**，没混入老服号。
+其他服是官方合服（`payChannel=guanfang`），uid 一律 **9 开头 10 位**；华为端（包名 `com.xhtt.app.fzjh.huawei`）uid **10 开头 11 位**。两者都没混入老服号。
 
 ---
 
@@ -49,9 +50,10 @@
 | `0 20 * * *` | 次日 **04:00** | **应用汇** |
 | `0 4 * * *` | 12:00 | 墨羽 |
 | `0 10 * * *` | 18:00 | 4399 |
-| `0 8 * * *` | **16:00** | **其他服** |
+| `0 8 * * *` | 16:00 | 其他服 |
+| `0 18 * * *` | 次日 **02:00** | **华为** |
 
-- `timeout-minutes: 60`（七区全量约 38 分钟）
+- `timeout-minutes: 60`（八区全量约 45 分钟）
 - `concurrency: fzjh-data`，`cancel-in-progress: false`
 - 手动触发：`mode=probe|board|full`，`server=all|<key>`
 
@@ -67,7 +69,7 @@
 ### 2. 分区凭据走私有 gist
 凭据不能进公开仓库（Pages 源是 main 根目录）。所以：
 ```
-私有 gist servers.json（7 区凭据）
+私有 gist servers.json（8 区凭据）
   → APK 启动用内置 gh.json token 拉
   → files/servers-remote.json（6h TTL）
   → 优先级高于 APK 内置 config.json

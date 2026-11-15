@@ -7,6 +7,7 @@ name: 刷新高手榜
 #   0 4 * * *   → 当日 12:00  墨羽惊鸿（taptap_4）
 #   0 10 * * *  → 当日 18:00  4399
 #   0 8 * * *   → 当日 16:00  其他服（guanfang）
+#   0 18 * * *  → 次日 02:00  华为（huawei）
 # 单区全量约 5–8 分钟，各任务互不重叠，也避免连续请求触发限流。
 on:
   schedule:
@@ -16,6 +17,7 @@ on:
     - cron: '0 4 * * *'    # 12:00 墨羽惊鸿
     - cron: '0 10 * * *'   # 18:00 4399
     - cron: '0 8 * * *'    # 16:00 其他服
+    - cron: '0 18 * * *'   # 次日 02:00 华为
   workflow_dispatch:
     inputs:
       mode:
@@ -41,6 +43,7 @@ on:
           - 4399
           - yyh
           - guanfang
+          - huawei
 
 permissions:
   contents: write
