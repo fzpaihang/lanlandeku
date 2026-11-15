@@ -727,6 +727,17 @@ class AppBar(BoxLayout):
         self.col.add_widget(self.sub_lab)
         self.add_widget(self.col)
 
+        # 结果页右上角的「榜单兜底」开关（默认不显示，只有结果页把它亮出来）。
+        # 用纯文字按钮而不是 Kivy 的 Switch：顶栏底色是朱砂红，Switch 的
+        # 轨道/滑块配色在深底上很难调干净，文字按钮反而更清楚。
+        self.fb_on = False
+        self.fb_btn = Button(
+            text="", font_name=FONT, font_size=sp(10.5), bold=True,
+            color=C_MUTED, size_hint_x=None, width=0, opacity=0,
+            background_color=(0, 0, 0, 0), background_normal="",
+        )
+        self.add_widget(self.fb_btn)
+
         self.right_btn = Button(
             text="", font_name=FONT, font_size=sp(12.5), color=C_ACCENT,
             size_hint_x=None, width=0, opacity=0,
@@ -765,19 +776,34 @@ class AppBar(BoxLayout):
         """
         if dark:
             self._bgc.rgba = C_SEAL
+            self._dark = True
             self.title_lab.color = (1, 1, 1, 1)
             self.sub_lab.color = (1, 1, 1, 0.72)
             self.back.color = (1, 1, 1, 1)
             self.right_btn.color = (1, 1, 1, 1)
+            self.fb_btn.color = (1, 1, 1, 1) if self.fb_on else (1, 1, 1, 0.55)
         else:
             self._bgc.rgba = C_BG
+            self._dark = False
             self.title_lab.color = C_INK
             self.sub_lab.color = C_INK2
             self.back.color = C_INK
             self.right_btn.color = C_ACCENT
+            self.fb_btn.color = C_ACCENT if self.fb_on else C_MUTED
 
     def set_content(self, title="", sub="", right="", back=False, seal=False,
-                    dark=False):
+                    dark=False, fallback=None):
+        # fallback=None 表示这一页不显示开关；True/False 是开关的当前状态。
+        # 必须先定下 fb_on 再调 _set_tone，否则红色顶栏会用到上一次的颜色。
+        if fallback is None:
+            self.fb_btn.text = ""
+            self.fb_btn.width = dp(0)
+            self.fb_btn.opacity = 0
+        else:
+            self.fb_on = bool(fallback)
+            self.fb_btn.text = "榜单兜底 开" if self.fb_on else "榜单兜底 关"
+            self.fb_btn.width = dp(70)
+            self.fb_btn.opacity = 1
         self._set_tone(dark)
         self.title_lab.text = title or ""
         self.sub_lab.text = sub or ""
@@ -830,6 +856,23 @@ class AppBar(BoxLayout):
                 pass
         self._right_cb = fn
         self.right_btn.bind(on_release=fn)
+
+    def set_fallback(self, on):
+        """只改开关的显示，不负责保存（保存由界面层做）。"""
+        self.fb_on = bool(on)
+        self.fb_btn.text = "榜单兜底 开" if self.fb_on else "榜单兜底 关"
+        # 顶栏此刻是红底还是米底，沿用上一轮 _set_tone 的结果
+        self._set_tone(getattr(self, "_dark", False))
+
+    def bind_fallback(self, fn):
+        old = getattr(self, "_fb_cb", None)
+        if old:
+            try:
+                self.fb_btn.unbind(on_release=old)
+            except Exception:
+                pass
+        self._fb_cb = fn
+        self.fb_btn.bind(on_release=fn)
 
 
 def _sdl_start_text_input():
@@ -1622,12 +1665,13 @@ class PlayerLookup(App):
         except Exception:
             pass
 
-    def _set_foot(self, on):
+    def _set_foot(self, on, exportable=True):
         """结果态把操作条固定在底部；查询态归零，不占位。
 
         底栏只放两个动作：「导出」（次要，纯文字）+「再查一个」（主按钮）。
         之前并排三个按钮，360dp 下主按钮被挤成一坨，所以导出收成图标式文字按钮、
         宽度写死 84dp，剩下的全给主按钮。
+        exportable=False 时只留「再查一个」——榜单兜底页的档案是残缺的，导出去没意义。
         """
         self.foot.clear_widgets()
         if not on:
@@ -1638,9 +1682,10 @@ class PlayerLookup(App):
         self.foot.padding = (dp(pad), dp(8), dp(pad), dp(10))
         self.foot.height = dp(62)
 
-        exp = txt_button("导出", C_ACCENT, width=84, height=46, size=14)
-        exp.bind(on_release=lambda *a: self._export_menu())
-        self.foot.add_widget(exp)
+        if exportable:
+            exp = txt_button("导出", C_ACCENT, width=84, height=46, size=14)
+            exp.bind(on_release=lambda *a: self._export_menu())
+            self.foot.add_widget(exp)
 
         again = PrimaryButton(text="再查一个", font_name=FONT, font_size=sp(15),
                               bold=True, size_hint=(1, None), height=dp(46))
@@ -1879,13 +1924,21 @@ class PlayerLookup(App):
         # 顶栏不再放「修改」：左边的 ‹ 就是回查询页，同一个动作不占两个位置，
         # 少一个按钮也把标题行的空间让给分区名。
         self.tone_bar.height = dp(36)
-        self.appbar.set_content(title=p["serverName"],
-                                sub="UID %s" % (p.get("uid") or ""),
-                                right="重新查询", back=True)
+        sub = "UID %s" % (p.get("uid") or "")
+        if p.get("_board"):
+            sub += " · 榜单快照"
+        # 右上角开关：任何结果页都能改，默认关闭（第一次要在结果页手动打开）
+        try:
+            fb = L.board_fallback_on()
+        except Exception:
+            fb = False
+        self.appbar.set_content(title=p["serverName"], sub=sub,
+                                right="重新查询", back=True, fallback=fb)
         # 必须走 bind_right：它会先把查询页绑的那个 _open_web 解掉。
         # 直接 right_btn.bind() 是在已有绑定上再叠一个，点一下会同时
         # 触发「重新查询」和「打开高手榜」（实测点成了 WebView）。
         self.appbar.bind_right(lambda *a: self._on_refresh())
+        self.appbar.bind_fallback(lambda *a: self._toggle_board_fallback())
         self.appbar.bind_sub(lambda: self.copy_uid())
         self.prep_open = False
         self.skill_open = False
@@ -1893,7 +1946,8 @@ class PlayerLookup(App):
         self.skill_open_groups = set()
         self.skill_group_limit = {}
         self._render(p)
-        self._set_foot(True)
+        # 榜单兜底页没有武学/装备，导出的档案是残缺的，干脆不给导出按钮
+        self._set_foot(True, exportable=not p.get("_board"))
         self._scroll_top()
 
     # ---------- 分区 ----------
@@ -2487,6 +2541,11 @@ class PlayerLookup(App):
             Clock.schedule_once(_resume, left + 0.2)
             return
         self._last_query_at = time.time()
+        # 记住这次查的是谁：失败后要拿它去榜单快照里找兜底数据
+        try:
+            self._last_uid = int(uid)
+        except (TypeError, ValueError):
+            self._last_uid = None
         self.busy = True
         self.btn.disabled = True
         self.btn.text = "查询中…"
@@ -2517,11 +2576,42 @@ class PlayerLookup(App):
             return
         Clock.schedule_once(lambda dt: self._done(prof, server))
 
+    # ---------- 榜单兜底（查询失败时用榜单快照顶一下，非实时） ----------
+    def _board_fallback_enabled(self):
+        try:
+            return L.board_fallback_on()
+        except Exception:
+            return False
+
+    def _toggle_board_fallback(self, *a):
+        """结果页右上角那个按钮：开/关榜单兜底，并立刻落盘。"""
+        on = not self._board_fallback_enabled()
+        try:
+            L.set_board_fallback(on)
+        except Exception:
+            self.set_status("设置没保存成功，再点一次试试", C_ACCENT)
+            return
+        self.appbar.set_fallback(on)
+        self.set_status("已开启：请求失败时显示榜单数据" if on
+                        else "已关闭：失败时不再显示榜单数据", C_INK2)
+
     def _done(self, prof, server="auto"):
         self.busy = False
         self.btn.disabled = False
         self.btn.text = "查询玩家"
         if not prof:
+            # 开了「榜单兜底」的话，先用本地榜单快照给一份非实时结果。
+            # 玩家至少能看到这人叫什么、什么门派、多少级、排第几，
+            # 而不是只有一句「查询失败」然后什么也没有。
+            if self._board_fallback_enabled():
+                try:
+                    bp = L.board_profile(getattr(self, "_last_uid", None), server)
+                except Exception:
+                    bp = None
+                if bp:
+                    self.set_status("")
+                    self.show_result(bp)
+                    return
             # 以前所有失败都出「未找到」，断网也会说 UID 错，用户会反复换号试
             reason = "unknown"
             try:
@@ -2597,6 +2687,93 @@ class PlayerLookup(App):
         self.q_status.height = dp(28) if text else dp(0)
 
     # ---------- 结果态 ----------
+    def _render_board(self, p):
+        """榜单兜底页：所有数字都来自本地榜单快照，顶部必须标「非实时」。
+
+        刻意**不**复用实时档案那套版式：武学、装备、气血、准备位榜单里都没有，
+        照着实时的排出来会是一屏「—」，看着像查到了但没数据，反而误导。
+        这里只放榜单真有的几项，外加一条明确的来源说明。
+        """
+        self._set_body_card(False)
+        self.body.padding = (dp(hp()), dp(12), dp(hp()), dp(14))
+        self.body.spacing = dp(12)
+        self.body.clear_widgets()
+
+        try:
+            ts = float(p.get("_boardTs") or 0)
+        except (TypeError, ValueError):
+            ts = 0.0
+        when = time.strftime("%m-%d %H:%M", time.localtime(ts)) if ts else "未知"
+
+        # ① 非实时提示（先看到它，再看数据）
+        tip = Card(radius=14, pad=12, spacing=2)
+        tip.bind(minimum_height=tip.setter("height"))
+        tip.add_widget(lab("非实时 · 来自高手榜快照", 13, C_ACCENT, bold=True,
+                           height=22, shorten=True))
+        d = lab("实时档案没拿到，下面是榜单缓存（抓取于 %s），数字可能已过期。" % when,
+                11.5, C_INK2, height=1)
+        d.bind(texture_size=lambda inst, sz: setattr(inst, "height", sz[1] + dp(4)))
+        tip.add_widget(d)
+        self.body.add_widget(tip)
+
+        # ② 身份
+        idc = Card(radius=16, pad=14, spacing=4)
+        idc.bind(minimum_height=idc.setter("height"))
+        head = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(8))
+        head.add_widget(lab(p["name"], 22, C_INK, bold=True, height=36, serif=True,
+                            shorten=True))
+        rank_txt = ("第 %s 名 ›" % p["rank"]) if p.get("rank") else "未上榜"
+        rank = PillButton(rank_txt, width=84, height=28)
+        if p.get("rank"):
+            rank.bind(on_release=lambda *a: self._open_web(self._result_uid()))
+        head.add_widget(_vcenter(rank, 36))
+        idc.add_widget(head)
+        idc.add_widget(lab(p.get("menpai") or "—", 12.5, C_INK2, height=26,
+                           shorten=True))
+        self.body.add_widget(idc)
+
+        # ③ 榜单里能确定的几个数
+        num = Card(radius=16, pad=14, spacing=8)
+        num.bind(minimum_height=num.setter("height"))
+        pri = BoxLayout(size_hint_y=None, height=dp(54), spacing=dp(12))
+        lv_txt = (("%s" % p["lv"]) + ("（估）" if p.get("lvEstimated") else "")) \
+            if p.get("lv") else "—"
+        kf_txt = ("%.2f" % p["kongfu"]) if p.get("kongfu") is not None else "—"
+        for k, v in (("等级", lv_txt), ("武学造诣", kf_txt)):
+            cell = BoxLayout(orientation="vertical", size_hint_y=None,
+                             height=dp(54), spacing=0)
+            cell.add_widget(lab(k, 10.5, C_MUTED, height=16))
+            cell.add_widget(lab(v, 19, C_INK, height=36, bold=True, shorten=True))
+            pri.add_widget(cell)
+        num.add_widget(pri)
+        num.add_widget(HLine())
+
+        grid = GridLayout(cols=2, size_hint_y=None, spacing=(dp(10), dp(6)))
+        vals = [
+            ("经验", L.fmt_big(p.get("exp"))),
+            ("名次", ("第 %s 名" % p["rank"]) if p.get("rank") else "未上榜"),
+            ("传承", ("%s 次" % p["inheritCount"]) if p.get("inheritCount") else "—"),
+            ("分区", p.get("serverName") or "—"),
+        ]
+        for k, v in vals:
+            cell = BoxLayout(orientation="vertical", size_hint_y=None,
+                             height=dp(44), spacing=0)
+            cell.add_widget(lab(k, 10.5, C_MUTED, height=15))
+            cell.add_widget(lab(str(v), 15.5, C_INK, height=29, shorten=True))
+            grid.add_widget(cell)
+        grid.height = dp(44) * 2 + dp(6)
+        num.add_widget(grid)
+        self.body.add_widget(num)
+
+        # ④ 说明 + 关闭指引
+        tail = Card(radius=14, pad=12, spacing=6)
+        tail.bind(minimum_height=tail.setter("height"))
+        t2 = lab("不想要这个提示？点右上角「榜单兜底 开」即可关闭。"
+                 "想要实时档案，等几分钟再点「重新查询」。", 11.5, C_INK2, height=1)
+        t2.bind(texture_size=lambda inst, sz: setattr(inst, "height", sz[1] + dp(4)))
+        tail.add_widget(t2)
+        self.body.add_widget(tail)
+
     def _render(self, p):
         """结果页：拆成 6 张卡片。
 
@@ -2604,6 +2781,10 @@ class PlayerLookup(App):
         反而成了没有分块的表格。卡片边界替代大部分分割线之后，
         线只留在真正的列表内部（准备位、传承），密度立刻降下来。
         """
+        if p.get("_board"):
+            # 榜单兜底页：字段来源完全不同，单独一套版式（见 _render_board）
+            self._render_board(p)
+            return
         self._set_body_card(False)
         self.body.padding = (dp(hp()), dp(12), dp(hp()), dp(14))
         self.body.spacing = dp(12)

@@ -557,6 +557,70 @@ def parse_profile(data, board_row=None):
 AUTO_SERVER = "auto"
 
 
+# ---------- 榜单兜底：实时请求失败时，用本地榜单快照给个「非实时」结果 ----------
+# 默认关闭，由结果页右上角的开关打开（存在 lookup_cache.json 里）。
+# 为什么要有：服务端限流（20616）或断网时，至少能告诉玩家这个人叫什么、
+# 什么门派、多少级、排第几——但这些数字来自榜单快照，必须明确标非实时。
+BOARD_FALLBACK = "boardFallback"
+
+
+def board_fallback_on(cache=None):
+    cache = cache if cache is not None else load_cache()
+    return bool(cache.get(BOARD_FALLBACK))
+
+
+def set_board_fallback(on, cache=None):
+    cache = cache if cache is not None else load_cache()
+    cache[BOARD_FALLBACK] = bool(on)
+    save_cache(cache)
+    return bool(on)
+
+
+def board_profile(uid, server=None, cache=None):
+    """从本地榜单快照拼一份「可展示但非实时」的档案；找不到返回 None。
+
+    字段只取榜单里有的（昵称/门派/等级/经验/名次/传承），武学、装备、气血
+    这些榜单没有，界面不能按实时档案的样子展示。
+    返回的 dict 带 `_board=True` 与 `_boardTs`（快照抓取时间），界面据此标注。
+    """
+    cache = cache if cache is not None else load_cache()
+    bc = cache.get("boardCache") or {}
+    key = str(uid or "").strip()
+    if not key or not bc:
+        return None
+    # 已知分区优先，其余按缓存里的顺序兜一遍（自动识别模式会用上）
+    order = [server] if (server and server != AUTO_SERVER and server in bc) else []
+    order += [k for k in bc if k not in order]
+    snames = {}
+    try:
+        for s in (load_config().get("servers") or []):
+            snames[str(s.get("key"))] = str(s.get("name") or s.get("key"))
+    except Exception:
+        pass
+    for k in order:
+        rec = bc.get(k) or {}
+        for r in (rec.get("rows") or []):
+            if str(r.get("userid")) != key:
+                continue
+            lv, est = r.get("lv"), False
+            if not lv and r.get("exp"):
+                # 人物等级用 lv_from_exp（0.100402·lv³），不是武学那套 f(lv)=0.015·lv³
+                lv, est = lv_from_exp(r["exp"]), True
+            return {
+                "uid": int(key),
+                "name": (r.get("name") or "").strip() or "（无昵称）",
+                "menpai": r.get("menpai") or "",
+                "lv": lv, "lvEstimated": est,
+                "exp": r.get("exp"),
+                "rank": r.get("rank"),
+                "kongfu": r.get("kongfu"),
+                "inheritCount": r.get("inheritCount"),
+                "server": k, "serverName": snames.get(k, k),
+                "_board": True, "_boardTs": rec.get("ts") or 0,
+            }
+    return None
+
+
 def _finish(uid, srv, data, cache, hotver, note):
     """命中后：写缓存 → 用榜单补门派/福缘/排名 → 组装展示结构。"""
     cache["lastServer"] = srv["key"]
