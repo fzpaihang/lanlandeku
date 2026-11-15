@@ -1,8 +1,8 @@
 {
-  "version": 63,
-  "md5": "f4a13025204b4d108f94418916c42897",
-  "size": 196161,
-  "notes": "v63：缩短昵称索引状态条文案，避免 360dp 下被截断",
-  "builtAt": "2026-11-15 21:07:47",
-  "sig": "35d5dbc42b4075982fd205b78e6c5d4a4e25e8d4db61b75942e0a59041d0299862cc6358cf189ac54915863d6fb6d958b1e3a19b98b6a672c350653a3a8e5305"
+  "version": 64,
+  "md5": "b186371340c3c62fc10c5cac07e378e1",
+  "size": 196270,
+  "notes": "v64：同步 names_index.py 文件头注释（索引重建/刷新机制的准确描述）",
+  "builtAt": "2026-11-15 21:15:59",
+  "sig": "128c7c271b567a84ab91acbc9ac23e2d0a3488e7a229e4f34d3d3f2d02b5e9eab4beef20643384211e7338b0af28bea195d9d6338bad7b9e97d5b918f6f89f0e"
 }

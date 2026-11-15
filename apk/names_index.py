@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 """昵称索引：把网页那份 uid → 昵称 索引搬到本地，让 APK 能按昵称查人。
 
-数据源：GitHub Pages 的 data/lookup-index.json（refresh.yml 每次抓取后自动重建）
+数据源：GitHub Pages 的 data/lookup-index.json
+        （由 .github/workflows/lookup-index.yml 生成：有人归档新昵称时自动重建、
+          每周一兜底、也可手动触发；不跟着每日抓取任务跑）
 缓存：  <应用数据目录>/lookup-index.json
 策略：  启动时后台加载，绝不阻塞界面；
         6 小时内不重复下载；
         下载失败就用旧缓存；
         完全没数据时自动降级为「只能按 UID 查」，原功能一点不受影响。
+        查询页有「刷新」按钮，调 refresh_async() 无视 6 小时间隔强制联网拉一次。
 """
 import io
 import json
