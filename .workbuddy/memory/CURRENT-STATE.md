@@ -170,3 +170,4 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 | v54/v55 | **应用汇接入** + 分区配置走私有 gist |
 | **v56** | 网页/Worker 武学等级改 ceil + 封顶 1100 |
 | 数据 | 应用汇首百昵称补录；修经验快照混口径（删 `src=None`） |
+| 工具 | 2026-11-15：`preflight` / `publish` / `check_drift` / `plan_refresh`；CI 映射抽脚本、merge-exp 补 artifact、删重复 `api/index.py` |
