@@ -1,8 +1,8 @@
 {
-  "version": 55,
-  "md5": "0da72d33ed5fe4156d1030cbfccc8fca",
-  "size": 190728,
-  "notes": "分区配置改为从私有 gist 拉取：新增应用汇，以后加区不用重打 APK",
-  "builtAt": "2026-11-15 00:25:53",
-  "sig": "e316e3a738a370abc3c7f30f482013e6f3605ee339f6692ada3742937826d4b1054a02dbedca5815526cc0e9ef83f033f340afe0b341cde65e0facd2fd283b08"
+  "version": 56,
+  "md5": "d455a9b35639a9deb0c97e14130d68c8",
+  "size": 190843,
+  "notes": "网页/Worker 武学等级改为向上取整并封顶 1100；App 逻辑本已正确，仅同步注释",
+  "builtAt": "2026-11-15 09:53:26",
+  "sig": "4a22afdbf4e6f51f29a0dd7579b63ddf94d5b5be35d49d436e66f15c764fd5e35bc7268bbd407705bf99a4ae97d3b2933adf396a417cb53d315a3183be0c3801"
 }

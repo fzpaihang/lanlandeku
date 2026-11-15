@@ -104,10 +104,12 @@ SKILL_LV_MAX = 1100     # 游戏内武学等级上限
 
 
 def lv_of_skill(exp):
-    """武学等级 = f(技能经验)。
+    """武学等级 = f(技能经验)，向上取整并夹在 [0, SKILL_LV_MAX] 内。
 
-    v46 及以前用 int() 截断，经验刚好落在两级之间时会少报一级（用户看到 1099、
-    实际应该是 1100）。改成向上取整 ceil()，并夹在 [0, SKILL_LV_MAX] 内。
+    阈值 f(lv) = 0.015*lv^3 + 1 代回公式会落在 lv-0.0000001 左右，
+    int() 截断会系统性少报一级（线上 499/999/1099 都是这么来的），
+    所以用 ceil() 补齐。口径与网页抓取脚本 scripts/fetch_profiles.py::lv_of()、
+    Worker worker/src/profile.js::lvOfSkill() 一致。
     """
     try:
         exp = float(exp)

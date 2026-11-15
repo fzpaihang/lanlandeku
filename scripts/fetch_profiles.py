@@ -38,16 +38,27 @@ EQUIP_CN = {
 }
 
 
+SKILL_LV_MAX = 1100     # 游戏内武学等级上限
+
+
 def lv_of(exp):
-    """武学等级由经验换算（与原工具一致）"""
+    """武学等级由技能经验换算，向上取整并封顶。
+
+    阈值 f(lv) = 0.015*lv^3 + 1 代回公式时，浮点结果会落在 lv-0.0000001 左右，
+    原来的 int() 截断会系统性少报一级（线上 499/999/1099 都是这么来的）。
+    改用 ceil() 补齐，并夹在 [0, SKILL_LV_MAX] 内。
+    口径与 apk/lookup_core.py::lv_of_skill()、worker/src/profile.js::lvOfSkill() 一致。
+    """
     if not isinstance(exp, (int, float)):
         return 0
     if exp < 8:
-        return int(exp)
+        return max(0, int(exp))
     try:
-        return int(((exp - 1) / 0.015) ** (1.0 / 3.0))
+        import math
+        lv = int(math.ceil(((exp - 1) / 0.015) ** (1.0 / 3.0)))
     except Exception:
         return 0
+    return max(0, min(lv, SKILL_LV_MAX))
 
 
 
