@@ -311,8 +311,11 @@
 
         if (baseSnap && curExp != null && baseExp != null) {
           grow = Math.round(curExp - baseExp);
-          // 日均按固定 3 天窗口归一（区间增长 ÷ 3）；不足 3 天不显示，避免短区间线性外推夸大
-          perDay = days >= WINDOW_DAYS ? grow / WINDOW_DAYS : null;
+          // 日均按固定 3 天窗口归一（区间增长 ÷ 3）；不足 3 天不显示，避免短区间线性外推夸大。
+          // 分母取 max(WINDOW_DAYS, days)：正常是 ÷3，但如果恰好 3 天前那条快照缺失
+          // （历史上有过手工重建基准把中间某天删掉的情况），基准会被迫退到更早的一天，
+          // 区间可能变成 4~5 天，此时仍除以 3 会把日均系统性高估 30%+。
+          perDay = days >= WINDOW_DAYS ? grow / Math.max(WINDOW_DAYS, days) : null;
           pct = baseExp > 0 ? (grow / baseExp) * 100 : null;
         }
 

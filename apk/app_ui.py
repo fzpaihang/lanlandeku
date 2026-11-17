@@ -2400,6 +2400,13 @@ class PlayerLookup(App):
                 self._sug_ev.cancel()
             except Exception:
                 pass
+        # 输入框一旦有内容，就把「请输入昵称或 UID」这条校验红字收掉。
+        # 那段红字只由 _query() 的空输入分支（见 set_status 调用处）写入，
+        # 而输入变化只走本函数 → _do_search（它只管 sug 建议行），
+        # 所以以前点过一次空查询后，红字会一直挂到下次点「查询玩家」为止。
+        # 只在非空时清，避免把用户刚输入时空查询的提示自己也抹掉。
+        if value and value.strip():
+            self.set_status("")
         self._sug_ev = Clock.schedule_once(lambda dt: self._do_search(value), 0.3)
 
     def _do_search(self, value):

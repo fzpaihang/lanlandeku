@@ -309,6 +309,50 @@ def check_hidden():
         fail("隐私名单", "解析 app_ui.py 失败：%r" % (e,))
 
 
+# ------------------------------------------------- 7. 经验快照窗口完整性
+def check_exp_window():
+    """经验变化页的基准 = 「3 天前或更早里最近的一条」。
+
+    如果某个分区中间缺了一天快照，基准会被迫退到更早那天，区间变成 4~5 天，
+    页面头部就会显示「4 天」而不是「3 天」——2026-11-14 那次手工重建基准
+    删掉墨羽惊鸿 11-14 快照，就是这么让 taptap_4 变成 4 天的（已修）。
+    这里只做提示，缺一天可能只是当天 cron 没跑或游戏服不通，不代表数据坏了。
+    """
+    srv_dir = os.path.join(ROOT, "data", "servers")
+    if not os.path.isdir(srv_dir):
+        return
+    loose = []
+    for key in sorted(os.listdir(srv_dir)):
+        p = os.path.join(srv_dir, key, "exp-history.json")
+        if not os.path.isfile(p):
+            continue
+        try:
+            snaps = [s for s in (json.loads(read(p)).get("snapshots") or [])
+                     if s.get("src") == "profile"]
+        except Exception:
+            loose.append("%s(读取失败)" % key)
+            continue
+        snaps.sort(key=lambda s: int(s.get("ts") or 0))
+        if len(snaps) < 2:
+            continue
+        latest_ts = int(snaps[-1]["ts"])
+        cutoff = latest_ts - 3 * 86400
+        base = None
+        for s in reversed(snaps):
+            if int(s["ts"]) <= cutoff:
+                base = s
+                break
+        if base is None:
+            continue                      # 攒不满 3 天，页面自己会挂横幅
+        days = (latest_ts - int(base["ts"])) / 86400.0
+        if days > 3.25:
+            loose.append("%s %.1f 天（%s）" % (key, days, base.get("date", "?")))
+    if loose:
+        warn("经验快照窗口", "基准超过 3 天：%s" % "；".join(loose[:4]))
+    else:
+        ok("经验快照窗口", "各分区基准均在 3 天内")
+
+
 # ------------------------------------------------------------------ main
 def main():
     if "--fix" in sys.argv:
@@ -323,6 +367,7 @@ def main():
     check_level_parity()
     check_names()
     check_hidden()
+    check_exp_window()
 
     fails = [r for r in results if r[0] == "FAIL"]
     warns = [r for r in results if r[0] == "WARN"]
