@@ -8,6 +8,7 @@ name: 刷新高手榜
 #   0 10 * * *  → 当日 18:00  4399
 #   0 8 * * *   → 当日 16:00  其他服（guanfang）
 #   0 18 * * *  → 次日 02:00  华为（huawei）
+#   0 0 * * *   → 当日 08:00  野马分鬃（ios2）
 # 单区全量约 5–8 分钟，各任务互不重叠，也避免连续请求触发限流。
 # 昵称索引（data/lookup-index.json）不在这条链路里重建，见 lookup-index.yml。
 on:
@@ -19,6 +20,7 @@ on:
     - cron: '0 10 * * *'   # 18:00 4399
     - cron: '0 8 * * *'    # 16:00 其他服
     - cron: '0 18 * * *'   # 次日 02:00 华为
+    - cron: '0 0 * * *'    # 08:00 野马分鬃
   workflow_dispatch:
     inputs:
       mode:
@@ -46,6 +48,7 @@ on:
           - guanfang
           - huawei
           - ios1
+          - ios2
 
 permissions:
   contents: write

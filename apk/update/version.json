@@ -1,8 +1,8 @@
 {
-  "version": 69,
-  "md5": "ab0690923290de339b85f9f2459942a1",
-  "size": 197667,
-  "notes": "新增第九区「老马识途」（iOS 一区）：三件套 domain+platform+channel 支持、自动识别 30 开头、昵称检索",
-  "builtAt": "2026-11-18 01:19:08",
-  "sig": "7baabae12f1ddc61b2163faf47e8c98fa0a8b003aefb9759a2d70ad91b386bfc10e918044b86410051a82755e2ca750e9fd57d43909d0f0bbea31afa76dbe208"
+  "version": 70,
+  "md5": "29ee62bab272e0b365545190bd7bb49c",
+  "size": 197708,
+  "notes": "新增第十区「野马分鬃」（iOS 二区）：自动识别 8 开头、昵称检索、榜单与档案接入",
+  "builtAt": "2026-11-18 01:56:59",
+  "sig": "676b8093391a137f3193c98985fe2d04aa9d2f12dba7d047939a9107afa1408b110b55b9c484d4afb4b5a6b08e6ee2d7230606f49a77ecfb50181cf05c2c8a00"
 }

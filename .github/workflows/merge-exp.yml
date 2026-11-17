@@ -21,6 +21,7 @@ on:
           - guanfang
           - huawei
           - ios1
+          - ios2
 
 permissions:
   contents: write
