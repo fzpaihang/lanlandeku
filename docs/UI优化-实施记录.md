@@ -1629,3 +1629,89 @@ token `/rate_limit` core 剩余 4995/5000；远端 main 比本地 HEAD 多两个
 
 `preflight` **8 通过 / 1 警告 / 0 失败**（唯一 WARN 仍是云函数 staging 旧 `int()` 副本）；v68 = 197,153 B / md5 `83f64465c7f38d3fbfca5a05cf3def60`；`exp.html` 缓存戳 `exp.js?v=fe00bab4`。模拟器重启后 `files/live/version.txt` = 68，热更自动生效无需重装。
 
+## 三十三、v69：接入第九区「老马识途」（iOS 一区）
+
+### 33.1 起因
+
+用户（11-18 凌晨）提供了一套 iOS 凭据，原话：
+
+> 现在我给你提供ios仙人指路的信息，尝试抓一下高手榜的数据，缺了 东西及时问，uuid=ec1d0471437f40ae901ed3af63ce26f7 account=3048521978 channel=ios hotver=18464 ver=2.1.02 device=
+
+随后确认这套号实际是**老马识途**，并给出排期与命名：
+
+> 这个是老马识途的号，关于ios分区：ios(老马识途）：3开头 ios（野马分鬃）：8开头 ios（仙人指路）：19开头。中文名用老马识途，key是自定义的吗？用ios1或者ios_laoma就可以，剩下两个区的话后续我会给你对应区的数据，这个就只弄老马识途的，然后可以更新网页和apk了，知道怎么更新吧？以及各个排行榜的数据显示以及意义。先更新初版然后定时任务放在4点，还有对齐apk的昵称检索
+
+即：只接老马识途，key 用 `ios1`，中文名「老马识途」，网页 + APK 一起更新，cron 放北京时间 4 点，昵称索引同步对齐。
+
+### 33.2 为什么之前判定「iOS 拿不到」是错的
+
+上一轮试过 `platform: ios` 配 `channel` = `fzjh` / `fzjh3`，握手一律 `HTTP Error 500`，于是下了「iOS 数据需要真实 iOS 客户端，安卓账号造不出来」的结论。真实原因是**三个配置必须同时给对**：
+
+| 项 | 值 |
+|---|---|
+| 域名 | `https://ios.fzjh.xiaohoutiaotiao.com` |
+| 请求头 `platform` | `ios` |
+| 请求头 `channel` | `ios` |
+
+缺任何一个都 500。`channel` 填 `fzjh`（野马分鬃的 partition_name）或 `fzjh3`（仙人指路的）也都是 500——`channel` 要的是分区表的 `channel` 字段，不是 `partition_name`。
+
+另外两个没用的方向，记下来免得重试：
+
+- **`switch_partition/1|2|5` 切不了区**：GET 返回 `errcode 0`、`active_partition` 真的变了，但榜单始终是同一批人。一个凭据只绑一个区。
+- **`get_uuid` 现铸的号抓不到数据**：`api/service_android/get_uuid` 能返回格式合法的 uuid（`taptap7cd658a1…`），但拿它 `get_board/1` 一律 0 行。uuid 只能来自真实客户端 `shared_prefs/extends.xml`。
+
+### 33.3 协议层改动（`scripts/fetch.py` + `apk/fetch.py`）
+
+原来 `DOMAIN` 是模块级常量、`platform` 硬编码 `android`、`pkname`/`pksig` 无条件发送。改成按分区可配：
+
+- 新增 `DOMAIN_IOS = "https://ios.fzjh.xiaohoutiaotiao.com"`
+- 新增 `def domain_of(cfg): return (cfg or {}).get("domain") or DOMAIN`
+- `build_headers()`：`platform = cfg.get("platform") or "android"`；`if platform != "android": for k in ("pkname", "pksig"): h.pop(k, None)`
+- `handshake()` / `api_post()` 的 URL 拼接改 `domain_of(cfg)`
+- `load_servers()` / `server_cfg()` 返回值加 `domain`、`platform`
+
+依据是客户端 `app/extends/Http/BaseHttp.lua:160`：`pkname` / `pksig` 只在 android 分支设置。
+
+### 33.4 分区识别与兜底列表
+
+- `apk/lookup_core.py` 的 `UID_PREFIX_SERVER` 加 `("30", "ios1")`；`order_servers()` 里 `elif len(s) == 10: guess += ["4399", "ios1"]`（原来 10 位只猜 4399）
+- `apk/app_ui.py::_servers()` 兜底列表末尾加 `("ios1", "老马识途")`
+- `scripts/build_lookup_index.py` 兜底名字表补 `ios1`
+
+九区号段普查（确认无重叠）：4399 `40` 10 位 / guanfang `90` 10 位 / huawei `10` 11 位 / **ios1 `30` 10 位** / taptap 7 位 / taptap_2 `18` 11 位 / taptap_3 `21` 11 位 / taptap_4 `22` 11 位 / yyh `61` 10 位。
+
+### 33.5 排期与凭据同步
+
+- `scripts/plan_refresh.py`：`SCHEDULE_MAP` 的 `"0 20 * * *"` 改成 `("yyh,ios1", "应用汇+老马识途")`；`LABELS` 加两项。三个抓取脚本都支持逗号分隔（`want.split(",")`）
+- `.github/workflows/refresh.yml`：`server` 选项加 `ios1`、cron 注释更新；`merge-exp.yml` 的 `server` 选项补齐到 `ios1`
+- 私有 gist `91b6a13fa2cc94584a6647ce57b260f9` 的 `servers.json` 加 ios1（否则 APK 取不到凭据）
+- CI Secret `FZJH_SERVERS` 用 PyNaCl SealedBox 重写（9 分区、1392 字节）
+
+### 33.6 抓到的数据
+
+- `gaoshoubang.json`：100 名（`maxRank: 100`），更新于 2026-11-18 01:12
+- `profiles/`：100 份档案、失败 0
+- `merge_exp.py`：`ios1 100 人 | 用档案 100 | 保留榜单 0 | 最大差 1228 万（无名氏）`
+- 榜首 罪惘生 万灵谷 4292 级 / 79.34 亿 / 福缘 419，**高于安卓全八区榜首**（苍松 4112 / 华为 3860）；自洽校验 `0.100402 × 4292³ = 79.38 亿` vs 实际 79.34 亿（偏差 0.05%）
+- 28 个门派（安卓最多 13），100 人全 5 转
+
+### 33.7 验收（模拟器 12-1）
+
+- `files/live/version.txt` = **69**，热更自动生效
+- 分区下拉最末两项：`老马识途 / 自动识别分区`
+- 自动识别 + `3048131303`（10 位、3 开头）→ 落到「老马识途」，查到十三毅（天竞门 2750 级 / 20.90 亿 / 第 45 名）
+- 内嵌 WebView 高手榜：chips 滑到最右「老马识途」高亮、`11月18日 01:12 更新`、`100 / 100 人`、「展开全部 28 个门派」
+- 内嵌经验变化页：`暂无对比数据` + 黄底横幅「目前只记录了 1 次快照（2026-11-18 01:12）……」——**属预期**，ios1 首日只有一条快照，攒够 3 天自动出日均
+
+两个环境陷阱（不是代码问题）：
+
+- 设备端 `files/servers-remote.json`（6 小时 TTL）和 `files/lookup-index.json` **不会随重启刷新**，必须 `run-as rm -f` 后重启才会重新联网拉
+- `fzpaihang.github.io` 有 CDN 缓存，加 `?cb=` 也读到旧版；验证线上内容要用 `raw.githubusercontent.com`
+
+### 33.8 版本
+
+| 版本 | commit | 内容 |
+|---|---|---|
+| v69 | `bd6b029` | 第九区老马识途（iOS 一区）、`domain`/`platform` 可配、`30` 前缀识别、4 点同批、索引 904 人 |
+
+`preflight` **8 通过 / 1 警告 / 0 失败**（WARN 仍是云函数 staging 旧 `int()` 副本）；v69 = 197,667 B / md5 `ab0690923290de339b85f9f2459942a1`。

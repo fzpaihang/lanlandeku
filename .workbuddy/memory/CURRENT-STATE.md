@@ -1,7 +1,7 @@
 # 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-17 22:20（热更 v68：输入红字自动收；经验日均分母改 max(3天,实际)；补回墨羽惊鸿 11-14 快照）
+> 最后更新：2026-11-18 01:40（热更 v69：新增第九区「老马识途」（iOS 一区），协议加 domain/platform 两个可配项）
 
 ---
 
@@ -11,16 +11,16 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v68** |
-| 分区数 | **8**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为） |
-| 索引人数 | **801**（其他服、华为各 100 + APK 归档） |
+| APK 热更版本 | **v69** |
+| 分区数 | **9**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为/**老马识途**） |
+| 索引人数 | **904**（含老马识途 100） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
 | 临时文件 | `E:/workbuddy2/_agent_tmp` |
 | token | `E:/workbuddy2/_agent_tmp/gh_token.txt` |
 
 ---
 
-## 八个分区
+## 九个分区
 
 | key | 名称 | channel | maxRank | UID 前缀 |
 |---|---|---|---|---|
@@ -32,12 +32,28 @@
 | `yyh` | 应用汇 | yyh | **20** | 6 |
 | `guanfang` | 其他服 | guanfang | **50**（索引 100） | **9** |
 | `huawei` | **华为** | huawei | **50**（索引 100） | **10** |
+| `ios1` | **老马识途**（iOS 一区） | ios | **100** | **30** |
 
 **位数优先于前缀**：`4168426`（7 位、4 开头）属于苍松，不是 4399。
 
 未收录前缀（留档）：5 当乐 / 7 啪啪 / 11 oppo / 12 vivo / 13 应用宝 / 14 小七 / 20 小米
 
 其他服是官方合服（`payChannel=guanfang`），uid 一律 **9 开头 10 位**；华为端（包名 `com.xhtt.app.fzjh.huawei`）uid **10 开头 11 位**。两者都没混入老服号。
+
+### iOS 分区（v69 新增）
+
+iOS 与安卓不是同一个域名，靠 **三件套一起配**才能握手，缺一个都 500：
+
+| 配置项 | 值 | 写在哪 |
+|---|---|---|
+| `domain` | `https://ios.fzjh.xiaohoutiaotiao.com` | `config.json` 该分区条目 / gist |
+| `platform` | `ios` | 同上 |
+| `channel` | `ios`（不是 `fzjh`/`fzjh3`，填那两个也 500） | 同上 |
+
+- 代码侧：`scripts/fetch.py` 的 `DOMAIN_IOS` + `domain_of(cfg)`；`platform != "android"` 时不发 `pkname`/`pksig` 两个头。`apk/fetch.py` 同款。
+- **`switch_partition/1|2|5` 切不了数据**：返回 `errcode 0` 但榜单仍是同一批人，一个凭据只固定绑一个区。
+- iOS 三个区号段互不重叠：**老马识途 3 开头 / 野马分鬃 8 开头 / 仙人指路 19 开头**（后两个待接入）。
+- iOS 门派比安卓多（老马识途 28 个），榜首 罪惘生 4292 级 79.34 亿，高于安卓全八区榜首。
 
 ---
 
@@ -47,13 +63,13 @@
 |---|---|---|
 | `0 22 * * *` | 次日 06:00 | 苍松 |
 | `55 15 * * *` | 23:55 | 白鹤 + 丹凤 |
-| `0 20 * * *` | 次日 **04:00** | **应用汇** |
+| `0 20 * * *` | 次日 **04:00** | **应用汇 + 老马识途** |
 | `0 4 * * *` | 12:00 | 墨羽 |
 | `0 10 * * *` | 18:00 | 4399 |
 | `0 8 * * *` | 16:00 | 其他服 |
 | `0 18 * * *` | 次日 **02:00** | **华为** |
 
-- `timeout-minutes: 60`（八区全量约 45 分钟）
+- `timeout-minutes: 60`（九区全量约 50 分钟）
 - `concurrency: fzjh-data`，`cancel-in-progress: false`
 - 手动触发：`mode=probe|board|full`，`server=all|<key>`
 
@@ -127,7 +143,7 @@ App 查 UID 成功 → `apk/archive_local.py` 用 PAT 写 `data/extra-names.json
 ### 2. 分区凭据走私有 gist
 凭据不能进公开仓库（Pages 源是 main 根目录）。所以：
 ```
-私有 gist servers.json（8 区凭据）
+私有 gist servers.json（9 区凭据）
   → APK 启动用内置 gh.json token 拉
   → files/servers-remote.json（6h TTL）
   → 优先级高于 APK 内置 config.json
@@ -140,6 +156,20 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 
 ### 3. 自动识别分区
 `lookup_core.server_of_uid()` 按上表前缀直接定位，**只发 1 次请求**（原来要试 2–3 个）。命中区查不到会落回轮询。
+`UID_PREFIX_SERVER` 现有 9 行，含 `("30", "ios1")`（老马识途，10 位 3 开头）。
+
+### 3.1 加一个分区要同步 7 处（原写 5 处，v69 实测修正）
+
+1. `config.json` 的 `servers` 数组（gitignored，本地）
+2. 私有 gist `91b6a13fa2cc94584a6647ce57b260f9` 的 `servers.json` + CI Secret `FZJH_SERVERS`（PyNaCl SealedBox 重写）
+3. `apk/lookup_core.py:354` 的 `UID_PREFIX_SERVER`
+4. `apk/app_ui.py:1996-1999` 的 `_servers()` 兜底列表
+5. `scripts/plan_refresh.py` 的 `SCHEDULE_MAP` + `LABELS`
+6. `.github/workflows/refresh.yml` 的 `server` 选项 + cron 注释；`merge-exp.yml` 的 `server` 选项
+7. `scripts/build_lookup_index.py:98-101` 的兜底名字表
+
+`data/servers/index.json` 由 `scripts/fetch.py` 的 `write_index()` 自动生成，`assets/servers.js` / `assets/exp.js` 自动读，**不用手改**。
+最后手动跑一次索引重建（`lookup-index.yml`），否则新服的人按昵称搜不到。
 
 ### 4. 经验快照口径
 `exp-history.json` 的 `snapshots[]` **只认 `src === 'profile'`**。
@@ -245,5 +275,6 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 | v65 | 索引状态条文案精简（提示与状态条都不再显示人数） |
 | v66/v67 | **传承历程补 0 转（初代）**，`PROFILE_VER` 2→3 |
 | v68 | 输入框有内容时收掉「请输入昵称或 UID」红字；经验日均分母 `max(3天,实际区间)`；补回墨羽惊鸿 11-14 快照；`preflight` 加第 8 项经验快照窗口检查 |
+| v69 | **新增第九区「老马识途」（iOS 一区）**：协议加 `domain`/`platform` 两个可配项（`DOMAIN_IOS` + `domain_of()`），UID 30 前缀自动识别，定时 4 点与应用汇同批，索引 904 人 |
 | 数据 | 应用汇首百昵称补录；修经验快照混口径（删 `src=None`） |
 | 工具 | 2026-11-15：`preflight` / `publish` / `check_drift` / `plan_refresh`；CI 映射抽脚本、merge-exp 补 artifact、删重复 `api/index.py` |
