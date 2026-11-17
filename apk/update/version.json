@@ -1,8 +1,8 @@
 {
-  "version": 68,
-  "md5": "83f64465c7f38d3fbfca5a05cf3def60",
-  "size": 197153,
-  "notes": "修：输入框有内容时清掉「请输入昵称或 UID」校验红字；经验变化日均分母改为 max(3天,实际区间)；补回墨羽惊鸿 11-14 快照",
-  "builtAt": "2026-11-17 21:21:11",
-  "sig": "6290d2588afc80b97c7a25302c50b8aae672c2670c60590ff623522922e24918990ad661b48d2b7706691ea4b85363d5e4d05821151854a9a6f0ab5a124a1e0e"
+  "version": 69,
+  "md5": "ab0690923290de339b85f9f2459942a1",
+  "size": 197667,
+  "notes": "新增第九区「老马识途」（iOS 一区）：三件套 domain+platform+channel 支持、自动识别 30 开头、昵称检索",
+  "builtAt": "2026-11-18 01:19:08",
+  "sig": "7baabae12f1ddc61b2163faf47e8c98fa0a8b003aefb9759a2d70ad91b386bfc10e918044b86410051a82755e2ca750e9fd57d43909d0f0bbea31afa76dbe208"
 }

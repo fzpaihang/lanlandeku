@@ -97,7 +97,8 @@ def main():
         # 兜底：直接从目录名推导
         names = {
             "taptap": "苍松迎客", "taptap_2": "白鹤亮翅", "taptap_3": "丹凤朝阳",
-            "taptap_4": "墨羽惊鸿", "4399": "4399",
+            "taptap_4": "墨羽惊鸿", "4399": "4399", "yyh": "应用汇",
+            "guanfang": "其他服", "huawei": "华为", "ios1": "老马识途",
         }
         servers = [{"key": k, "name": v} for k, v in names.items()]
 

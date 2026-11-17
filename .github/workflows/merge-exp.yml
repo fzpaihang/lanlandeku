@@ -18,6 +18,9 @@ on:
           - taptap_4
           - 4399
           - yyh
+          - guanfang
+          - huawei
+          - ios1
 
 permissions:
   contents: write

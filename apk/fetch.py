@@ -31,6 +31,9 @@ except Exception:
 import aes_pure  # noqa: E402
 
 DOMAIN = "https://android.fzjh.xiaohoutiaotiao.com"
+# iOS 分区用另一个域名。三件套必须同时给对，缺一个都是 HTTP 500：
+#   domain=https://ios.fzjh.xiaohoutiaotiao.com + header platform=ios + channel=ios
+DOMAIN_IOS = "https://ios.fzjh.xiaohoutiaotiao.com"
 SALT = b"ed24bd36b1a87f60bebaca65538a590c"
 K02 = b"cbIhHHuYQIJ1JkwlLupIvNIvdQDfNxSF"   # JHHU02，握手响应用
 IV02 = b"PcIQIZifRalhZ88n"
@@ -161,9 +164,15 @@ def make_sig(nouce, t):
     return hashlib.md5("".join(parts).encode("ascii")).hexdigest()
 
 
+def domain_of(cfg):
+    """分区可覆盖域名：iOS 分区填自己的 domain，安卓分区不填走默认。"""
+    return (cfg or {}).get("domain") or DOMAIN
+
+
 def build_headers(cfg, t):
     nouce = make_nouce()
-    return {
+    platform = cfg.get("platform") or "android"
+    h = {
         "uuid": cfg["uuid"],
         "userid": str(cfg["account"]),
         "sig": make_sig(nouce, t),
@@ -172,7 +181,7 @@ def build_headers(cfg, t):
         "device": cfg.get("device", ""),
         "ver": cfg.get("ver", "2.1.02"),
         "hotver": str(cfg["hotver"]),
-        "platform": "android",
+        "platform": platform,
         "timezone": "8",
         "channel": cfg.get("channel", "taptap"),
         "package": "",
@@ -180,6 +189,11 @@ def build_headers(cfg, t):
         "pkname": "com.xhtt.app.fzjh",
         "pksig": "",
     }
+    # pkname / pksig 是安卓安装包标识，iOS 客户端不带（见 BaseHttp.lua 只 android 分支设）
+    if platform != "android":
+        for k in ("pkname", "pksig"):
+            h.pop(k, None)
+    return h
 
 
 def decrypt(raw, key, iv):
@@ -189,7 +203,7 @@ def decrypt(raw, key, iv):
 
 def handshake(cfg, t):
     h = build_headers(cfg, t)
-    req = urllib.request.Request(DOMAIN + "/api/service/exchange_publickey", data=b"", method="POST")
+    req = urllib.request.Request(domain_of(cfg) + "/api/service/exchange_publickey", data=b"", method="POST")
     for k, v in h.items():
         req.add_header(k, v)
     with urllib.request.urlopen(req, timeout=20, context=ctx) as r:
@@ -213,7 +227,7 @@ def api_post(cfg, path, body, keys, t):
     ct = aes_pure.new_cbc(key, ivb).encrypt(plain + TAG * pad)
     data = (b"FZJH03" + ct).hex().encode()
     h = build_headers(cfg, t)
-    req = urllib.request.Request(DOMAIN + "/api/v5/" + path, data=data, method="POST")
+    req = urllib.request.Request(domain_of(cfg) + "/api/v5/" + path, data=data, method="POST")
     for kk, vv in h.items():
         req.add_header(kk, vv)
     req.add_header("Content-Type", "application/json")
@@ -480,6 +494,8 @@ def server_cfg(srv):
         "ver": srv.get("ver", "2.1.02"),
         "channel": srv["channel"],
         "device": srv.get("device", ""),
+        "domain": srv.get("domain"),
+        "platform": srv.get("platform"),
     }
 
 

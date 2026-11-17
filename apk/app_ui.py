@@ -1996,7 +1996,7 @@ class PlayerLookup(App):
         return [("taptap", "苍松迎客"), ("taptap_2", "白鹤亮翅"),
                 ("taptap_3", "丹凤朝阳"), ("taptap_4", "墨羽惊鸿"),
                 ("4399", "4399"), ("yyh", "应用汇"), ("guanfang", "其他服"),
-                ("huawei", "华为")]
+                ("huawei", "华为"), ("ios1", "老马识途")]
 
     def _reload_servers(self):
         """远端配置到位后，重建分区下拉的可选项（不打断当前选择）。"""
