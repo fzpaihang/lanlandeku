@@ -99,7 +99,7 @@ def main():
             "taptap": "苍松迎客", "taptap_2": "白鹤亮翅", "taptap_3": "丹凤朝阳",
             "taptap_4": "墨羽惊鸿", "4399": "4399", "yyh": "应用汇",
             "guanfang": "其他服", "huawei": "华为", "ios1": "老马识途",
-            "ios2": "野马分鬃",
+            "ios2": "野马分鬃", "ios3": "仙人指路",
         }
         servers = [{"key": k, "name": v} for k, v in names.items()]
 

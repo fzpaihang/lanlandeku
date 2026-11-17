@@ -1,4 +1,4 @@
-name: 合并档案经验
+﻿name: 合并档案经验
 
 # 只做合并，不请求游戏接口：把已有 profiles 的经验写回榜单，并重写当天经验快照。
 # 用来在两次定时抓取之间手动生效，或切换口径后立即修正历史展示。
@@ -22,6 +22,7 @@ on:
           - huawei
           - ios1
           - ios2
+          - ios3
 
 permissions:
   contents: write

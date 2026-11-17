@@ -347,6 +347,7 @@ def add_recent(prof):
 #   22 开头              → taptap_4   墨羽惊鸿
 #   30 开头              → ios1       老马识途（iOS）
 #   8  开头（10 位）      → ios2       野马分鬃（iOS）
+#   19 开头（11 位）      → ios3       仙人指路（iOS）
 #   4  开头              → 4399
 #   其余前缀对应的渠道本项目暂未收录，落到「未知」按老办法轮询
 #
@@ -354,8 +355,7 @@ def add_recent(prof):
 #（例如 4168426 这种 7 位数虽然 4 开头，也是苍松不是 4399）。
 #
 # iOS 三个区的号段互不重叠（用户 2026-11-18 确认）：
-#   老马识途 3 开头 / 野马分鬃 8 开头 / 仙人指路 19 开头。
-# 仙人指路尚未接入，接入时在下面加 ("19", ...) 一行即可。
+#   老马识途 3 开头（10 位）/ 野马分鬃 8 开头（10 位）/ 仙人指路 19 开头（11 位）。
 # ---------------------------------------------------------------------------
 UID_PREFIX_SERVER = (
     ("10", "huawei"),     # 华为（uid 10 开头，11 位）
@@ -364,6 +364,7 @@ UID_PREFIX_SERVER = (
     ("22", "taptap_4"),   # 墨羽惊鸿
     ("30", "ios1"),       # 老马识途（iOS 一区，uid 3 开头 10 位）
     ("8", "ios2"),        # 野马分鬃（iOS 二区，uid 8 开头 10 位）
+    ("19", "ios3"),       # 仙人指路（iOS 三区，uid 19 开头 11 位）
     ("4", "4399"),
     ("6", "yyh"),         # 应用汇
     ("9", "guanfang"),    # 其他服（官方合服，uid 一律 9 开头 10 位）
@@ -410,7 +411,7 @@ def order_servers(servers, uid, last_key=None):
     elif len(s) == 10:
         guess += ["4399", "ios1", "ios2"]
     elif len(s) == 11:
-        guess += ["taptap_3", "taptap_2", "taptap_4"]
+        guess += ["taptap_3", "taptap_2", "taptap_4", "ios3"]
     keys = []
     for k in ([last_key] if last_key else []) + guess:
         if k and k not in keys:
