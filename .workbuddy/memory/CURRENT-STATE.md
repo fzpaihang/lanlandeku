@@ -1,7 +1,7 @@
 # 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-17 20:35（热更 v67：传承历程补 0 转）
+> 最后更新：2026-11-17 22:20（热更 v68：输入红字自动收；经验日均分母改 max(3天,实际)；补回墨羽惊鸿 11-14 快照）
 
 ---
 
@@ -11,7 +11,7 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v67** |
+| APK 热更版本 | **v68** |
 | 分区数 | **8**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为） |
 | 索引人数 | **801**（其他服、华为各 100 + APK 归档） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
@@ -171,7 +171,7 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 
 | 改了什么 | 必须做什么 |
 |---|---|
-| 任何改动 | `python scripts/preflight.py`（语法/缓存戳/热更包/等级/names/隐私一次跑完） |
+| 任何改动 | `python scripts/preflight.py`（**8 项**：语法/缓存戳/热更包/等级/names/隐私/经验快照窗口） |
 | `assets/*.js` / `style.css` | **`python scripts/stamp_assets.py`**（否则 WebView 用缓存） |
 | `apk/*.py` | `python -m py_compile` → `scripts/pack_update.py "说明"` → 推 `code.zip`+`version.json` |
 | `config.json`（加分区） | 更新 gist + CI Secret `FZJH_SERVERS` |
@@ -244,5 +244,6 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 | v61–v64 | 昵称索引状态条 + 手动刷新；归档 push 自动重建索引 |
 | v65 | 索引状态条文案精简（提示与状态条都不再显示人数） |
 | v66/v67 | **传承历程补 0 转（初代）**，`PROFILE_VER` 2→3 |
+| v68 | 输入框有内容时收掉「请输入昵称或 UID」红字；经验日均分母 `max(3天,实际区间)`；补回墨羽惊鸿 11-14 快照；`preflight` 加第 8 项经验快照窗口检查 |
 | 数据 | 应用汇首百昵称补录；修经验快照混口径（删 `src=None`） |
 | 工具 | 2026-11-15：`preflight` / `publish` / `check_drift` / `plan_refresh`；CI 映射抽脚本、merge-exp 补 artifact、删重复 `api/index.py` |

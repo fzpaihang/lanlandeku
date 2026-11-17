@@ -1194,6 +1194,7 @@ apk / assets / scripts / .github / cloud  →  0 差异
 
 - `scripts/preflight.py`：7 项发布前自检（Python/JS 语法、缓存戳、热更包 md5+验签+清单、
   等级口径、两份 names、隐私名单）。`--fix` 会顺手跑 `stamp_assets.py`。
+  （**v68 起是 8 项**，加了「经验快照窗口」，见 §32。）
 - `scripts/publish.py`：统一发布（base_tree、跳过无变化、强制热更两件套成对、拒绝敏感文件、换行归一化）。
   以后不用再在 `_agent_tmp` 里手写 `publish_vXX.py`。
 - `scripts/check_drift.py`：本地 vs 远端真实差异，区分「仅换行差异」。
@@ -1567,3 +1568,64 @@ bump 到 3 后重查一次即拿到带 `p` 的新数据。
 | v67 | `0db94c8` | bump `PROFILE_VER` 到 3，旧缓存作废显示真名 |
 
 `preflight` 7 通过 / 1 警告 / 0 失败；v67 = 196,900 B / md5 `8a280f20…`。
+
+---
+
+## 三十二、v68：输入红字不消失 + 经验日均分母 + 墨羽惊鸿缺快照
+
+### 32.1 起因（用户 11-17 提出三件事）
+
+原话：「输入框里已经有内容时，下方红字「请输入昵称或 UID」可以隐藏，关于GitHub那边你是可以打通的吧？其次就是经验变化那一页，不是最多三天的经验对比吗，别的区没用问题就是墨羽惊鸿为什么现在已经是四天了」
+
+拆成三条：①输入红字该收 ②GitHub 能不能通 ③墨羽惊鸿为什么 4 天。第 ② 条只是确认，第 ①③ 各改一处。
+
+### 32.2 输入红字不消失
+
+**现象**：点空输入框的「查询玩家」→ 红字「请输入昵称或 UID」出现；之后在输入框里打字，红字不消失（两次截图稳定复现）。
+
+**根因**：`apk/app_ui.py::_on_query_text` 只做 debounce 然后 `_do_search`，而 `_do_search` 在文本非空时只 `_hide_sug()`（隐藏建议行）；`set_status()` 定义在 `apk/app_ui.py:2762-2765`（`q_status.text = text or ""`、`height = dp(28) if text else dp(0)`），只在 `_query()` 的 `if not raw:` 分支（`apk/app_ui.py:2529`）等少数几处被调用，**输入变化这条路径完全没人清 `q_status`**。
+
+**改动**（`apk/app_ui.py::_on_query_text`，cancel debounce 之后、`Clock.schedule_once(_do_search)` 之前）：
+
+```python
+# 输入框一旦有内容，就把「请输入昵称或 UID」这条校验红字收掉。
+if value and value.strip():
+    self.set_status("")
+```
+
+用 `strip()` 判空而不是直接 `if value`：只输空格不算有效输入，不该收红字。
+
+**验收**：空输入点查询 → 红字出现；`input text "abc"` → 红字消失，替换成建议行「没找到「abc」，试试完整昵称或直接输 UID」。
+
+### 32.3 墨羽惊鸿显示 4.0 天
+
+**现象**：八区里只有 taptap_4（墨羽惊鸿）经验变化页是 `4.0 天`，其余是 3.0~3.0x 天（yyh/guanfang/huawei 不足 3 天属正常退最早一条）。
+
+**排查**：`assets/exp.js` 的基准算法是「从最新往回找第一条 `ts <= latest.ts - 3*86400`」，也就是恰好 3 天前或更早的最近一条。taptap_4 的 7 条快照是 11-12 17:02 / 11-13 12:47 / 11-15 00:50 / 11-15 12:44 / 11-15 13:13 / 11-16 13:22 / 11-17 12:48 —— **11-14 整天缺失**，基准被迫退到 11-13 12:47，于是 4.0 天。
+
+**根因（git 溯源）**：`6cdb920`「经验快照只保留「档案口径」的两条，恢复对比」（11-14 13:50 的手工基准重建）把 taptap_4 从 8 条砍到 2 条时，把当天刚生成的 `2026-11-14 12:41`（`ts=1794631273`、`src=profile`、`fresh=100`、100 人）也一起删了。那条是有效档案快照，不是要清理的榜单浮点值（要清的是 11-11 那批无 `src` / `src=="board"` 的）。
+
+**数据佐证该留**：11-13 中位 41,510,940 → 11-14 中位 42,063,695 → 11-15 中位 42,484,913；92 人共同集合里 11-14 < 11-13 的 0 人、11-15 < 11-14 的 0 人（单调递增），11-13→11-14 增量中位 139 万。
+
+**改动三处**：
+
+| 位置 | 改动 |
+|---|---|
+| `data/servers/taptap_4/exp-history.json` | 从 `git show 4175a74:...` 取回 `ts=1794631273` 那条原样插回，按 `ts` 排序，`json.dumps(separators=(',',':'))` + `os.replace` 原子写。结果 8 条，含 11-14 12:41 |
+| `assets/exp.js`（~312-320 的 map 内） | `perDay = grow / WINDOW_DAYS` → `perDay = grow / Math.max(WINDOW_DAYS, days)`。**防御层**：将来再缺一天、基准退到 4 天前时，固定除 3 会把日均高估 33% |
+| `scripts/preflight.py` | 新增第 8 项 `check_exp_window()`（插在 `check_hidden` 之后），遍历 `data/servers/*/exp-history.json` 用同款算法算 `days`，`> 3.25` 就 WARN；不足 3 天跳过（页面自己挂横幅） |
+
+**验收**：修后八区窗口 taptap 3.00 / taptap_2 3.01 / taptap_3 3.01 / **taptap_4 3.01** / 4399 3.01 / yyh 2.16 / guanfang 2.09 / huawei 1.51。模拟器内 WebView 点「墨羽惊鸿」显示 `11-14 12:41 → 11-17 12:48 · 3.0 天`、100 人、日均列恢复。
+
+### 32.4 顺带确认：GitHub 侧全通
+
+token `/rate_limit` core 剩余 4995/5000；远端 main 比本地 HEAD 多两个 CI 自动提交（`e9a2f266` 重建昵称索引、`c5033979` APK 归档昵称），`publish.py` 基于远端最新 ref 提交，没有覆盖。
+
+### 32.5 版本
+
+| 版本 | commit | 内容 |
+|---|---|---|
+| v68 | `375262f` | 红字即输即收 + 日均分母 `max(3天,实际)` + 补回 11-14 快照 + `preflight` 第 8 项 |
+
+`preflight` **8 通过 / 1 警告 / 0 失败**（唯一 WARN 仍是云函数 staging 旧 `int()` 副本）；v68 = 197,153 B / md5 `83f64465c7f38d3fbfca5a05cf3def60`；`exp.html` 缓存戳 `exp.js?v=fe00bab4`。模拟器重启后 `files/live/version.txt` = 68，热更自动生效无需重装。
+
