@@ -2,9 +2,10 @@
 
 > 项目：`E:/workbuddy2/fzjh-rank`　仓库：`fzpaihang/lanlandeku`
 > 应用名：**霜霜妙妙屋**（`package.domain = com.fzjh`，`package.name = fzjhlookup`）
-> 最后校准：2026-11-15　线上热更：**v56**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
+> 最后校准：2026-11-17　线上热更：**v67**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
 > 本文汇总的是「改这个 APK 实际会用到的全部操作」；逐次改动的背景与推理见 `docs/UI优化-实施记录.md`。
-> **接手新任务先读 `.workbuddy/memory/CURRENT-STATE.md`**（一页纸：六区表、cron、关键设计、必做步骤）。
+> **第一次接手先读 `docs/接手必读.md`**（30 秒状态 + 任务→命令 + 十条铁律），
+> 再看 `.workbuddy/memory/CURRENT-STATE.md`（八区表、cron、关键设计、必做步骤）。
 
 ---
 
@@ -55,9 +56,14 @@ python scripts/publish.py --check "热更 vNN：说明" apk/*.py apk/update/code
 ```bash
 export MSYS_NO_PATHCONV=1
 ADB="D:/Program Files/Netease/MuMuPlayer-12.0/shell/adb.exe"
-"$ADB" start-server && "$ADB" connect 127.0.0.1:7555
-D="-s 127.0.0.1:7555"; P=com.fzjh.fzjhlookup
+"$ADB" start-server && "$ADB" connect 127.0.0.1:16384   # 端口见下方说明
+D="-s 127.0.0.1:16384"; P=com.fzjh.fzjhlookup
 ```
+
+**端口不是固定的**：MuMu 每个实例一个 adb 端口，从
+`/d/Program Files/Netease/MuMuPlayer-12.0/vms/<实例>/configs/vm_config.json`
+的 `nat.port_forward.adb` 读。本机两个常用实例：`16384`（普通区客户端）、
+`16416`（华为端 `com.xhtt.app.fzjh.huawei`）。连不上先 `adb devices` 看实际端口。
 
 - 包名 `com.fzjh.fzjhlookup`，入口 `org.kivy.android.PythonActivity`
 - 屏幕 900×1600；常用坐标：输入框 `(450,592)`、查询按钮 `(450,800)`、顶栏空白 `(450,150)`
@@ -146,7 +152,7 @@ python -m py_compile apk/app_ui.py apk/inline_input.py apk/lookup_core.py apk/fe
 改一次就打包发布太慢。用 `run-as` 覆盖 `live/`，并写 `version.txt = 99` 顶住自动热更：
 
 ```bash
-D="-s 127.0.0.1:7555"; P=com.fzjh.fzjhlookup
+D="-s 127.0.0.1:16384"; P=com.fzjh.fzjhlookup
 "$ADB" $D shell am force-stop $P
 for f in app_ui.py inline_input.py; do
   "$ADB" $D push "E:/workbuddy2/fzjh-rank/apk/$f" "/data/local/tmp/$f" >/dev/null 2>&1
@@ -222,7 +228,7 @@ done
 删掉 `files/live` 再启动，等价于老用户升级：
 
 ```bash
-D="-s 127.0.0.1:7555"; P=com.fzjh.fzjhlookup
+D="-s 127.0.0.1:16384"; P=com.fzjh.fzjhlookup
 "$ADB" $D shell run-as $P rm -rf files/live
 "$ADB" $D shell am force-stop $P
 "$ADB" $D logcat -c
@@ -730,10 +736,12 @@ python scripts/stamp_assets.py     # 改完 assets/*.js 或 style.css 必跑
 
 | 文档 | 内容 |
 |---|---|
+| **`docs/接手必读.md`** | **新会话入口**：状态、任务→命令、十条铁律、交接自检 |
+| `.workbuddy/memory/CURRENT-STATE.md` | 八区表、cron、关键设计、必做步骤（**活的，每次改动后更新**） |
 | `docs/代码流程梳理.md` | 代码地图、重复实现、僵尸产物、待改造清单 |
-| `docs/UI优化-实施记录.md` | v30–v56 逐次改动的背景、推理与验证（§13 起是签名/TLS/输入） |
+| `docs/UI优化-实施记录.md` | v30–v67 逐次改动的背景、推理与验证（§13 起是签名/TLS/输入，§28–§31 是 11-15） |
 | `docs/武学分类校对表.md` | 武学分组人工校对 |
-| 工作区记忆 `.workbuddy/memory/2026-11-13.md`、`2026-11-14.md` | 跨会话的关键结论与用户偏好 |
+| 工作区记忆 `.workbuddy/memory/2026-11-13.md` 起 | 逐日的关键结论与用户偏好 |
 
 **用户约定**：
 - 所有产出、脚本、临时文件放 `E:\workbuddy2` 下，不同任务区分目录，尽量不写 C 盘；

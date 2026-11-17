@@ -1,7 +1,7 @@
 # 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-15 14:30（热更 v58，新增第八区「华为」）
+> 最后更新：2026-11-17 20:35（热更 v67：传承历程补 0 转）
 
 ---
 
@@ -13,7 +13,7 @@
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
 | APK 热更版本 | **v67** |
 | 分区数 | **8**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为） |
-| 索引人数 | ~800（其他服、华为各 100 人 + APK 归档） |
+| 索引人数 | **801**（其他服、华为各 100 + APK 归档） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
 | 临时文件 | `E:/workbuddy2/_agent_tmp` |
 | token | `E:/workbuddy2/_agent_tmp/gh_token.txt` |
@@ -35,7 +35,7 @@
 
 **位数优先于前缀**：`4168426`（7 位、4 开头）属于苍松，不是 4399。
 
-未收录前缀（留档）：5 当乐 / 7 啪啪 / 10 华为 / 11 oppo / 12 vivo / 13 应用宝 / 14 小七 / 20 小米
+未收录前缀（留档）：5 当乐 / 7 啪啪 / 11 oppo / 12 vivo / 13 应用宝 / 14 小七 / 20 小米
 
 其他服是官方合服（`payChannel=guanfang`），uid 一律 **9 开头 10 位**；华为端（包名 `com.xhtt.app.fzjh.huawei`）uid **10 开头 11 位**。两者都没混入老服号。
 
@@ -113,6 +113,17 @@ App 查 UID 成功 → `apk/archive_local.py` 用 PAT 写 `data/extra-names.json
 > 归档侧必须用 PAT（`GH_TOKEN_APK`）：`GITHUB_TOKEN` 产生的 push 不会触发 Actions，
 > 换成默认 token 会把这条链路悄悄断掉。
 
+### 1.3 传承历程的 0 转（v66 / v67）
+
+`inheritHistory` 每一条是一次**传承事件**：`parentName` = 上一世，`inheritName` = 这一世。
+5 条 = 5 次传承，链条上应有 **6 个名字**（0 转初代 + 1~5 转）。
+
+- `parse_profile()` 必须同时保留 `p`（`parentName`），否则 APK 会比网页少一世（v65 以前的 bug）。
+- `_timeline_card()` 链首补编号 `0` 的一行，日期列留空（初代没有传承时间）；
+  `p` 缺失时显示占位「初代」，与网页 `profile.js` 同口径。
+- `PROFILE_VER` 是档案缓存的结构版本，**结构变了就 +1**（v67 起是 3）。不 bump 的话，
+  10 分钟 TTL 内的旧缓存会让 0 转一直显示占位「初代」。
+
 ### 2. 分区凭据走私有 gist
 凭据不能进公开仓库（Pages 源是 main 根目录）。所以：
 ```
@@ -184,7 +195,7 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 | Python（跑项目脚本） | `D:\Programs\Python\Python38\python.exe`（有 Crypto/pycryptodome） |
 | Python（Office 运行时） | `E:\DSHdeepseek\...\office-runtime\...\python.exe`（**没有** Crypto） |
 | adb | `D:\Program Files\Netease\MuMuPlayer-12.0\shell\adb.exe` |
-| 模拟器 | `-s 127.0.0.1:7555`（PowerShell 里必须用数组 `@('-s','127.0.0.1:7555')`） |
+| 模拟器 | 多实例：`127.0.0.1:16384`（普通区）/ `16416`（华为端）；端口从 `vms/*/configs/vm_config.json` 读，别硬编码 |
 | 包名 | `com.fzjh.fzjhlookup` |
 | 分区凭据提取 | 对应游戏包的 `shared_prefs/extends.xml`(`fzjh_uuid`) + `Cocos2dxPrefsFile.xml`(`userid`) |
 | 模拟器提权 | `adb root`（`run-as` 对非 debuggable 包无效） |
@@ -204,6 +215,7 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 
 | 文档 | 内容 |
 |---|---|
+| **`docs/接手必读.md`** | **新会话入口**：30 秒状态、任务→命令、十条铁律、交接自检 |
 | `docs/代码流程梳理.md` | **代码地图、重复实现、僵尸产物、待改造清单**（改动前先看） |
 | `docs/APK修改操作手册.md` | APK 全部操作（热更/重打包/签名/模拟器验证） |
 | `docs/网页维护操作手册.md` | 网页+数据链路，§14 是已知隐患清单 |
@@ -226,5 +238,11 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 | v53 | 自动识别分区单请求 |
 | v54/v55 | **应用汇接入** + 分区配置走私有 gist |
 | **v56** | 网页/Worker 武学等级改 ceil + 封顶 1100 |
+| v57 | 新增第七区「其他服」（榜前 50 / 索引前 100 / 16:00） |
+| v58 | 新增第八区「华为」（榜前 50 / 索引前 100 / 次日 02:00） |
+| v59/v60 | **榜单兜底**：查询失败可显示榜单快照（默认关闭，结果页右上角开关） |
+| v61–v64 | 昵称索引状态条 + 手动刷新；归档 push 自动重建索引 |
+| v65 | 索引状态条文案精简（提示与状态条都不再显示人数） |
+| v66/v67 | **传承历程补 0 转（初代）**，`PROFILE_VER` 2→3 |
 | 数据 | 应用汇首百昵称补录；修经验快照混口径（删 `src=None`） |
 | 工具 | 2026-11-15：`preflight` / `publish` / `check_drift` / `plan_refresh`；CI 映射抽脚本、merge-exp 补 artifact、删重复 `api/index.py` |
