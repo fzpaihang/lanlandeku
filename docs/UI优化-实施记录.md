@@ -1779,3 +1779,84 @@ token `/rate_limit` core 剩余 4995/5000；远端 main 比本地 HEAD 多两个
 | v70 | `1b6c293` | 第十区野马分鬃（iOS 二区，`channel=fzjh`）、`8` 前缀识别、8 点单独一批、索引 1003 人 |
 
 `preflight` **8 通过 / 1 警告 / 0 失败**；v70 = 197,708 B / md5 `29ee62bab272e0b365545190bd7bb49c`。
+
+---
+
+## 三十五、v71：接入第十一区「仙人指路」（iOS 三区）
+
+### 35.1 起因
+
+接上 §34，用户给了第三套 iOS 凭据（11-18 凌晨 02:00 后）：
+
+> 现在是仙人指路的，定时任务放在10点，弄好跑一次数据直接，uuid=ec1d0471437f40ae901ed3af63ce26f7 account=19035745715 channel=fzjh3 hotver=18464 ver=2.1.02 device=
+
+即：接第十一区、key 用 `ios3`、中文名「仙人指路」、cron 放北京时间 **10 点**、先手动跑一次。
+
+### 35.2 三个 iOS 区共用同一个 uuid
+
+| 分区 | key | `channel` | `account` | uid 号段 |
+|---|---|---|---|---|
+| 老马识途 | `ios1` | `ios` | 3048521978 | 3 开头 10 位 |
+| 野马分鬃 | `ios2` | `fzjh` | 8047463842 | 8 开头 10 位 |
+| 仙人指路 | `ios3` | **`fzjh3`** | 19035745715 | **19 开头 11 位** |
+
+**三个区 uuid 完全一样**（`ec1d0471437f40ae901ed3af63ce26f7`），是同一个 iOS 客户端的三种分区视图。所以「换个区」只换 `channel` + `account` 两个值，`domain` / `platform` / `uuid` 都不动。`channel` 填错（比如填 `ios` 或 `fzjh`）一律 `HTTP Error 500`。
+
+### 35.3 改动的 7 处
+
+| # | 文件 | 改动 |
+|---|---|---|
+| 1 | `apk/lookup_core.py` | `UID_PREFIX_SERVER` 加 `("19", "ios3")`；**`order_servers()` 的 11 位兜底 `guess += ["taptap_3", "taptap_2", "taptap_4", "ios3"]`——11 位分支这次才需要动，容易只改 10 位那条** |
+| 2 | `config.json`（gitignored） | 追加第 11 项，带 `domain` / `platform: ios` / `channel: fzjh3` |
+| 3 | `apk/app_ui.py::_servers()` | 兜底列表加 `("ios3", "仙人指路")` |
+| 4 | `scripts/plan_refresh.py` | `SCHEDULE_MAP` 加 `"0 2 * * *": ("ios3", "仙人指路")`（北京时间 10:00 = UTC 2 点）；`LABELS` 加 `"ios3"` |
+| 5 | `.github/workflows/refresh.yml` | `schedule` 加 `- cron: '0 2 * * *'`、头部注释、`server.options` 加 `- ios3` |
+| 6 | `.github/workflows/merge-exp.yml` | `server.options` 加 `- ios3` |
+| 7 | `scripts/build_lookup_index.py` | 兜底名字表加 `"ios3": "仙人指路"` |
+
+凭据侧：gist `91b6a13fa2cc94584a6647ce57b260f9` 的 `servers.json` PATCH 成 **11 分区**；CI Secret `FZJH_SERVERS` 用 PyNaCl SealedBox 重写，payload **1673 字节 / 11 分区**。
+
+### 35.4 踩的坑：gist 必须是 `{"servers": [...]}` 字典
+
+第一次 PATCH 时把内容写成了**裸数组** `[...]`，结果 APK 拉配置后仍然「该分区未找到」。原因是 `apk/lookup_core.py` 读的是 `cfg.get("servers")`：
+
+```python
+if not (cfg.get("servers") or []):
+    return False
+```
+
+裸数组时 `cfg.get("servers")` 是 `None`，函数**静默返回 False**，既不报错也不刷新缓存，排查时只看得到「分区没出现」。改成 `{"servers": [...]}` 后立刻正常（设备端 `files/servers-remote.json` 2,387 B、11 个 key、带 `domain`/`platform`）。
+
+另外两个连带坑：
+
+- `refresh_remote_config()` 有 `CONFIG_TTL = 6*3600`，**未过期直接 return False**，所以改完 gist 必须 `adb shell run-as com.fzjh.fzjhlookup rm -f files/servers-remote.json`。
+- CI Secret 的 PUT 成功时返回 **204 无 body**，用 `json.loads(r.read())` 会抛 `JSONDecodeError: Expecting value: line 1 column 1`，要判 status 不要解析。
+
+### 35.5 抓到的数据
+
+- `gaoshoubang.json`：100 名，更新于 2026-11-18 02:22
+- `profiles/`：100 份、失败 0、718 KB
+- `merge_exp.py`：`ios3 100 人 | 用档案 100 | 保留榜单 0 | 最大差 30157 万（药乐）`
+- 榜首 **西索**（虚渺宫）3462 级 / 41.65 亿 / 福缘 199；榜眼 阿七（鸩羽山）3265 / 35.04 亿；探花 胡总指挥（江湖浪人）3252 / 34.67 亿
+- **25 个门派**（三个 iOS 区里最少），100 人全 5 转；**整区等级明显低于另两个 iOS 区**（新区，榜首 3462 只相当于老马识途的第 40 名左右）
+- 索引重建后：**11 个分区 / 1104 名玩家 / 274.4 KB**
+
+### 35.6 验收（模拟器 12-1）
+
+- `files/live/version.txt` = **71**，logcat 有 `[launcher] 发现新版本 v71，开始下载` → `已切换到 v71`
+- 分区下拉：`… 华为 / 老马识途 / 野马分鬃 / 仙人指路 / 自动识别分区`
+- **昵称检索**：输入「西索」→ 红字替换成「找到「西索 · 仙人指路」，点这里填入」→ 点该行弹「选择角色 / 找到 1 个匹配 / 西索 仙人指路 3462 级」→ 选中自动填 UID `19035477377` + 切分区 + 「已填入…点「查询玩家」开始」
+- 查询结果：西索 虚渺宫·男 307 岁·容貌 11,823 / 3462 级 / 武学造诣 1887.33 / 41.65 亿 / 福缘 199 / 正气 1010.4 万 / 第 1 名
+- **自动识别** + `19035491643`（19 开头 11 位）→ 落到「仙人指路」，查到阿七（鸩羽山 3265 级 / 35.04 亿 / 第 2 名）
+- 内嵌高手榜：`11月18日 02:22 更新`、100/100 人、25 个门派、chips 最右「仙人指路」高亮
+- 内嵌经验变化：`暂无对比数据` + 黄底横幅，**属预期**（首日只有一条快照）
+
+### 35.7 版本
+
+| 版本 | commit | 内容 |
+|---|---|---|
+| v71 | `df215db` | 第十一区仙人指路（iOS 三区，`channel=fzjh3`）、`19` 前缀 11 位识别、10 点单独一批、索引 1104 人 |
+
+`preflight` **8 通过 / 1 警告 / 0 失败**；v71 = 197,713 B / md5 `38d20c408ab1d86dba0a3cd27b311360`。
+
+**至此三个 iOS 区全部接入。** 再遇到新的 iOS 客户端，先确认它的 `channel` 和 `account`，其余照 §35.3 的 7 处清单走。
