@@ -49,6 +49,7 @@ RECENT_MAX = 3
 # 名单内玩家，而 lookup_core 不能反向 import app_ui（会循环依赖）。
 HIDDEN_UIDS_LOCAL = set((
     "4047491326", "4168426", "6622657", "21079748748",
+    "19035702184",
 ))
 
 INDEX_URL = "https://fzpaihang.github.io/lanlandeku/data/servers/%s/gaoshoubang.json"

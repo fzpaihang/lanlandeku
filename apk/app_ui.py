@@ -350,7 +350,7 @@ WEB_BASE = "https://fzpaihang.github.io/lanlandeku/"
 
 # 隐私名单兜底（与 data/hidden.json 同步）。昵称索引下载失败 / 用旧缓存时，
 # 这一份仍然生效，保证任何情况下都不会对这些 uid 发起查询。
-HIDDEN_UIDS = set(("4047491326", "4168426", "6622657", "21079748748"))
+HIDDEN_UIDS = set(("4047491326", "4168426", "6622657", "21079748748", "19035702184"))
 
 
 def open_url(url):

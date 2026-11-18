@@ -1,8 +1,8 @@
 {
-  "version": 75,
-  "md5": "ba8ee82cff92dbbe9a33488f7e8b5ca9",
-  "size": 199910,
-  "notes": "修：分区凭据同步固化到 scripts/sync_creds.py（gist 必须是 {servers:[...]} 字典、Secret 存整份 config）；lookup_core 兼容裸数组写法并在读不到时打印原因；build-apk 注入步骤兼容两种 Secret 形状",
-  "builtAt": "2026-11-18 13:40:33",
-  "sig": "9f8c72db5c03fd904c458e964d115d89d6189a16d5058236f48192f37a1c2eebdad1ac8d9660c0d507ff516633ecc708f6d1cf7f6e43090644ba4598aa34e10f"
+  "version": 76,
+  "md5": "be0bce74f39f10c635a9e75c2976aef1",
+  "size": 199934,
+  "notes": "隐私名单新增：仙人指路「药乐」19035702184 整条隐藏（榜单/档案/快照/索引/最近查询）",
+  "builtAt": "2026-11-18 14:01:12",
+  "sig": "a70554ff24d74b6a83b653d515a1eef00f593df42c736cb15f859fb15f85178c13fe483b75001923cfabb19836020c2641d6eb22ffb2afa2d70dd4bd7171e70e"
 }
