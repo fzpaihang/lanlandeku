@@ -2124,3 +2124,72 @@ ios1 +0.69 / ios2 +0.66 / ios3 +1.92。新公式各分区最大偏差全部 ≤ 
 |---|---|---|---|
 | v73 | 代码审查后修 6 处隐患 | 199,011 B / `2834024255a2…` | `c9a994382b73` |
 | **v74** | **人物等级反算改 0.1·lv³+1.35·lv²** | **199,570 B / `565b44a2e52d…`** | **`cb20f5f7e126`** |
+
+---
+
+## 三十九、v75：分区凭据同步固化（`scripts/sync_creds.py`）
+
+### 39.1 起因
+
+用户 11-18 要求「把 `sync_ios2_gist.py` 写裸数组的地方改掉，记得每次更新优化的时候把注意事项写在操作手册」。
+
+触发点是上一轮 v74 收尾时发现的**APK 云端构建已经连挂 6 次**：
+
+`build-apk.yml` 的「注入分区凭据」步骤是
+`d = json.load(open('config.json')); servers = d.get('servers', [])`，
+而 CI Secret `FZJH_SERVERS` 里存的其实是**裸数组**（v70 加 ios2 时 `sync_ios2_gist.py:54` 写的是
+`json.dumps(servers)`，不是整个 config dict）→ `.get()` 直接抛
+`AttributeError: 'list' object has no attribute 'get'`。
+
+从 11-17 17:24（提交 `bd6b029` 加 ios1）起，`1b6c293` / `df215db` / `10d104a` / `c9a9943` / `cb20f5f` 全部 failure，
+**而下载页一直挂着 11-17 的旧包，没有任何地方会报警**。
+
+同一个形状问题还有第二处：v71 加 ios3 时往 gist 写裸数组，
+`apk/lookup_core.py` 读 `cfg.get("servers")` 得到 `None` → 静默 `return False`，
+设备上唯一表现是「该分区未找到」，排查不了。
+
+### 39.2 改动
+
+| 文件 | 改动 |
+|---|---|
+| `scripts/sync_creds.py`（新增 9.1 KB） | 把「凭据写哪两处、写成什么格式」固化。`--check` 只打印掩码摘要并比对 gist；`--apply` 一次写齐；`--gist-only` / `--secret-only` 可只写一边 |
+| `apk/lookup_core.py` | 新增 `_norm_cfg(d)`：dict 原样、list 包成 `{"servers": d}`、其他给 `{}`；`refresh_remote_config()` / `_remote_config()` / `load_config()` 三处都过它；读不到 servers 时打印「远端配置里没有 servers 数组（gist 要写成 {\"servers\": [...]}）」而不是静默返回 |
+| `.github/workflows/build-apk.yml:80-98` | 注入步骤兼容 `{"servers": [...]}` 与裸数组两种形状；`servers` 仍为空则打印原因并 `exit 1` |
+
+`sync_creds.py` 的具体行为：
+
+- 校验 `config.json`：必须是 dict、`servers` 非空 list、每项含 `key/name/channel/uuid/account`、key 不重复，任一不满足直接 `die`
+- `masked()`：uuid 只露前 8 + 后 4 位，`account` 只打「有 / **缺**」——**不把凭据写进终端历史**
+- 写 gist 用 `{"servers": [...]}` 字典，写完全量回读并比对 key 列表，不一致 `die`
+- 写 Secret 用 PyNaCl SealedBox 加密**整份 `config.json`**（`json.dumps(cfg, ensure_ascii=False)`）
+- 结束时固定打印两条人工验证步骤（清设备端 `servers-remote.json` 后重启看分区；手跑 `build-apk.yml` 确认注入步骤绿）
+- 模块 docstring 记录了上面两次事故的完整经过
+
+### 39.3 验证
+
+1. **`--check`**：11 分区 / 2299 字节，逐区打印掩码后的 key/name/channel/uuid/account/platform/domain；gist 现状与 config 完全一致。
+2. **`--apply`**：gist 写入 `updated_at=2026-11-18T05:38:25Z`，回读一致；Secret payload **2299 字节 / 11 分区**。
+3. **`_norm_cfg` 单测**（`test_norm_cfg.py`）：整份 dict / 裸数组 / 空 dict / 空数组 / 字符串 / None 六个用例全过；
+   再写一份裸数组缓存，`_remote_config()` 与 `load_config()` 都能读出 11 分区。
+4. **注入步骤单测**（`test_inject_step.py`）：把 workflow 那段 inline python 抄出来跑五个用例——
+   整份 dict `rc=0`、裸数组 `rc=0`（都是「已注入 11 个分区」）、空 dict / 空数组 / 字符串 `rc=1` 并打印原因。
+5. **打包发布**：`pack_update.py` → **v75 / 12 文件 / 195.2 KB / md5 `ba8ee82cff92dbbe9a33488f7e8b5ca9` / size 199,910**
+   → `preflight.py` **11 项通过 / 1 项警告 / 0 项失败** → `publish.py` 提交 **`1ad93e71069b`**（5 文件）。
+6. **云端验证**：用修好的 Secret（整份 config）手动触发 `build-apk.yml` run **44245969493**，
+   「注入分区凭据」步骤通过，Release `apk-v1.0` 的 `fzjh-lookup-v1.0.apk` 覆盖更新为 23.6 MB。
+
+### 39.4 经验
+
+- **静默失败最贵**：gist 那个坑之所以难查，是因为 `refresh_remote_config()` 读不到就直接 `return False`，
+  调用方把它当成「远端没更新」正常跳过。v75 起至少会打印一行原因。
+- **CI 失败没人看**：APK 构建连挂 6 次都没被发现，因为下载页不校验包时间。
+  以后要么在 `lookup.html` 显示包的构建时间，要么给 workflow 加失败通知。
+- **格式约定必须落到脚本里**：靠记忆和聊天记录传「Secret 里要放整份 config」，一定会再错一次。
+  `sync_creds.py` 的价值不在省事，在于**它写的时候就不会写错，且写完会回读**。
+
+### 39.5 版本
+
+| 版本 | 内容 | 包大小 / md5 | 提交 |
+|---|---|---|---|
+| v74 | 人物等级反算改 0.1·lv³+1.35·lv² | 199,570 B / `565b44a2e52d…` | `cb20f5f7e126` |
+| **v75** | **分区凭据同步固化 + 两种形状兼容** | **199,910 B / `ba8ee82cff92…`** | **`1ad93e71069b`** |
