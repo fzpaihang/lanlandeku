@@ -2419,7 +2419,8 @@ class PlayerLookup(App):
         if NI.state() == "loading":
             self._show_sug("昵称索引加载中…（直接输 UID 也能查）", [])
             return
-        hits = NI.search(text, 8)
+        # 上限 20：重名最多的是「无名氏」（索引里 10 个），给 8 个会被挤掉目标。
+        hits = NI.search(text, 20)
         self._hits = hits
         if not hits:
             self._show_sug("没找到「%s」，试试完整昵称或直接输 UID" % text, [])
@@ -2561,7 +2562,7 @@ class PlayerLookup(App):
                 return self._begin(uid)
 
         # 非纯数字 → 当作昵称搜本地索引
-        hits = NI.search(raw, 8) if NI else []
+        hits = NI.search(raw, 20) if NI else []
         hits = [h for h in hits if not self._hidden(h["u"])]
         if not hits:
             if NI and NI.state() == "loading":

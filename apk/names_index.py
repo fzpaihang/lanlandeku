@@ -40,6 +40,7 @@ _CTX.verify_mode = ssl.CERT_NONE
 _lock = threading.Lock()
 _IO_LOCK = threading.Lock()      # 冷启动加载和手动刷新可能撞在一起，串行化
 _players = []               # [(uid, name, server_key, server_name, lv)]
+_aliases = []               # 历史昵称（改名前的旧名），同样参与 search()
 _hidden = set()             # 不允许查询的 uid（来自 lookup-index.json 的 hidden 字段）
 _meta = {"count": 0, "updatedTs": 0, "updatedAt": ""}   # 索引文件自身的元信息
 _state = "idle"             # idle | loading | ready | empty
@@ -117,6 +118,33 @@ def info():
             "updatedTs": meta.get("updatedTs", 0),
             "updatedAt": meta.get("updatedAt", ""),
             "source": source, "state": state}
+
+
+def _parse_aliases(raw):
+    """历史昵称（改名前的旧名）：[[uid, 昵称, server, serverName, lv], ...]。
+
+    索引构建侧从 extra-names 的 a 字段收集而来；老版本索引没有这个键，
+    直接当空。
+    """
+    try:
+        d = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    except Exception:
+        return []
+    out = []
+    for it in d.get("aliases") or []:
+        if not isinstance(it, (list, tuple)) or len(it) < 2 or it[0] is None:
+            continue
+        name = str(it[1] or "").strip()
+        if not name:
+            continue
+        try:
+            uid = int(it[0])
+        except (TypeError, ValueError):
+            continue
+        out.append((uid, name, str(it[2] if len(it) > 2 else "taptap"),
+                    str(it[3] if len(it) > 3 else ""),
+                    it[4] if len(it) > 4 else None))
+    return out
 
 
 def _parse(raw):
@@ -238,14 +266,26 @@ def _all_rows():
     return local + [r for r in snap if r[0] not in overridden]
 
 
+def _search_rows():
+    """搜索池 = 当前昵称 ∪ 历史昵称（改名前的旧名）。"""
+    rows = _all_rows()
+    with _lock:
+        alias = list(_aliases)
+    if not alias:
+        return rows
+    seen = set((r[0], r[1]) for r in rows)
+    return rows + [a for a in alias if (a[0], a[1]) not in seen]
+
+
 def _read_cache():
     """读缓存时同步恢复隐藏名单——离线也不能让隐藏玩家被搜出来。"""
-    global _hidden, _meta
+    global _hidden, _meta, _aliases
     try:
         with io.open(CACHE, encoding="utf-8") as f:
             raw = f.read()
         rows = _parse(raw)
         with _lock:
+            _aliases = _parse_aliases(raw)
             _hidden = _parse_hidden(raw)
             _meta = _parse_meta(raw)
         return rows, os.path.getmtime(CACHE)
@@ -277,7 +317,7 @@ def _load_blocking(force=False):
     force=True 由「刷新昵称索引」按钮调用：无视 CHECK_GAP 与 _started，
     强制联网拉一次。加新分区后不必再等 6 小时 + 一次冷启动。
     """
-    global _players, _state, _source, _hidden, _meta
+    global _players, _state, _source, _hidden, _meta, _aliases
 
     with _IO_LOCK:
         global_local = _read_local()
@@ -328,6 +368,7 @@ def _load_blocking(force=False):
         _write_cache(raw)
         with _lock:
             _players = fresh
+            _aliases = _parse_aliases(raw)
             _hidden = _parse_hidden(raw)
             _meta = _parse_meta(raw)
         _state, _source = "ready", "net"
@@ -381,7 +422,7 @@ def search(text, limit=8):
     q = str(text or "").strip().lower()
     if not q:
         return []
-    snap = _all_rows()
+    snap = _search_rows()
     with _lock:
         blocked = set(_hidden)
     if not snap:

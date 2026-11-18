@@ -1,8 +1,8 @@
 {
-  "version": 79,
-  "md5": "a76571ece93c78337620a6ace3f841ec",
-  "size": 200180,
-  "notes": "等级与经验口径统一：榜单 lv 改为按实时经验反算（原始值存 lvBoard），并去掉手动的「等级」排序（等级由经验唯一决定）",
-  "builtAt": "2026-11-18 17:33:51",
-  "sig": "13fb4dd4c23206c4e3eb97644deb5853002ac610de5108d8d642d177f61aee8ebc40f823d1bd4bca2f1e2caff399884a67ecc17f3e0017a6f2cbe403d0fe5409"
+  "version": 80,
+  "md5": "f3500651cb096ec5e7f290d683193382",
+  "size": 200547,
+  "notes": "修：昵称候选上限 8→20；新增多昵称索引（改名后旧昵称也能搜到）；iOS 三区只跑前 50 名",
+  "builtAt": "2026-11-18 18:24:33",
+  "sig": "bea6b924763226803f1648f18047004c3f97dc389e2dd69306376e3c31fad3c4bc4f7c80fee3a1c51cadfc997c36d60b31fd693758322b652a0ed9cad69c5802"
 }

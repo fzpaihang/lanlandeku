@@ -8,6 +8,8 @@
 
 数据来源：各分区 gaoshoubang.json + index-extra.json（榜单快照）、
          data/extra-names.json（APK / Issue 回写的昵称）、data/cangsong-5zhuan.json。
+         其中 extra-names 里带 a 字段（改名前的旧昵称）会单独收进 aliases 组，
+         APK 侧合并进搜索池，改名后按旧昵称一样能搜到人。
 隐私：hidden.json 里的玩家在生成榜单时已被剔除，这里再挡一次（写进 hidden 字段）。
 
 **多久跑一次**：这份索引是「昵称 → uid」的静态对照表，不需要每天重建。
@@ -169,6 +171,8 @@ def main():
 
     # 合并 APK 查过的角色：全局共享，别人查过的我也能搜到
     extra_added = 0
+    aliases = []          # [[uid, 旧昵称, server, serverName, lv], ...] 改名前的历史昵称
+    alias_seen = set()
     for it in load_extra_names():
         if not isinstance(it, dict):
             continue
@@ -177,6 +181,19 @@ def main():
         if uid is None or not name or str(uid) in hidden:
             continue
         key = str(it.get("s") or "taptap")
+
+        # 历史昵称：apk/archive_local.py 在昵称变化时把旧名记进 a（最多 3 个）。
+        # 这里单独收成一组，让改名后按旧昵称也能搜到同一个 uid。
+        for old in (it.get("a") or []):
+            old = str(old or "").strip()
+            if not old or old == name:
+                continue
+            kk = (str(uid), old)
+            if kk in alias_seen:
+                continue
+            alias_seen.add(kk)
+            aliases.append([int(uid), old, key, it.get("sn") or key, it.get("lv")])
+
         k = (str(uid), key)
         if k in seen:
             # 榜单里已有：昵称以榜单为准（榜单是最新抓的），只补等级
@@ -197,11 +214,13 @@ def main():
     # 按等级降序，前端同名多区时优先展示强的
     players.sort(key=lambda x: (-(x.get("lv") or 0), x["n"]))
 
-    # 5 转玩家：不塞进 players，单独一组 [uid, 昵称]，前端合并时优先用榜单的
+    # 历史昵称：不塞进 players（避免人数统计重复），单独一组
+    # [[uid, 昵称, server, serverName, lv], ...]，APK 搜索时与 players 合并。
     zhuan5 = [x for x in load_zhuan5()
               if isinstance(x, list) and len(x) >= 2 and str(x[0]) not in hidden]
     board_uids = set(str(p["u"]) for p in players)
     zhuan5 = [x for x in zhuan5 if str(x[0]) not in board_uids]
+    aliases = [a for a in aliases if str(a[0]) not in hidden]
 
     out = {
         "updatedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -210,6 +229,8 @@ def main():
         "count": len(players),
         "players": players,
         "zhuan5": zhuan5,
+        # 历史昵称（改名前的旧名）：[[uid, 昵称, server, serverName, lv], ...]
+        "aliases": aliases,
         # 供 APK 在查询前拦截：这些 uid 不允许拉档案
         "hidden": hidden_out,
     }
