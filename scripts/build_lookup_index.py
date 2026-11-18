@@ -22,12 +22,30 @@
 import io
 import json
 import os
+import sys
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 SERVERS = os.path.join(DATA, "servers")
 OUT = os.path.join(DATA, "lookup-index.json")
+
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+
+from lv_formula import lv_from_exp  # noqa: E402  人物等级反算（纯计算，无第三方依赖）
+
+
+def _live_lv(row):
+    """索引里的等级统一用「实时经验反算」，和榜单页显示的口径一致。
+
+    榜单 rows 里 merge_exp.py 已经写过 lv，但 index-extra.json（51–100 名）
+    是 fetch.py 直接产出的原始榜单值，还是旧的；这里统一按 exp 重算一遍，
+    保证同一个玩家在榜单页和昵称检索里显示同一个等级。
+    """
+    lv = lv_from_exp((row or {}).get("exp"))
+    if lv is not None:
+        return lv
+    return (row or {}).get("lv")
 
 
 def load_index_json():
@@ -144,7 +162,7 @@ def main():
                 "n": name,
                 "s": key,
                 "sn": srv.get("name") or key,
-                "lv": r.get("lv"),
+                "lv": _live_lv(r),
                 "m": r.get("menpai") or "",
                 "r": r.get("rank"),
             })
@@ -170,6 +188,7 @@ def main():
             "n": name,
             "s": key,
             "sn": it.get("sn") or key,
+            # extra-names 的 lv 是 APK 查询时的档案实时值，没有 exp 可反算，原样用
             "lv": it.get("lv"),
             "m": "",
             "r": None,

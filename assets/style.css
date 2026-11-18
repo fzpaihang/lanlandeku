@@ -139,6 +139,9 @@ thead th{
   cursor:pointer;user-select:none;white-space:nowrap;
 }
 thead th:hover{color:var(--accent)}
+/* 不可排序的列（没有 data-key，比如「等级」——它由经验唯一决定，排序没意义） */
+thead th:not([data-key]){cursor:default}
+thead th:not([data-key]):hover{color:var(--ink-2)}
 thead th.num{text-align:right}
 thead th[aria-sort="descending"]::after{content:" ↓";color:var(--accent);font-size:11px}
 thead th[aria-sort="ascending"]::after{content:" ↑";color:var(--accent);font-size:11px}

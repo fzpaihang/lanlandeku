@@ -306,7 +306,27 @@ def check_lv_from_exp(L):
     except Exception as e:
         warn("等级反算(worker)", "读 profile.js 失败：%r" % (e,))
 
-    # 精度回归：拿真实榜单 expBoard + lv 对拍
+    # scripts 侧（lv_formula.py）必须与 apk 侧逐字一致：
+    # merge_exp / build_lookup_index / fetch_profiles 都靠它统一榜单等级口径
+    try:
+        sys.path.insert(0, os.path.join(ROOT, "scripts"))
+        import lv_formula as S            # noqa: E402
+        if (S.LV_BASE, S.LV_OFFSET) != (L.LV_BASE, L.LV_OFFSET):
+            fail("等级反算常量", "apk=(%s, %s) scripts=(%s, %s)"
+                 % (L.LV_BASE, L.LV_OFFSET, S.LV_BASE, S.LV_OFFSET))
+            return
+        probes = [1, 8, 100, 1000, 1e6, 31316751, 7.93e9, 0, -1, None, "abc"]
+        diffs = [c for c in probes if L.lv_from_exp(c) != S.lv_from_exp(c)]
+        if diffs:
+            fail("等级反算一致", "apk 与 scripts 结果不同：%r" % (diffs[:4],))
+            return
+    except Exception as e:
+        fail("等级反算一致", "lv_formula.py 导入或对比失败：%r" % (e,))
+        return
+
+    # 精度回归：拿真实榜单「同批」的 expBoard + lvBoard 对拍
+    # （不能用 lv：merge_exp.py 已经把 lv 改写成按 exp 反算的实时值，
+    #   拿它来验证公式是循环论证；lvBoard/expBoard 才是游戏给的原始一对）
     hit = tot = 0
     worst = 0.0
     try:
@@ -319,7 +339,7 @@ def check_lv_from_exp(L):
             except Exception:
                 continue
             for r in (b.get("rows") or []):
-                lv, eb = r.get("lv"), r.get("expBoard")
+                lv, eb = r.get("lvBoard", r.get("lv")), r.get("expBoard")
                 if not lv or not eb:
                     continue
                 g = L.lv_from_exp(eb)

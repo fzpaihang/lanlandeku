@@ -23,6 +23,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE, "scripts"))
 
 import fetch as F  # noqa: E402  复用握手 / 加密 / 请求
+from lv_formula import lv_from_exp  # noqa: E402  人物等级反算（纯计算，无第三方依赖）
 
 SLEEP = 0.7
 NEW_DAYS = 30          # 「近期新增」保留天数
@@ -185,7 +186,8 @@ def slim(p, board_row, names, old=None, today=None):
         "zhengqi": p.get("zhengqi"),
         "inheritCount": p.get("inheritCount"),
         "fuyuan": (board_row or {}).get("fuyuan"),
-        "lv": (board_row or {}).get("lv"),
+        # 等级按档案自己的经验反算，与榜单页同口径（榜单 lv 是「上次点榜」的旧值）
+        "lv": lv_from_exp(num(p.get("exp"), 0)) or (board_row or {}).get("lv"),
         "rank": (board_row or {}).get("rank"),
         "skills": skills,
         "newSkills": new_skills,

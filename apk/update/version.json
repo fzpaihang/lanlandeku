@@ -1,8 +1,8 @@
 {
-  "version": 78,
-  "md5": "de7e7f1d234d801bd5d01cd6db2480f1",
-  "size": 199935,
-  "notes": "修：人物等级反算改用游戏原式 exp=0.1*(lv+4)³ 区间回代，exp→lv 命中 100%（715/715 榜单样本），最大偏差 0 级",
-  "builtAt": "2026-11-18 16:38:45",
-  "sig": "d2559fdf82b09b0b814a83cdea9a0d207768df2728c882ba8a246f7911b621bb88693ec1ad0d2f068cdb7b2f581f4b5da85e2f47b75e2f3165f6304811647504"
+  "version": 79,
+  "md5": "a76571ece93c78337620a6ace3f841ec",
+  "size": 200180,
+  "notes": "等级与经验口径统一：榜单 lv 改为按实时经验反算（原始值存 lvBoard），并去掉手动的「等级」排序（等级由经验唯一决定）",
+  "builtAt": "2026-11-18 17:33:51",
+  "sig": "13fb4dd4c23206c4e3eb97644deb5853002ac610de5108d8d642d177f61aee8ebc40f823d1bd4bca2f1e2caff399884a67ecc17f3e0017a6f2cbe403d0fe5409"
 }

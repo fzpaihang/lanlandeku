@@ -373,7 +373,8 @@
   /* ---------- 移动端排序条 ---------- */
 
   // 桌面靠表头排序；手机没有表头，这里给一条胶囊。默认仍按排行榜名次，
-  // 想按经验/等级看时手动切一下。
+  // 想按经验看时手动切一下。
+  // （没有「等级」选项：等级由经验唯一决定，两者排序结果完全一样。）
   var sortbar = document.getElementById('sortbar');
 
   function syncSortButtons() {
@@ -392,7 +393,7 @@
           state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
         } else {
           state.sortKey = k;
-          // 名次越小越靠前；经验/等级从高到低
+          // 名次越小越靠前；经验从高到低
           state.sortDir = (k === 'rank' || k === 'name' || k === 'menpai') ? 'asc' : 'desc';
         }
         syncSortButtons();

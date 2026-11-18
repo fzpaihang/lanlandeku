@@ -619,11 +619,14 @@ def parse_profile(data, board_row=None):
 
     # 门派：榜单优先，其次 family 映射
     menpai = br.get("menpai") or MENPAI_CN.get(fam) or ""
-    # 等级：榜单优先，其次经验反算
-    if br.get("lv"):
-        lv, lv_est = br["lv"], False
-    else:
-        lv, lv_est = lv_from_exp(exp), True
+    # 等级：按实时经验反算，与网页榜单同口径。
+    # 榜单里的 lv 是「上次点榜时」的快照，和 exp 同批、比档案 exp 旧，
+    # 直接用它会出现「经验涨了、等级不动」的错位。反算值带 lvEstimated 标记，
+    # 页面上显示成「2818（估）」——「估」= 按经验反算，不是游戏直接给的。
+    lv = lv_from_exp(exp)
+    lv_est = True
+    if lv is None:
+        lv, lv_est = br.get("lv"), False
 
     return {
         "uid": data.get("userid"),
@@ -700,10 +703,11 @@ def board_profile(uid, server=None, cache=None):
         for r in (rec.get("rows") or []):
             if str(r.get("userid")) != key:
                 continue
-            lv, est = r.get("lv"), False
-            if not lv and r.get("exp"):
-                # 人物等级用 lv_from_exp（0.1·(lv+4)³），不是武学那套 f(lv)=0.015·lv³
-                lv, est = lv_from_exp(r["exp"]), True
+            # 和 parse_profile 一样：等级一律按经验反算，保证与经验自洽
+            # （人物等级用 lv_from_exp（0.1·(lv+4)³），不是武学那套 f(lv)=0.015·lv³）
+            lv, est = lv_from_exp(r.get("exp")), True
+            if lv is None:
+                lv, est = r.get("lv"), False
             return {
                 "uid": int(key),
                 "name": (r.get("name") or "").strip() or "（无昵称）",
@@ -789,11 +793,13 @@ def _lookup_single(uid, srv, cache, hotver, note, deadline=None):
 # ---------- 结果缓存：同一个 UID 10 分钟内直接复用 ----------
 PROFILE_TTL = 600      # 秒。游戏侧档案本身也不是秒级刷新，再短没意义
 PROFILE_MAX = 12       # 最多留 12 份；单份 profile 约 20 KB
-PROFILE_VER = 4        # 结构变了就 +1，旧缓存自动作废（防止缺字段把界面打崩）
+PROFILE_VER = 5        # 结构变了就 +1，旧缓存自动作废（防止缺字段把界面打崩）
                        # v66：history 多存 p（parentName / 0 转初代名），
                        # 旧缓存没有 p 会退化成占位「初代」，bump 后强制重查一次。
                        # v72：加入字段级隐藏（HIDDEN_FIELDS），旧缓存里可能还留着
                        # 被隐藏玩家的武学列表，bump 后强制重查一次。
+                       # v79：等级改为「按实时经验反算」（与网页榜单同口径），
+                       # 旧缓存里的 lv 是榜单旧值，会和 exp 对不上，bump 重查。
 
 
 def _pkey(uid, server):

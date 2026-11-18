@@ -8,6 +8,9 @@
 规则：
   - 名次 rank 保留游戏原始值，**不按经验重排**（经验高但名次靠后是允许的）
   - 榜单原始经验存到 expBoard，方便回溯；exp 改写成档案值
+  - 榜单原始等级存到 lvBoard，lv 改写成「实时经验反算」值，保证
+    页面上的等级与经验互相对得上（游戏把 lv 和 exp 一起缓存进榜单，
+    不活跃玩家会一直拿到旧 lv，光换 exp 就会出现「经验涨了等级不动」）
   - 档案抓取失败（文件过旧）的玩家保留榜单经验，绝不倒退
   - 当天经验快照同步改写，保证「区间增长」用的是同一口径
 
@@ -24,6 +27,10 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 SERVERS = os.path.join(DATA, "servers")
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+
+from lv_formula import lv_from_exp  # noqa: E402  人物等级反算（纯计算，无第三方依赖）
+
 BJ_OFFSET = 8 * 3600
 
 # 档案与榜单的时间差容忍：同一次刷新里档案晚 1~3 分钟，留 2 小时余量
@@ -70,12 +77,17 @@ def merge_server(key, verbose=True):
     used = kept = 0
     max_delta = 0
     max_who = ""
+    lv_changed = 0
+    lv_shift = 0
     for r in rows:
         uid = str(r.get("userid"))
         board_exp = r.get("exp")
+        board_lv = r.get("lv")
         # 只在首次合并时记录榜单原值：重复执行不能把 expBoard 覆盖成档案值
         if "expBoard" not in r:
             r["expBoard"] = board_exp
+        if "lvBoard" not in r:
+            r["lvBoard"] = board_lv
 
         p = load(os.path.join(prof_dir, uid + ".json"))
         p_ts = int((p or {}).get("updatedTs") or 0)
@@ -93,6 +105,16 @@ def merge_server(key, verbose=True):
         else:
             r["expSrc"] = "board"
             kept += 1
+
+        # 等级跟着经验走：显示值与经验永远自洽。
+        # 榜单 lv 是「上次点榜时」的快照，和榜单 exp 同批，比档案 exp 旧，
+        # 直接留着就会出现「等级不动、经验涨了」的错位。
+        live_lv = lv_from_exp(r.get("exp"))
+        if live_lv is not None:
+            if board_lv is not None and live_lv != board_lv:
+                lv_changed += 1
+                lv_shift = max(lv_shift, abs(live_lv - int(board_lv)))
+            r["lv"] = live_lv
 
     board["expSrc"] = "mixed"      # 表格里可能混着两种来源，逐行看 expSrc
     board["mergedAt"] = bj_time(time.time())
@@ -135,8 +157,8 @@ def merge_server(key, verbose=True):
 
     if verbose:
         pct = (max_delta / 1e8) if max_delta else 0
-        print("  %-9s %3d 人 | 用档案 %3d | 保留榜单 %3d | 最大差 %.0f 万（%s）"
-              % (key, len(rows), used, kept, max_delta / 1e4, max_who))
+        print("  %-9s %3d 人 | 用档案 %3d | 保留榜单 %3d | 最大差 %.0f 万（%s）| 等级校正 %d 人（最多 %d 级）"
+              % (key, len(rows), used, kept, max_delta / 1e4, max_who, lv_changed, lv_shift))
         if pct:
             pass
     return {"key": key, "total": len(rows), "used": used, "kept": kept}

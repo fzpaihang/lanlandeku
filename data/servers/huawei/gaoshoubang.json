@@ -26,14 +26,15 @@
    "prevRank": 1,
    "delta": 0,
    "expBoard": 5769407258.6017,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3860
   },
   {
    "rank": 2,
    "userid": 10045629587,
    "name": "君殿",
    "menpai": "虚渺宫",
-   "lv": 3669,
+   "lv": 3671,
    "kongfu": 1956.33,
    "exp": 4963627871.0,
    "money": 174160375.01025,
@@ -48,7 +49,8 @@
    "prevRank": 2,
    "delta": 0,
    "expBoard": 4957219805.5445,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3669
   },
   {
    "rank": 3,
@@ -70,14 +72,15 @@
    "prevRank": 3,
    "delta": 0,
    "expBoard": 5035612530.3916,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3688
   },
   {
    "rank": 4,
    "userid": 10045182077,
    "name": "悲無言",
    "menpai": "江湖浪人",
-   "lv": 3575,
+   "lv": 3576,
    "kongfu": 1925,
    "exp": 4590543760.0,
    "money": 495086390.68634,
@@ -92,7 +95,8 @@
    "prevRank": 4,
    "delta": 0,
    "expBoard": 4584979657.0923,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3575
   },
   {
    "rank": 5,
@@ -114,7 +118,8 @@
    "prevRank": 5,
    "delta": 0,
    "expBoard": 4411808847.8107,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3529
   },
   {
    "rank": 6,
@@ -136,7 +141,8 @@
    "prevRank": 6,
    "delta": 0,
    "expBoard": 4353063632.9654,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3513
   },
   {
    "rank": 7,
@@ -158,7 +164,8 @@
    "prevRank": 7,
    "delta": 0,
    "expBoard": 4265273996.6357,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3489
   },
   {
    "rank": 8,
@@ -180,7 +187,8 @@
    "prevRank": 8,
    "delta": 0,
    "expBoard": 3730153615.8733,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3337
   },
   {
    "rank": 9,
@@ -202,14 +210,15 @@
    "prevRank": 9,
    "delta": 0,
    "expBoard": 3658583312.8853,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3315
   },
   {
    "rank": 10,
    "userid": 10045194284,
    "name": "画屏",
    "menpai": "官府",
-   "lv": 3312,
+   "lv": 3315,
    "kongfu": 1837.33,
    "exp": 3659150919.0,
    "money": 441545275.91436,
@@ -224,14 +233,15 @@
    "prevRank": 10,
    "delta": 0,
    "expBoard": 3647959578.7608,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3312
   },
   {
    "rank": 11,
    "userid": 10045727598,
    "name": "明德楼主",
    "menpai": "海鲸帮",
-   "lv": 3270,
+   "lv": 3272,
    "kongfu": 1823.33,
    "exp": 3517791598.0,
    "money": 190041555,
@@ -246,7 +256,8 @@
    "prevRank": 11,
    "delta": 0,
    "expBoard": 3511571204.0702,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3270
   },
   {
    "rank": 12,
@@ -268,14 +279,15 @@
    "prevRank": 12,
    "delta": 0,
    "expBoard": 3602510089.7736,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3298
   },
   {
    "rank": 13,
    "userid": 10045183085,
    "name": "懒得取名",
    "menpai": "虚渺宫",
-   "lv": 3520,
+   "lv": 3523,
    "kongfu": 1850.5,
    "exp": 4387730766.0,
    "money": 127256720,
@@ -290,7 +302,8 @@
    "prevRank": 13,
    "delta": 0,
    "expBoard": 4378772890.433,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3520
   },
   {
    "rank": 14,
@@ -312,14 +325,15 @@
    "prevRank": 14,
    "delta": 0,
    "expBoard": 3004518390.5763,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3104
   },
   {
    "rank": 15,
    "userid": 10045716478,
    "name": "丶苏苏",
    "menpai": "武当派",
-   "lv": 3115,
+   "lv": 3119,
    "kongfu": 1771.67,
    "exp": 3046356882.0,
    "money": 81992291,
@@ -334,14 +348,15 @@
    "prevRank": 15,
    "delta": 0,
    "expBoard": 3035516745.1723,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3115
   },
   {
    "rank": 16,
    "userid": 10045825693,
    "name": "钟悦圆圆",
    "menpai": "天龙寺",
-   "lv": 3243,
+   "lv": 3245,
    "kongfu": 1682.17,
    "exp": 3431519183.0,
    "money": 25406415,
@@ -356,7 +371,8 @@
    "prevRank": 16,
    "delta": 0,
    "expBoard": 3424883722.885,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3243
   },
   {
    "rank": 17,
@@ -378,7 +394,8 @@
    "prevRank": 17,
    "delta": 0,
    "expBoard": 2910790391.979,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3072
   },
   {
    "rank": 18,
@@ -400,14 +417,15 @@
    "prevRank": 18,
    "delta": 0,
    "expBoard": 2875955703.9503,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3059
   },
   {
    "rank": 19,
    "userid": 10045777304,
    "name": "怀玉",
    "menpai": "落月山庄",
-   "lv": 3070,
+   "lv": 3073,
    "kongfu": 1756.67,
    "exp": 2913669459.0,
    "money": 545715164.50429,
@@ -422,14 +440,15 @@
    "prevRank": 19,
    "delta": 0,
    "expBoard": 2905002027.5661,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3070
   },
   {
    "rank": 20,
    "userid": 10045308607,
    "name": "横推八百",
    "menpai": "武当派",
-   "lv": 3040,
+   "lv": 3043,
    "kongfu": 1746.67,
    "exp": 2831301137.0,
    "money": 279069895.81031,
@@ -444,7 +463,8 @@
    "prevRank": 20,
    "delta": 0,
    "expBoard": 2821015797.0529,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3040
   },
   {
    "rank": 21,
@@ -466,7 +486,8 @@
    "prevRank": 21,
    "delta": 0,
    "expBoard": 2785723472.2461,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3027
   },
   {
    "rank": 22,
@@ -488,7 +509,8 @@
    "prevRank": 22,
    "delta": 0,
    "expBoard": 2740133233.5621,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3010
   },
   {
    "rank": 23,
@@ -510,14 +532,15 @@
    "prevRank": 23,
    "delta": 0,
    "expBoard": 3259719209.6202,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3190
   },
   {
    "rank": 24,
    "userid": 10045912892,
    "name": "月兔",
    "menpai": "问情宫",
-   "lv": 3002,
+   "lv": 3003,
    "kongfu": 1734,
    "exp": 2720084295.0,
    "money": 89324138.146128,
@@ -532,7 +555,8 @@
    "prevRank": 24,
    "delta": 0,
    "expBoard": 2716264241.8383,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3002
   },
   {
    "rank": 25,
@@ -554,7 +578,8 @@
    "prevRank": 25,
    "delta": 0,
    "expBoard": 2556291473.1283,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2941
   },
   {
    "rank": 26,
@@ -576,7 +601,8 @@
    "prevRank": 26,
    "delta": 0,
    "expBoard": 2560973016.0008,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2943
   },
   {
    "rank": 27,
@@ -598,7 +624,8 @@
    "prevRank": 27,
    "delta": 0,
    "expBoard": 2649216933.0111,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2977
   },
   {
    "rank": 28,
@@ -620,14 +647,15 @@
    "prevRank": 28,
    "delta": 0,
    "expBoard": 2495762980.8404,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2918
   },
   {
    "rank": 29,
    "userid": 10045405058,
    "name": "风之紫烟",
    "menpai": "天竞门",
-   "lv": 2933,
+   "lv": 2935,
    "kongfu": 1711,
    "exp": 2540009105.0,
    "money": 509602903.88384,
@@ -642,7 +670,8 @@
    "prevRank": 29,
    "delta": 0,
    "expBoard": 2535691767.3851,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2933
   },
   {
    "rank": 30,
@@ -664,14 +693,15 @@
    "prevRank": 30,
    "delta": 0,
    "expBoard": 2514746586.7244,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2925
   },
   {
    "rank": 31,
    "userid": 10045857366,
    "name": "曹老板",
    "menpai": "华山",
-   "lv": 2892,
+   "lv": 2895,
    "kongfu": 1697.33,
    "exp": 2437340208.0,
    "money": 13845191,
@@ -686,7 +716,8 @@
    "prevRank": 31,
    "delta": 0,
    "expBoard": 2429953566.9333,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2892
   },
   {
    "rank": 32,
@@ -708,7 +739,8 @@
    "prevRank": 32,
    "delta": 0,
    "expBoard": 2413213779.8472,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2885
   },
   {
    "rank": 33,
@@ -730,7 +762,8 @@
    "prevRank": 33,
    "delta": 0,
    "expBoard": 2490740014.7446,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2916
   },
   {
    "rank": 34,
@@ -752,7 +785,8 @@
    "prevRank": 34,
    "delta": 0,
    "expBoard": 2386607807.0292,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2875
   },
   {
    "rank": 35,
@@ -774,7 +808,8 @@
    "prevRank": 35,
    "delta": 0,
    "expBoard": 2384775900.7942,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2874
   },
   {
    "rank": 36,
@@ -796,14 +831,15 @@
    "prevRank": 36,
    "delta": 0,
    "expBoard": 2334019831.3383,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2853
   },
   {
    "rank": 37,
    "userid": 10045667700,
    "name": "夜云曦",
    "menpai": "虚渺宫",
-   "lv": 2852,
+   "lv": 2853,
    "kongfu": 1684,
    "exp": 2332346276.0,
    "money": 47575554,
@@ -818,14 +854,15 @@
    "prevRank": 37,
    "delta": 0,
    "expBoard": 2329810446.4435,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2852
   },
   {
    "rank": 38,
    "userid": 10045751513,
    "name": "龙啸羽",
    "menpai": "天竞门",
-   "lv": 3188,
+   "lv": 3191,
    "kongfu": 1729.33,
    "exp": 3263397893.0,
    "money": 611239270.82604,
@@ -840,7 +877,8 @@
    "prevRank": 38,
    "delta": 0,
    "expBoard": 3254838964.3827,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 3188
   },
   {
    "rank": 39,
@@ -862,7 +900,8 @@
    "prevRank": 39,
    "delta": 0,
    "expBoard": 2235740126.7613,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2813
   },
   {
    "rank": 40,
@@ -884,7 +923,8 @@
    "prevRank": 40,
    "delta": 0,
    "expBoard": 2254485484.6368,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2820
   },
   {
    "rank": 41,
@@ -906,7 +946,8 @@
    "prevRank": 41,
    "delta": 0,
    "expBoard": 2193258469.3279,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2795
   },
   {
    "rank": 42,
@@ -928,14 +969,15 @@
    "prevRank": 42,
    "delta": 0,
    "expBoard": 2540025522.9703,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2935
   },
   {
    "rank": 43,
    "userid": 10045861715,
    "name": "吾妻言和",
    "menpai": "虚渺宫",
-   "lv": 2779,
+   "lv": 2783,
    "kongfu": 1659.67,
    "exp": 2164819610.0,
    "money": 66719213.601973,
@@ -950,7 +992,8 @@
    "prevRank": 43,
    "delta": 0,
    "expBoard": 2157360442.4101,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2779
   },
   {
    "rank": 44,
@@ -972,7 +1015,8 @@
    "prevRank": 44,
    "delta": 0,
    "expBoard": 2215425495.1068,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2804
   },
   {
    "rank": 45,
@@ -994,7 +1038,8 @@
    "prevRank": 45,
    "delta": 0,
    "expBoard": 2155381184.2506,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2778
   },
   {
    "rank": 46,
@@ -1016,7 +1061,8 @@
    "prevRank": 46,
    "delta": 0,
    "expBoard": 2076208145.8736,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2744
   },
   {
    "rank": 47,
@@ -1038,14 +1084,15 @@
    "prevRank": 47,
    "delta": 0,
    "expBoard": 2046658242.4445,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2731
   },
   {
    "rank": 48,
    "userid": 10045394739,
    "name": "趙匡胤",
    "menpai": "问情宫",
-   "lv": 2783,
+   "lv": 2818,
    "kongfu": 1661,
    "exp": 2249395871.0,
    "money": 426302578,
@@ -1060,7 +1107,8 @@
    "prevRank": 48,
    "delta": 0,
    "expBoard": 2165295166.0953,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2783
   },
   {
    "rank": 49,
@@ -1082,7 +1130,8 @@
    "prevRank": 49,
    "delta": 0,
    "expBoard": 1998589496.5528,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2709
   },
   {
    "rank": 50,
@@ -1104,9 +1153,10 @@
    "prevRank": 50,
    "delta": 0,
    "expBoard": 2106061799.8674,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 2757
   }
  ],
  "expSrc": "mixed",
- "mergedAt": "2026-11-18 03:03:54"
+ "mergedAt": "2026-11-18 17:31:18"
 }

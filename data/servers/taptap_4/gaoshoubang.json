@@ -11,7 +11,7 @@
    "userid": 22039035431,
    "name": "佩恩",
    "menpai": "昆仑派",
-   "lv": 963,
+   "lv": 979,
    "kongfu": 956.22,
    "exp": 94986315.0,
    "money": 23527709,
@@ -26,7 +26,8 @@
    "prevRank": 1,
    "delta": 0,
    "expBoard": 90644844.210631,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 963
   },
   {
    "rank": 2,
@@ -48,7 +49,8 @@
    "prevRank": 2,
    "delta": 0,
    "expBoard": 87329422.002626,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 951
   },
   {
    "rank": 3,
@@ -70,7 +72,8 @@
    "prevRank": 3,
    "delta": 0,
    "expBoard": 63985635.979299,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 857
   },
   {
    "rank": 4,
@@ -92,14 +95,15 @@
    "prevRank": 12,
    "delta": 8,
    "expBoard": 75463374.985851,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 906
   },
   {
    "rank": 5,
    "userid": 22039030782,
    "name": "李火旺",
    "menpai": "天狼教",
-   "lv": 889,
+   "lv": 895,
    "kongfu": 886,
    "exp": 72667058.0,
    "money": 961667,
@@ -114,14 +118,15 @@
    "prevRank": 5,
    "delta": 0,
    "expBoard": 71222210.840396,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 889
   },
   {
    "rank": 6,
    "userid": 22039030781,
    "name": "火炎焱",
    "menpai": "蓬莱岛",
-   "lv": 873,
+   "lv": 893,
    "kongfu": 860.56,
    "exp": 72195712.0,
    "money": 1261815,
@@ -136,7 +141,8 @@
    "prevRank": 6,
    "delta": 0,
    "expBoard": 67634364.546624,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 873
   },
   {
    "rank": 7,
@@ -158,7 +164,8 @@
    "prevRank": 8,
    "delta": 1,
    "expBoard": 68566170.630683,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 877
   },
   {
    "rank": 8,
@@ -180,14 +187,15 @@
    "prevRank": 10,
    "delta": 2,
    "expBoard": 43258204.078308,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 752
   },
   {
    "rank": 9,
    "userid": 22039049006,
    "name": "仇筱雅",
    "menpai": "昆仑派",
-   "lv": 771,
+   "lv": 776,
    "kongfu": 735.72,
    "exp": 47590357.0,
    "money": 4802640,
@@ -202,14 +210,15 @@
    "prevRank": 11,
    "delta": 2,
    "expBoard": 46580495.25621,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 771
   },
   {
    "rank": 10,
    "userid": 22039043916,
    "name": "一盏屠苏",
    "menpai": "昆仑派",
-   "lv": 784,
+   "lv": 798,
    "kongfu": 733.72,
    "exp": 51627470.0,
    "money": 27166225.920999,
@@ -224,7 +233,8 @@
    "prevRank": 9,
    "delta": -1,
    "expBoard": 49047825.523818,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 784
   },
   {
    "rank": 11,
@@ -246,7 +256,8 @@
    "prevRank": 13,
    "delta": 2,
    "expBoard": 65471524.849091,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 864
   },
   {
    "rank": 12,
@@ -268,7 +279,8 @@
    "prevRank": 14,
    "delta": 2,
    "expBoard": 39674439.997422,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 730
   },
   {
    "rank": 13,
@@ -290,14 +302,15 @@
    "prevRank": 16,
    "delta": 3,
    "expBoard": 51765840.062874,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 798
   },
   {
    "rank": 14,
    "userid": 22039030225,
    "name": "如梦令",
    "menpai": "虚渺宫",
-   "lv": 902,
+   "lv": 908,
    "kongfu": 794.56,
    "exp": 75893992.0,
    "money": 160494,
@@ -312,7 +325,8 @@
    "prevRank": 7,
    "delta": -7,
    "expBoard": 74442239.768875,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 902
   },
   {
    "rank": 15,
@@ -334,14 +348,15 @@
    "prevRank": 19,
    "delta": 4,
    "expBoard": 53382989.786955,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 807
   },
   {
    "rank": 16,
    "userid": 22039034661,
    "name": "神鱼欧",
    "menpai": "少林派",
-   "lv": 828,
+   "lv": 837,
    "kongfu": 790.5,
    "exp": 59651174.0,
    "money": 14542870,
@@ -356,14 +371,15 @@
    "prevRank": 15,
    "delta": -1,
    "expBoard": 57792925.296417,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 828
   },
   {
    "rank": 17,
    "userid": 22039043537,
    "name": "凌乱",
    "menpai": "昆仑派",
-   "lv": 819,
+   "lv": 822,
    "kongfu": 814.17,
    "exp": 56536298.0,
    "money": 12750997,
@@ -378,7 +394,8 @@
    "prevRank": 4,
    "delta": -13,
    "expBoard": 55792323.770573,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 819
   },
   {
    "rank": 18,
@@ -400,14 +417,15 @@
    "prevRank": 18,
    "delta": 0,
    "expBoard": 50454223.097094,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 792
   },
   {
    "rank": 19,
    "userid": 22039040882,
    "name": "干煸肥喵",
    "menpai": "昆仑派",
-   "lv": 788,
+   "lv": 797,
    "kongfu": 785.17,
    "exp": 51431174.0,
    "money": 8650440.5914352,
@@ -422,7 +440,8 @@
    "prevRank": 17,
    "delta": -2,
    "expBoard": 49752392.31607,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 788
   },
   {
    "rank": 20,
@@ -444,14 +463,15 @@
    "prevRank": 21,
    "delta": 1,
    "expBoard": 48652861.787697,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 782
   },
   {
    "rank": 21,
    "userid": 22039035887,
    "name": "司空长空",
    "menpai": "落月山庄",
-   "lv": 817,
+   "lv": 818,
    "kongfu": 778.94,
    "exp": 55557345.0,
    "money": 5385508.849921,
@@ -466,7 +486,8 @@
    "prevRank": 20,
    "delta": -1,
    "expBoard": 55494441.272591,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 817
   },
   {
    "rank": 22,
@@ -488,7 +509,8 @@
    "prevRank": 24,
    "delta": 2,
    "expBoard": 36447928.279717,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 710
   },
   {
    "rank": 23,
@@ -510,7 +532,8 @@
    "prevRank": 26,
    "delta": 3,
    "expBoard": 30880949.60446,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 671
   },
   {
    "rank": 24,
@@ -532,14 +555,15 @@
    "prevRank": 23,
    "delta": -1,
    "expBoard": 47816574.182628,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 777
   },
   {
    "rank": 25,
    "userid": 22039050966,
    "name": "摸鱼五世",
    "menpai": "昆仑派",
-   "lv": 655,
+   "lv": 668,
    "kongfu": 683.94,
    "exp": 30376650.0,
    "money": 10278567,
@@ -554,7 +578,8 @@
    "prevRank": 22,
    "delta": -3,
    "expBoard": 28723496.975131,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 655
   },
   {
    "rank": 26,
@@ -576,14 +601,15 @@
    "prevRank": 25,
    "delta": -1,
    "expBoard": 34957942.255828,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 700
   },
   {
    "rank": 27,
    "userid": 22039056208,
    "name": "极极",
    "menpai": "崆峒派",
-   "lv": 651,
+   "lv": 652,
    "kongfu": 680.33,
    "exp": 28268068.0,
    "money": 7262694,
@@ -598,14 +624,15 @@
    "prevRank": 31,
    "delta": 4,
    "expBoard": 28205571.7884,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 651
   },
   {
    "rank": 28,
    "userid": 22039051319,
    "name": "宵崎奏",
    "menpai": "华山",
-   "lv": 646,
+   "lv": 649,
    "kongfu": 678.06,
    "exp": 27846083.0,
    "money": 6774020,
@@ -620,14 +647,15 @@
    "prevRank": 37,
    "delta": 9,
    "expBoard": 27536676.165033,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 646
   },
   {
    "rank": 29,
    "userid": 22039034323,
    "name": "纸千夜",
    "menpai": "少林派",
-   "lv": 817,
+   "lv": 834,
    "kongfu": 812.22,
    "exp": 59025253.0,
    "money": 17332468.2859,
@@ -642,14 +670,15 @@
    "prevRank": 27,
    "delta": -2,
    "expBoard": 55474899.64096,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 817
   },
   {
    "rank": 30,
    "userid": 22039053879,
    "name": "云偃",
    "menpai": "昆仑派",
-   "lv": 664,
+   "lv": 665,
    "kongfu": 627.33,
    "exp": 29942168.0,
    "money": 1468510,
@@ -664,14 +693,15 @@
    "prevRank": 28,
    "delta": -2,
    "expBoard": 29864293.668975,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 664
   },
   {
    "rank": 31,
    "userid": 22039056689,
    "name": "肆转黑刀",
    "menpai": "昆仑派",
-   "lv": 632,
+   "lv": 649,
    "kongfu": 668.89,
    "exp": 27945307.0,
    "money": 101998.93270349,
@@ -686,14 +716,15 @@
    "prevRank": 29,
    "delta": -2,
    "expBoard": 25805253.646117,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 632
   },
   {
    "rank": 32,
    "userid": 22039039032,
    "name": "镜心楼",
    "menpai": "少林派",
-   "lv": 752,
+   "lv": 765,
    "kongfu": 749.78,
    "exp": 45477101.0,
    "money": 1801304,
@@ -708,7 +739,8 @@
    "prevRank": 30,
    "delta": -2,
    "expBoard": 43234457.019053,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 752
   },
   {
    "rank": 33,
@@ -730,14 +762,15 @@
    "prevRank": 55,
    "delta": 22,
    "expBoard": 24532932.285195,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 622
   },
   {
    "rank": 34,
    "userid": 22039051277,
    "name": "丨物丨",
    "menpai": "天龙寺",
-   "lv": 628,
+   "lv": 638,
    "kongfu": 659.56,
    "exp": 26563727.0,
    "money": 3876393.0613857,
@@ -752,14 +785,15 @@
    "prevRank": 33,
    "delta": -1,
    "expBoard": 25361996.409139,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 628
   },
   {
    "rank": 35,
    "userid": 22039041436,
    "name": "陈皮阿四",
    "menpai": "雪山寺",
-   "lv": 739,
+   "lv": 751,
    "kongfu": 734.67,
    "exp": 43066437.0,
    "money": 1691440,
@@ -774,7 +808,8 @@
    "prevRank": 32,
    "delta": -3,
    "expBoard": 41054632.267633,
-   "expSrc": "profile"
+   "expSrc": "profile",
+   "lvBoard": 739
   },
   {
    "rank": 36,
@@ -796,7 +831,8 @@
    "prevRank": 34,
    "delta": -2,
    "expBoard": 54656779.065989,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 813
   },
   {
    "rank": 37,
@@ -818,7 +854,8 @@
    "prevRank": 35,
    "delta": -2,
    "expBoard": 20777281.581513,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 588
   },
   {
    "rank": 38,
@@ -840,7 +877,8 @@
    "prevRank": 41,
    "delta": 3,
    "expBoard": 32422552.95536,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 682
   },
   {
    "rank": 39,
@@ -862,7 +900,8 @@
    "prevRank": 40,
    "delta": 1,
    "expBoard": 21370578.679434,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 593
   },
   {
    "rank": 40,
@@ -884,7 +923,8 @@
    "prevRank": 36,
    "delta": -4,
    "expBoard": 46873714.202062,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 772
   },
   {
    "rank": 41,
@@ -906,7 +946,8 @@
    "prevRank": 38,
    "delta": -3,
    "expBoard": 45926229.547962,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 767
   },
   {
    "rank": 42,
@@ -928,7 +969,8 @@
    "prevRank": 39,
    "delta": -3,
    "expBoard": 44794162.966686,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 761
   },
   {
    "rank": 43,
@@ -950,7 +992,8 @@
    "prevRank": 42,
    "delta": -1,
    "expBoard": 38453357.322821,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 723
   },
   {
    "rank": 44,
@@ -972,7 +1015,8 @@
    "prevRank": 45,
    "delta": 1,
    "expBoard": 33938115.240825,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 693
   },
   {
    "rank": 45,
@@ -994,7 +1038,8 @@
    "prevRank": 43,
    "delta": -2,
    "expBoard": 37787086.496504,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 718
   },
   {
    "rank": 46,
@@ -1016,7 +1061,8 @@
    "prevRank": 44,
    "delta": -2,
    "expBoard": 34348750.073507,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 696
   },
   {
    "rank": 47,
@@ -1038,7 +1084,8 @@
    "prevRank": 46,
    "delta": -1,
    "expBoard": 45254242.200765,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 763
   },
   {
    "rank": 48,
@@ -1060,7 +1107,8 @@
    "prevRank": 47,
    "delta": -1,
    "expBoard": 56210095.945054,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 821
   },
   {
    "rank": 49,
@@ -1082,7 +1130,8 @@
    "prevRank": 48,
    "delta": -1,
    "expBoard": 13955370.689572,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 514
   },
   {
    "rank": 50,
@@ -1104,7 +1153,8 @@
    "prevRank": 49,
    "delta": -1,
    "expBoard": 39879885.359062,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 732
   },
   {
    "rank": 51,
@@ -1126,7 +1176,8 @@
    "prevRank": 54,
    "delta": 3,
    "expBoard": 29366240.378854,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 660
   },
   {
    "rank": 52,
@@ -1148,7 +1199,8 @@
    "prevRank": 50,
    "delta": -2,
    "expBoard": 48472145.28071,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 781
   },
   {
    "rank": 53,
@@ -1170,7 +1222,8 @@
    "prevRank": 51,
    "delta": -2,
    "expBoard": 51423580.681709,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 797
   },
   {
    "rank": 54,
@@ -1192,7 +1245,8 @@
    "prevRank": 59,
    "delta": 5,
    "expBoard": 42347470.081344,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 746
   },
   {
    "rank": 55,
@@ -1214,7 +1268,8 @@
    "prevRank": 52,
    "delta": -3,
    "expBoard": 53194359.205973,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 806
   },
   {
    "rank": 56,
@@ -1236,7 +1291,8 @@
    "prevRank": 53,
    "delta": -3,
    "expBoard": 64647227.734126,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 860
   },
   {
    "rank": 57,
@@ -1258,7 +1314,8 @@
    "prevRank": null,
    "delta": null,
    "expBoard": 9948237.8651297,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 459
   },
   {
    "rank": 58,
@@ -1280,7 +1337,8 @@
    "prevRank": 56,
    "delta": -2,
    "expBoard": 35906364.087654,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 706
   },
   {
    "rank": 59,
@@ -1302,7 +1360,8 @@
    "prevRank": 58,
    "delta": -1,
    "expBoard": 34370704.564296,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 696
   },
   {
    "rank": 60,
@@ -1324,7 +1383,8 @@
    "prevRank": 57,
    "delta": -3,
    "expBoard": 27174149.671564,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 643
   },
   {
    "rank": 61,
@@ -1346,7 +1406,8 @@
    "prevRank": 62,
    "delta": 1,
    "expBoard": 35857857.725168,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 706
   },
   {
    "rank": 62,
@@ -1368,7 +1429,8 @@
    "prevRank": 60,
    "delta": -2,
    "expBoard": 48740756.347076,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 782
   },
   {
    "rank": 63,
@@ -1390,7 +1452,8 @@
    "prevRank": 61,
    "delta": -2,
    "expBoard": 34202309.819649,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 695
   },
   {
    "rank": 64,
@@ -1412,7 +1475,8 @@
    "prevRank": 68,
    "delta": 4,
    "expBoard": 25386026.01907,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 629
   },
   {
    "rank": 65,
@@ -1434,7 +1498,8 @@
    "prevRank": 64,
    "delta": -1,
    "expBoard": 33896236.004026,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 693
   },
   {
    "rank": 66,
@@ -1456,7 +1521,8 @@
    "prevRank": 65,
    "delta": -1,
    "expBoard": 46250201.420418,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 769
   },
   {
    "rank": 67,
@@ -1478,7 +1544,8 @@
    "prevRank": 66,
    "delta": -1,
    "expBoard": 53709471.959498,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 808
   },
   {
    "rank": 68,
@@ -1500,7 +1567,8 @@
    "prevRank": 70,
    "delta": 2,
    "expBoard": 50993010.181943,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 794
   },
   {
    "rank": 69,
@@ -1522,7 +1590,8 @@
    "prevRank": 67,
    "delta": -2,
    "expBoard": 32406354.103989,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 682
   },
   {
    "rank": 70,
@@ -1544,7 +1613,8 @@
    "prevRank": 69,
    "delta": -1,
    "expBoard": 44223260.421787,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 757
   },
   {
    "rank": 71,
@@ -1566,7 +1636,8 @@
    "prevRank": 71,
    "delta": 0,
    "expBoard": 49303073.83944,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 785
   },
   {
    "rank": 72,
@@ -1588,7 +1659,8 @@
    "prevRank": 72,
    "delta": 0,
    "expBoard": 48028539.288422,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 779
   },
   {
    "rank": 73,
@@ -1610,7 +1682,8 @@
    "prevRank": 73,
    "delta": 0,
    "expBoard": 55636002.485039,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 818
   },
   {
    "rank": 74,
@@ -1632,7 +1705,8 @@
    "prevRank": 75,
    "delta": 1,
    "expBoard": 46715184.647302,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 771
   },
   {
    "rank": 75,
@@ -1654,7 +1728,8 @@
    "prevRank": 81,
    "delta": 6,
    "expBoard": 39582773.42245,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 730
   },
   {
    "rank": 76,
@@ -1676,7 +1751,8 @@
    "prevRank": 82,
    "delta": 6,
    "expBoard": 39775226.020383,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 731
   },
   {
    "rank": 77,
@@ -1698,7 +1774,8 @@
    "prevRank": null,
    "delta": null,
    "expBoard": 39823626.113796,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 731
   },
   {
    "rank": 78,
@@ -1720,7 +1797,8 @@
    "prevRank": 90,
    "delta": 12,
    "expBoard": 15173282.452039,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 529
   },
   {
    "rank": 79,
@@ -1742,7 +1820,8 @@
    "prevRank": 74,
    "delta": -5,
    "expBoard": 34913935.66098,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 700
   },
   {
    "rank": 80,
@@ -1764,7 +1843,8 @@
    "prevRank": 76,
    "delta": -4,
    "expBoard": 25315336.633957,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 628
   },
   {
    "rank": 81,
@@ -1786,7 +1866,8 @@
    "prevRank": 84,
    "delta": 3,
    "expBoard": 25769451.735966,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 632
   },
   {
    "rank": 82,
@@ -1808,7 +1889,8 @@
    "prevRank": 85,
    "delta": 3,
    "expBoard": 23297997.760555,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 611
   },
   {
    "rank": 83,
@@ -1830,7 +1912,8 @@
    "prevRank": 77,
    "delta": -6,
    "expBoard": 28459125.132472,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 653
   },
   {
    "rank": 84,
@@ -1852,7 +1935,8 @@
    "prevRank": 78,
    "delta": -6,
    "expBoard": 44453841.016177,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 759
   },
   {
    "rank": 85,
@@ -1874,7 +1958,8 @@
    "prevRank": 79,
    "delta": -6,
    "expBoard": 57221311.283742,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 826
   },
   {
    "rank": 86,
@@ -1896,7 +1981,8 @@
    "prevRank": 80,
    "delta": -6,
    "expBoard": 25623860.874682,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 631
   },
   {
    "rank": 87,
@@ -1918,7 +2004,8 @@
    "prevRank": 89,
    "delta": 2,
    "expBoard": 23935408.706383,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 616
   },
   {
    "rank": 88,
@@ -1940,7 +2027,8 @@
    "prevRank": 83,
    "delta": -5,
    "expBoard": 26446370.506495,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 637
   },
   {
    "rank": 89,
@@ -1962,7 +2050,8 @@
    "prevRank": 91,
    "delta": 2,
    "expBoard": 21993733.867073,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 599
   },
   {
    "rank": 90,
@@ -1984,7 +2073,8 @@
    "prevRank": 86,
    "delta": -4,
    "expBoard": 53137371.908462,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 805
   },
   {
    "rank": 91,
@@ -2006,7 +2096,8 @@
    "prevRank": 87,
    "delta": -4,
    "expBoard": 21092078.658928,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 591
   },
   {
    "rank": 92,
@@ -2028,7 +2119,8 @@
    "prevRank": 88,
    "delta": -4,
    "expBoard": 49515284.248814,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 787
   },
   {
    "rank": 93,
@@ -2050,7 +2142,8 @@
    "prevRank": 92,
    "delta": -1,
    "expBoard": 22600846.773383,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 605
   },
   {
    "rank": 94,
@@ -2072,7 +2165,8 @@
    "prevRank": 93,
    "delta": -1,
    "expBoard": 31316751.134574,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 675
   },
   {
    "rank": 95,
@@ -2094,7 +2188,8 @@
    "prevRank": 100,
    "delta": 5,
    "expBoard": 19599025.694115,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 576
   },
   {
    "rank": 96,
@@ -2116,7 +2211,8 @@
    "prevRank": 94,
    "delta": -2,
    "expBoard": 46489167.270549,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 770
   },
   {
    "rank": 97,
@@ -2138,7 +2234,8 @@
    "prevRank": 95,
    "delta": -2,
    "expBoard": 13196886.744888,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 505
   },
   {
    "rank": 98,
@@ -2160,7 +2257,8 @@
    "prevRank": null,
    "delta": null,
    "expBoard": 31495440.278991,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 676
   },
   {
    "rank": 99,
@@ -2182,7 +2280,8 @@
    "prevRank": null,
    "delta": null,
    "expBoard": 11073536.091818,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 476
   },
   {
    "rank": 100,
@@ -2204,9 +2303,10 @@
    "prevRank": 97,
    "delta": -3,
    "expBoard": 42474318.588489,
-   "expSrc": "board"
+   "expSrc": "board",
+   "lvBoard": 747
   }
  ],
  "expSrc": "mixed",
- "mergedAt": "2026-11-18 13:22:05"
+ "mergedAt": "2026-11-18 17:31:18"
 }
