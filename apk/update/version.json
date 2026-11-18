@@ -1,8 +1,8 @@
 {
-  "version": 74,
-  "md5": "565b44a2e52d0ad128ca69cf24b52c23",
-  "size": 199570,
-  "notes": "修：人物等级反算改为 0.1*lv^3+1.35*lv^2，修正低等级段系统性偏大 3~4 级（如梦令 888 级被反推成 891）",
-  "builtAt": "2026-11-18 13:12:45",
-  "sig": "588fa53d007363aa071988aa0fb19b6521cfab6ff843e013aa5126f5c8c457b7ac1c1605524cf979081806ec115f042b2c43697c8c452f00283d9d4a769dfd09"
+  "version": 75,
+  "md5": "ba8ee82cff92dbbe9a33488f7e8b5ca9",
+  "size": 199910,
+  "notes": "修：分区凭据同步固化到 scripts/sync_creds.py（gist 必须是 {servers:[...]} 字典、Secret 存整份 config）；lookup_core 兼容裸数组写法并在读不到时打印原因；build-apk 注入步骤兼容两种 Secret 形状",
+  "builtAt": "2026-11-18 13:40:33",
+  "sig": "9f8c72db5c03fd904c458e964d115d89d6189a16d5058236f48192f37a1c2eebdad1ac8d9660c0d507ff516633ecc708f6d1cf7f6e43090644ba4598aa34e10f"
 }

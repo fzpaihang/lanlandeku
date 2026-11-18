@@ -78,9 +78,22 @@ jobs:
           fi
           printf '%s' "$SERVERS_JSON" > config.json
           python - <<'PY'
-          import json, io
+          import json, io, sys
           d = json.load(io.open('config.json', encoding='utf-8'))
-          keys = [s['key'] for s in d.get('servers', [])]
+          # Secret 允许两种写法：整份 config.json（推荐，带 _note/hotver/ver）
+          # 或直接一个 servers 数组（历史写法）。裸数组时 .get() 会抛
+          # AttributeError，整条构建挂掉且要等到人去看 Actions 才发现
+          # —— v70/v71 加 ios2/ios3 时就这样连挂 6 次，这里两种都接住。
+          if isinstance(d, dict):
+              servers = d.get('servers') or []
+          elif isinstance(d, list):
+              servers = d
+          else:
+              servers = []
+          if not servers:
+              print('Secret FZJH_SERVERS 里没有分区（既不是 {servers:[...]} 也不是数组）', file=sys.stderr)
+              sys.exit(1)
+          keys = [s['key'] for s in servers]
           print('已注入 %d 个分区: %s' % (len(keys), ', '.join(keys)))
           PY
 

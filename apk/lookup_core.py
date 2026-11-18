@@ -172,6 +172,21 @@ GIST_API = "https://api.github.com/gists/%s" % GIST_ID
 CONFIG_TTL = 6 * 3600        # 6 小时内不重复拉取
 
 
+def _norm_cfg(d):
+    """把 gist / 本地 config.json 的两种写法统一成 {"servers": [...]}。
+
+    - 推荐写法：整份配置字典（带 _note / hotver / ver / servers）
+    - 历史写法：裸 servers 数组（v71 加 ios3 时 gist 写错过一次，
+      导致 APK 拉不到新分区却完全不报错）
+    返回的一定是 dict；无法识别时返回 {}。
+    """
+    if isinstance(d, dict):
+        return d
+    if isinstance(d, list):
+        return {"servers": d}
+    return {}
+
+
 def _gh_token():
     """从 gh.json 取 token（与 archive_local 用的是同一份）。"""
     try:
@@ -222,8 +237,11 @@ def refresh_remote_config(force=False):
         with urllib.request.urlopen(req, timeout=20, context=ctx) as r:
             g = json.loads(r.read().decode("utf-8"))
         raw = ((g.get("files") or {}).get("servers.json") or {}).get("content") or ""
-        cfg = json.loads(raw)
+        cfg = _norm_cfg(json.loads(raw))
         if not (cfg.get("servers") or []):
+            # v71 踩过：gist 内容写成裸数组时这里静默 return False，
+            # 设备上只表现为「该分区未找到」，既不报错也不刷新缓存。
+            print("[config] 远端配置里没有 servers 数组（gist 要写成 {\"servers\": [...]}）")
             return False
         tmp = CONFIG_CACHE + ".tmp"
         with io.open(tmp, "w", encoding="utf-8") as f:
@@ -243,7 +261,7 @@ def refresh_remote_config(force=False):
 def _remote_config():
     try:
         with io.open(CONFIG_CACHE, encoding="utf-8") as f:
-            cfg = json.load(f)
+            cfg = _norm_cfg(json.load(f))
         if cfg.get("servers"):
             return cfg
     except Exception:
@@ -258,7 +276,7 @@ def load_config():
     for p in CONFIG_PATHS:
         if os.path.exists(p):
             with io.open(p, encoding="utf-8") as f:
-                cfg = json.load(f)
+                cfg = _norm_cfg(json.load(f))
             if cfg.get("servers"):
                 return cfg
     raise RuntimeError("找不到 config.json（含分区凭据）")
