@@ -2354,7 +2354,7 @@ lv 级 = [ 0.1*(lv+4)³ ,  0.1*(lv+5)³ )
 | 区间内随机点 | 20 万个，**0 失败** |
 | Py↔JS 对拍（`test_worker_parity2.py`） | 2007 个样本，**不一致 0 例** |
 | `preflight.py` | **11 项通过 / 1 项警告 / 0 项失败** |
-| 线上 `version.json` | **v77 / md5 `de7e7f1d234d801bd5d01cd6db2480f1` / 199,935 B** |
+| 线上 `version.json` | **v77 / md5 `de7e7f1d234d801bd5d01cd6db2480f1` / 199,935 B**（notes 笔误在 v78 修正，见 §41.6） |
 | 线上 `apk/lookup_core.py` | `:94 LV_BASE = 0.1`、`:95 LV_OFFSET = 4.0`、`:112 def lv_from_exp`、`:124-129` 区间回代 |
 | 设备端（MuMu 12-1） | logcat `[launcher] 发现新版本 v77` → `已切换到 v77`，`files/live/version.txt` = **77** |
 | 设备端源码对拍 | 从设备拉回 `lookup_core.py` 与工作区对拍 11 例 **0 不一致**，含区间回代逻辑 |
@@ -2382,3 +2382,4 @@ lv = max(floor((exp/10 * potEfficiency * 500/0.15)^(1/3) / 100), 1)
 |---|---|---|---|
 | v76 | 隐私名单新增「药乐」（整条剔除） | 199,934 B / `be0bce74f39f…` | `c9d28b6bcba2` |
 | **v77** | **人物等级反算改游戏原式 `0.1·(lv+4)³`，区间回代** | **199,935 B / `de7e7f1d234d…`** | **`fda844505228`** |
+| v78 | 只修 v77 `version.json` notes 里的样本数笔误（735 → 715），代码与包体完全相同 | 199,935 B / `de7e7f1d234d…`（同上） | `86e5737c7bfd` |
