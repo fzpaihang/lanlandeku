@@ -1,7 +1,7 @@
 ﻿# 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-18 14:25（热更 v76：隐私名单新增仙人指路「药乐」`19035702184` 整条剔除，名单 **5 人**；榜单/档案/快照/索引/最近查询全部剔除，远端旧档案用 `publish.py --delete` 删掉）
+> 最后更新：2026-11-18 16:20（热更 v77：人物等级反算改用游戏原式 `exp = 0.1×(lv+4)³`，按整数区间回代——11 区 715 条榜单样本 100% 命中、最大偏差 0 级，preflight 第 6 项因此从「99.0%」收紧到「<99% 即 FAIL」）
 
 ---
 
@@ -11,7 +11,7 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v76** |
+| APK 热更版本 | **v77** |
 | 分区数 | **11**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为/**老马识途**/**野马分鬃**/**仙人指路**） |
 | 索引人数 | **1103**（含老马识途 100、野马分鬃 100、仙人指路 99） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
@@ -212,7 +212,7 @@ Secret 写成裸数组 → `build-apk.yml` 注入步骤抛 `AttributeError: 'lis
 
 | 改了什么 | 必须做什么 |
 |---|---|
-| 任何改动 | `python scripts/preflight.py`（**10 项**：语法/缓存戳/热更包/等级/names/隐私/隐私三副本/字段级隐藏/经验快照窗口） |
+| 任何改动 | `python scripts/preflight.py`（**11 项**：语法/缓存戳/热更包/等级/等级(人物)/names/隐私/隐私三副本/字段级隐藏/经验快照窗口） |
 | `assets/*.js` / `style.css` | **`python scripts/stamp_assets.py`**（否则 WebView 用缓存） |
 | `apk/*.py` | `python -m py_compile` → `scripts/pack_update.py "说明"` → 推 `code.zip`+`version.json` |
 | `config.json`（加分区） | 更新 gist + CI Secret `FZJH_SERVERS` |
@@ -292,6 +292,7 @@ Secret 写成裸数组 → `build-apk.yml` 注入步骤抛 `AttributeError: 'lis
 | v72 | **字段级隐藏**（`data/hidden-fields.json`）：人还在榜上只清指定字段，与 `hidden.json` 整条剔除是两套机制；魔渊 `19035589937`（ios3）藏掉 skills/prepared/newSkills。**档案弹窗新增「经验快照」表**（`FZJH.appendSnapshots` + `loadSnapshots` + `PF_SEQ`），列该玩家每次扫描的时间/经验/比上次。`preflight` 加第 9 项字段级隐藏检查 |
 | v76 | **隐私名单新增「药乐」**（ios3 `19035702184`，整条剔除）：`data/hidden.json` 5 人、`apk/app_ui.py::HIDDEN_UIDS` 与 `apk/lookup_core.py::HIDDEN_UIDS_LOCAL` 两份兜底同步；ios3 榜单 100→99 行重排名次、档案与快照条目删除、`extra-names.json` 337→336、索引 1104→1103；远端旧档案用 `publish.py --delete` 删除 |
 | v75 | **分区凭据同步固化**：新增 `scripts/sync_creds.py`（`--check` / `--apply` / `--gist-only` / `--secret-only`），把 `config.json` 一次写进私有 gist（`{"servers": [...]}` 字典，写完回读校验）与 CI Secret `FZJH_SERVERS`（PyNaCl SealedBox 加密整份 config）。`apk/lookup_core.py` 加 `_norm_cfg()`：裸数组自动包成 dict，读不到 servers 时打印提示（原来静默 return False）；`build-apk.yml` 注入步骤兼容 dict / 数组两种 Secret 形状，空配置 `exit 1`。起因是修 11-17 起连续 6 次失败的 APK 云端构建。包 = 199,910 B / md5 `ba8ee82cff92…`，提交 `1ad93e71069b` |
+| v77 | **人物等级反算改用游戏原式**：`exp = 0.1×(lv+4)³`，lv 级占据 `[0.1(lv+4)³, 0.1(lv+5)³)` 这段区间，反算走**候选 ±2 区间回代**而不是四舍五入。11 区 715 条 `(lv, expBoard)` **100.00% 命中、最大偏差 0.00 级**（v74 拟合式 99.0%/最大 1 级），20 万个区间内随机点 0 失败，旧公式多报的 9 条全是它更准。preflight 精度阈值同步收紧到「<99% 或 >1 级即 FAIL」。包 = 199,935 B / md5 `de7e7f1d234d…`，提交 `fda844505228` |
 | v74 | **人物等级反算公式修正**：`0.100402×lv³` → `0.1×lv³ + 1.35×lv²`。旧公式是纯三次项、只在高等级段准，低等级段系统性偏大 3~4 级（墨羽惊鸿 100 人按 expBoard 反推偏差中位 +3.52，如梦令 888 级被反推成 891）；新公式全库 716 人命中整数等级 **99.0%**、最大偏差 1.0 级，同批严格校验墨羽惊鸿 120 人旧 0% → 新 96%。只影响「榜单没有 lv 时」的兜底反算，显示的等级与名次仍用游戏给的值。`preflight` 新增第 11 项「等级口径(人物)」精度回归。包 = 199,570 B / md5 `565b44a2e52d…`，提交 `cb20f5f7e126` |
 | v73 | **代码审查后修 6 处隐患**：`fetch.py` 翻页中途报错整轮作废（不再写残缺榜单、不再级联删档案）；`fetch_profiles.py` 档案原子写 + 失败时不清理旧档；`publish.py` 路径规范化堵住敏感文件绕过（`..`/绝对路径）；`exp.html` 排序键 `exp`→`expN`（原来 100% 失效）；输入框 `'²'` 类字符不再闪退；候选弹窗返回键 + 最近查询隐私过滤。`preflight` 增至 **10 项**，隐私名单校验三份副本（json / app_ui / lookup_core）。包 = 199,011 B / md5 `2834024255a2…`，提交 `c9a994382b73` |
 | 数据 | 应用汇首百昵称补录；修经验快照混口径（删 `src=None`） |
