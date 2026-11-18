@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-18 04:41:01",
- "updatedTs": 1794948061,
+ "updatedAt": "2026-11-19 04:42:55",
+ "updatedTs": 1795034575,
  "hasPrev": true,
  "total": 20,
  "rows": [
@@ -11,9 +11,9 @@
    "userid": 6196504694,
    "name": "慕少艾",
    "menpai": "武当派",
-   "lv": 3535,
+   "lv": 3536,
    "kongfu": 1875.44,
-   "exp": 4434677367.0,
+   "exp": 4436307377.0,
    "money": 326890316,
    "yueli": 1094615,
    "xiayi": 130195.9,
@@ -26,20 +26,20 @@
    "prevRank": 1,
    "delta": 0,
    "expBoard": 4431242329.1531,
-   "expSrc": "profile",
-   "lvBoard": 3534
+   "lvBoard": 3534,
+   "expSrc": "profile"
   },
   {
    "rank": 2,
    "userid": 6196531019,
    "name": "明衣曌",
    "menpai": "官府",
-   "lv": 3024,
-   "kongfu": 1741.33,
-   "exp": 2776995676.0,
-   "money": 322603838.07027,
-   "yueli": 340899,
-   "xiayi": 32122,
+   "lv": 3025,
+   "kongfu": 1741.67,
+   "exp": 2779816377.0,
+   "money": 323034723,
+   "yueli": 341164,
+   "xiayi": 32082,
    "looks": 1612,
    "fuyuan": 97,
    "age": 363,
@@ -48,9 +48,9 @@
    "inheritCount": 5,
    "prevRank": 2,
    "delta": 0,
-   "expBoard": 2776995676.1,
-   "expSrc": "profile",
-   "lvBoard": 3024
+   "expBoard": 2779816377.4731,
+   "lvBoard": 3025,
+   "expSrc": "profile"
   },
   {
    "rank": 3,
@@ -72,8 +72,8 @@
    "prevRank": 3,
    "delta": 0,
    "expBoard": 2522568346.7299,
-   "expSrc": "profile",
-   "lvBoard": 2928
+   "lvBoard": 2928,
+   "expSrc": "profile"
   },
   {
    "rank": 4,
@@ -95,8 +95,8 @@
    "prevRank": 4,
    "delta": 0,
    "expBoard": 1763324331.1576,
-   "expSrc": "profile",
-   "lvBoard": 2598
+   "lvBoard": 2598,
+   "expSrc": "profile"
   },
   {
    "rank": 5,
@@ -118,8 +118,8 @@
    "prevRank": 5,
    "delta": 0,
    "expBoard": 1970632736.9795,
-   "expSrc": "profile",
-   "lvBoard": 2697
+   "lvBoard": 2697,
+   "expSrc": "profile"
   },
   {
    "rank": 6,
@@ -127,22 +127,22 @@
    "name": "让让我嘛",
    "menpai": "落月山庄",
    "lv": 2510,
-   "kongfu": 1561.22,
-   "exp": 1589414222.0,
-   "money": 171458933.8782,
-   "yueli": 356476,
+   "kongfu": 1570,
+   "exp": 1589418190.0,
+   "money": 173179120,
+   "yueli": 357884,
    "xiayi": 41016,
    "looks": 1271,
    "fuyuan": 78,
-   "age": 215,
+   "age": 216,
    "sex": "女",
    "wuxing": 240,
    "inheritCount": 5,
    "prevRank": 6,
    "delta": 0,
-   "expBoard": 1581235583.6976,
-   "expSrc": "profile",
-   "lvBoard": 2505
+   "expBoard": 1589414221.9142,
+   "lvBoard": 2510,
+   "expSrc": "profile"
   },
   {
    "rank": 7,
@@ -164,8 +164,8 @@
    "prevRank": 7,
    "delta": 0,
    "expBoard": 1940141704.7969,
-   "expSrc": "profile",
-   "lvBoard": 2683
+   "lvBoard": 2683,
+   "expSrc": "profile"
   },
   {
    "rank": 8,
@@ -187,17 +187,40 @@
    "prevRank": 8,
    "delta": 0,
    "expBoard": 1623121597.5568,
-   "expSrc": "profile",
-   "lvBoard": 2527
+   "lvBoard": 2527,
+   "expSrc": "profile"
   },
   {
    "rank": 9,
+   "userid": 6196567237,
+   "name": "明觉",
+   "menpai": "虚渺宫",
+   "lv": 2229,
+   "kongfu": 1476.33,
+   "exp": 1114283695.0,
+   "money": 166921410,
+   "yueli": 408268,
+   "xiayi": 25466,
+   "looks": 7322,
+   "fuyuan": 134,
+   "age": 115,
+   "sex": "女",
+   "wuxing": 255,
+   "inheritCount": 5,
+   "prevRank": 10,
+   "delta": 1,
+   "expBoard": 1114283694.9552,
+   "lvBoard": 2229,
+   "expSrc": "profile"
+  },
+  {
+   "rank": 10,
    "userid": 6196520307,
    "name": "绯想极",
    "menpai": "虚渺宫",
-   "lv": 2248,
+   "lv": 2249,
    "kongfu": 1482.33,
-   "exp": 1143179535.0,
+   "exp": 1144745555.0,
    "money": 62287332,
    "yueli": 404046,
    "xiayi": 13791,
@@ -208,33 +231,10 @@
    "wuxing": 104,
    "inheritCount": 5,
    "prevRank": 9,
-   "delta": 0,
+   "delta": -1,
    "expBoard": 1141185501.4277,
-   "expSrc": "profile",
-   "lvBoard": 2247
-  },
-  {
-   "rank": 10,
-   "userid": 6196567237,
-   "name": "明觉",
-   "menpai": "虚渺宫",
-   "lv": 2228,
-   "kongfu": 1475.33,
-   "exp": 1112013612.0,
-   "money": 165565286,
-   "yueli": 407608,
-   "xiayi": 25466,
-   "looks": 7302,
-   "fuyuan": 134,
-   "age": 115,
-   "sex": "女",
-   "wuxing": 255,
-   "inheritCount": 5,
-   "prevRank": 10,
-   "delta": 0,
-   "expBoard": 1110030880.1525,
-   "expSrc": "profile",
-   "lvBoard": 2226
+   "lvBoard": 2247,
+   "expSrc": "profile"
   },
   {
    "rank": 11,
@@ -243,7 +243,7 @@
    "menpai": "虚渺宫",
    "lv": 2426,
    "kongfu": 1471.22,
-   "exp": 1435851695.0,
+   "exp": 1436296617.0,
    "money": 42758615.105096,
    "yueli": 387916,
    "xiayi": 2388564,
@@ -256,8 +256,8 @@
    "prevRank": 11,
    "delta": 0,
    "expBoard": 1429034300.8826,
-   "expSrc": "profile",
-   "lvBoard": 2422
+   "lvBoard": 2422,
+   "expSrc": "profile"
   },
   {
    "rank": 12,
@@ -279,8 +279,8 @@
    "prevRank": 12,
    "delta": 0,
    "expBoard": 1442526877.3649,
-   "expSrc": "profile",
-   "lvBoard": 2430
+   "lvBoard": 2430,
+   "expSrc": "profile"
   },
   {
    "rank": 13,
@@ -302,8 +302,8 @@
    "prevRank": 13,
    "delta": 0,
    "expBoard": 1012302119.9327,
-   "expSrc": "profile",
-   "lvBoard": 2159
+   "lvBoard": 2159,
+   "expSrc": "profile"
   },
   {
    "rank": 14,
@@ -325,8 +325,8 @@
    "prevRank": 14,
    "delta": 0,
    "expBoard": 1310265517.2272,
-   "expSrc": "profile",
-   "lvBoard": 2353
+   "lvBoard": 2353,
+   "expSrc": "profile"
   },
   {
    "rank": 15,
@@ -348,8 +348,8 @@
    "prevRank": 15,
    "delta": 0,
    "expBoard": 1329548181.3031,
-   "expSrc": "profile",
-   "lvBoard": 2365
+   "lvBoard": 2365,
+   "expSrc": "profile"
   },
   {
    "rank": 16,
@@ -371,8 +371,8 @@
    "prevRank": 16,
    "delta": 0,
    "expBoard": 1096970312.1353,
-   "expSrc": "profile",
-   "lvBoard": 2217
+   "lvBoard": 2217,
+   "expSrc": "profile"
   },
   {
    "rank": 17,
@@ -394,11 +394,34 @@
    "prevRank": 17,
    "delta": 0,
    "expBoard": 1016501874.7566,
-   "expSrc": "profile",
-   "lvBoard": 2162
+   "lvBoard": 2162,
+   "expSrc": "profile"
   },
   {
    "rank": 18,
+   "userid": 6196526442,
+   "name": "江近月",
+   "menpai": "永夜楼",
+   "lv": 2227,
+   "kongfu": 1413.22,
+   "exp": 1111227011.0,
+   "money": 123309684.40574,
+   "yueli": 252700,
+   "xiayi": 31110.4,
+   "looks": 914,
+   "fuyuan": 109,
+   "age": 145,
+   "sex": "男",
+   "wuxing": 20,
+   "inheritCount": 5,
+   "prevRank": 19,
+   "delta": 1,
+   "expBoard": 1111073967.8955,
+   "lvBoard": 2227,
+   "expSrc": "profile"
+  },
+  {
+   "rank": 19,
    "userid": 6196558916,
    "name": "胡鹜犰",
    "menpai": "虚渺宫",
@@ -415,33 +438,10 @@
    "wuxing": 15,
    "inheritCount": 5,
    "prevRank": 18,
-   "delta": 0,
+   "delta": -1,
    "expBoard": 849860202.07572,
-   "expSrc": "profile",
-   "lvBoard": 2036
-  },
-  {
-   "rank": 19,
-   "userid": 6196526442,
-   "name": "江近月",
-   "menpai": "永夜楼",
-   "lv": 2226,
-   "kongfu": 1409.78,
-   "exp": 1109123425.0,
-   "money": 123801640.56967,
-   "yueli": 252561,
-   "xiayi": 31160.4,
-   "looks": 914,
-   "fuyuan": 109,
-   "age": 145,
-   "sex": "男",
-   "wuxing": 20,
-   "inheritCount": 5,
-   "prevRank": 19,
-   "delta": 0,
-   "expBoard": 1109123425.2796,
-   "expSrc": "profile",
-   "lvBoard": 2226
+   "lvBoard": 2036,
+   "expSrc": "profile"
   },
   {
    "rank": 20,
@@ -463,10 +463,10 @@
    "prevRank": 20,
    "delta": 0,
    "expBoard": 853907934.76285,
-   "expSrc": "profile",
-   "lvBoard": 2039
+   "lvBoard": 2039,
+   "expSrc": "profile"
   }
  ],
  "expSrc": "mixed",
- "mergedAt": "2026-11-18 17:31:18"
+ "mergedAt": "2026-11-19 04:47:55"
 }
