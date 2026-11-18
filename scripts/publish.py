@@ -121,9 +121,34 @@ def norm(path):
     return p
 
 
+def resolve_repo_path(path):
+    """把用户给的路径解析成「仓库内相对路径」，越界就拒绝。
+
+    背景：`norm()` 只做字符串清洗，`apk/../config.json` 这种写法在 git 树上
+    等价于 `config.json`，但字符串前缀匹配看不出来 —— 敏感文件就这么被推上去过。
+    绝对路径更危险：`os.path.join(ROOT, "E:/.../config.json")` 会直接顶掉 ROOT。
+
+    返回 (rel_clean, abs_path)；rel_clean 已规范化并保证落在仓库内。
+    """
+    raw = path if os.path.isabs(path) else os.path.join(ROOT, path)
+    abs_p = os.path.realpath(raw)
+    root_abs = os.path.realpath(ROOT)
+    try:
+        common = os.path.commonpath([abs_p, root_abs])
+    except ValueError:
+        # 不同盘符，commonpath 会抛 ValueError
+        die("路径不在仓库内：%s" % path)
+    if common != root_abs:
+        die("路径不在仓库内：%s" % path)
+    rel_clean = norm(os.path.relpath(abs_p, root_abs))
+    if rel_clean.startswith(".."):
+        die("路径不在仓库内：%s" % path)
+    return rel_clean, abs_p
+
+
 def check_sensitive(paths):
     for p in paths:
-        rel = norm(p)
+        rel = resolve_repo_path(p)[0]
         for bad in REFUSE:
             if rel == bad or (bad.endswith("/") and rel.startswith(bad)):
                 die("拒绝发布敏感/忽略文件：%s（%s）" % (rel, bad))
@@ -139,16 +164,21 @@ def main():
         i = args.index("--delete")
         if i + 1 >= len(args):
             die("--delete 后面要跟路径")
-        deletes.append(norm(args[i + 1]))
+        # 删除也要过路径规范化：否则 --delete ../config.json 能删远端敏感文件
+        deletes.append(resolve_repo_path(args[i + 1])[0])
         del args[i:i + 2]
 
     if len(args) < 1:
         die('用法：publish.py "说明" 文件... [--check] [--delete 路径]')
-    message, files = args[0], [norm(a) for a in args[1:]]
+    # 统一解析成「仓库内相对路径」：apk/../config.json、绝对路径这类写法
+    # 在这里就被 realpath + commonpath 拦下，不会走到后面的前缀匹配。
+    message = args[0]
+    files = [resolve_repo_path(a)[0] for a in args[1:]]
     if not files and not deletes:
         die("没有指定任何文件")
 
     check_sensitive(files)
+    check_sensitive(deletes)
     for f in files:
         if not os.path.isfile(os.path.join(ROOT, f)):
             die("文件不存在：%s" % f)

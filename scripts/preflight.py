@@ -281,6 +281,18 @@ def check_names():
 
 
 # ------------------------------------------------------- 6. 隐私名单同步
+def _hidden_ids_from(path, name):
+    """从 .py 里读出 `NAME = set((...))` 形式的 uid 集合。"""
+    tree = ast.parse(read(path))
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == name for t in n.targets):
+            call = n.value
+            if isinstance(call, ast.Call) and call.args:
+                return {str(x) for x in ast.literal_eval(call.args[0])}
+            return {str(x) for x in ast.literal_eval(call)}
+    return None
+
+
 def check_hidden():
     try:
         d = json.loads(read(os.path.join(ROOT, "data", "hidden.json")))
@@ -288,25 +300,33 @@ def check_hidden():
     except Exception as e:
         fail("隐私名单", "data/hidden.json 读取失败：%r" % (e,))
         return
+
+    # 名单有三份副本：json（真源）、app_ui.HIDDEN_UIDS（查询前拦截）、
+    # lookup_core.HIDDEN_UIDS_LOCAL（最近查询过滤）。三份必须逐字一致。
     try:
-        tree = ast.parse(read(os.path.join(APK, "app_ui.py")))
-        got = None
-        for n in ast.walk(tree):
-            if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "HIDDEN_UIDS" for t in n.targets):
-                call = n.value
-                if isinstance(call, ast.Call) and call.args:
-                    got = {str(x) for x in ast.literal_eval(call.args[0])}
-                else:
-                    got = {str(x) for x in ast.literal_eval(call)}
-                break
+        got = _hidden_ids_from(os.path.join(APK, "app_ui.py"), "HIDDEN_UIDS")
         if got is None:
             warn("隐私名单", "app_ui.py 里没找到 HIDDEN_UIDS 兜底集合")
         elif got != want:
             fail("隐私名单", "app_ui 兜底 %s ≠ hidden.json %s" % (sorted(got), sorted(want)))
+            return
         else:
             ok("隐私名单", "%d 人，APK 兜底与 json 一致" % len(want))
     except Exception as e:
         fail("隐私名单", "解析 app_ui.py 失败：%r" % (e,))
+        return
+
+    try:
+        got2 = _hidden_ids_from(os.path.join(APK, "lookup_core.py"), "HIDDEN_UIDS_LOCAL")
+        if got2 is None:
+            warn("隐私名单", "lookup_core.py 里没找到 HIDDEN_UIDS_LOCAL")
+        elif got2 != want:
+            fail("隐私名单", "lookup_core 最近查询过滤名单 %s ≠ hidden.json %s"
+                 % (sorted(got2), sorted(want)))
+        else:
+            ok("隐私名单", "三份副本一致（json / app_ui / lookup_core）")
+    except Exception as e:
+        fail("隐私名单", "解析 lookup_core.py 失败：%r" % (e,))
 
 
 # ------------------------------------------------- 7. 经验快照窗口完整性

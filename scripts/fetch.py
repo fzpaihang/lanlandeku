@@ -550,11 +550,19 @@ def fetch_server(srv, board, max_pages):
     limit = max(int(max_rank or 0), int(idx_rank or 0))
     rows, seen = [], set()
     stale = 0
+    err_page = None
     for p in range(1, max_pages + 1):
         d = post_with_retry(cfg, "get_board/%d" % board, {"page": p}, keys, t)
         rs = rows_of(d)
-        if d.get("errcode") != 0 or not rs:
-            print("      第 %d 页结束（errcode=%s）" % (p, d.get("errcode")))
+        if d.get("errcode") != 0:
+            # 翻页中途报错 ≠ 榜单到头：此时手上可能只有前一两页，写盘会把榜单
+            # 截成 10~20 人；下游 fetch_profiles 还会按这份榜单删掉其余档案。
+            # 整轮放弃（保持上一版不动），等下一轮 cron 重试。
+            err_page = (p, d.get("errcode"))
+            print("      ✗ 第 %d 页报错（errcode=%s）" % (p, d.get("errcode")))
+            break
+        if not rs:
+            print("      第 %d 页结束（没有更多数据）" % p)
             break
         added = 0
         for r in rs:
@@ -575,6 +583,13 @@ def fetch_server(srv, board, max_pages):
             print("      连续无新增，停止")
             break
         time.sleep(SLEEP)
+
+    if err_page:
+        # 抓到一半报错：宁可整轮作废，也不要写一份残缺榜单。
+        # 残缺榜单会让「经验快照」少人、让下榜清理误删档案，恢复起来比重抓贵得多。
+        print("!! 第 %d 页报错，本轮作废，保留上一版文件不动（已抓到 %d 条不入库）"
+              % (err_page[0], len(rows)))
+        return 1
 
     if not rows:
         print("!! 没抓到任何数据，保留上一版文件不动")

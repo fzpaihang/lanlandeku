@@ -2508,7 +2508,18 @@ class PlayerLookup(App):
                             # 卡片外圈的一层黑边），也不压暗背景
                             background="",
                             auto_dismiss=True)
-        cancel.bind(on_release=lambda *a: self._popup.dismiss())
+        # 关掉之后必须把 _popup 置 None：返回键的逻辑是「_popup 不为 None 才消费
+        # 这次按键」，若只 dismiss 不置 None，下一次按返回键会对着已关闭的
+        # Popup 再 dismiss 一次，用户按第一下等于没反应（v73 修）。
+        def _close_popup(*a):
+            try:
+                self._popup.dismiss()
+            except Exception:
+                pass
+            self._popup = None
+
+        cancel.bind(on_release=_close_popup)
+        self._popup.bind(on_dismiss=lambda *a: setattr(self, "_popup", None))
         # 构造参数里传 background_color 不生效（ModalView 在 __init__ 之后又写了一次默认值
         # 0,0,0,0.7），只能在建好之后显式改。
         self._popup.background_color = (0, 0, 0, 0)
@@ -2519,6 +2530,7 @@ class PlayerLookup(App):
             self._popup.dismiss()
         except Exception:
             pass
+        self._popup = None
         self._fill(h["u"], h["s"])
         self._hide_sug()
         self.set_status("已选中「%s」，点「查询玩家」开始" % h["n"], C_INK2)
@@ -2537,10 +2549,16 @@ class PlayerLookup(App):
             self.set_status("请输入昵称或 UID", C_ACCENT)
             return
         if raw.isdigit():
-            uid = int(raw)
-            # 刷新改成结果页右上角的显式按钮：连点两次的行为没人猜得到，
-            # 而且第一次点击并不会置位，实际要点三次才绕过缓存。
-            return self._begin(uid)
+            # str.isdigit() 对 '²'、'５' 这类也返回 True，但 int() 只认 ASCII 数字，
+            # 直接 int(raw) 会在主线程抛 ValueError 把 App 崩掉。这里兜住后按昵称走。
+            try:
+                uid = int(raw)
+            except ValueError:
+                uid = None
+            if uid is not None:
+                # 刷新改成结果页右上角的显式按钮：连点两次的行为没人猜得到，
+                # 而且第一次点击并不会置位，实际要点三次才绕过缓存。
+                return self._begin(uid)
 
         # 非纯数字 → 当作昵称搜本地索引
         hits = NI.search(raw, 8) if NI else []

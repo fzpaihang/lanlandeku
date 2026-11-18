@@ -44,6 +44,13 @@ CACHE_PATH = os.path.join(DATA_DIR, "lookup_cache.json")
 NAMES_PATH = _find("names.json")
 RECENT_MAX = 3
 
+# 隐私名单只读副本：必须与 apk/app_ui.py 的 HIDDEN_UIDS 以及 data/hidden.json 一致
+# （scripts/preflight.py 会校验三者）。放在这里是因为 recent_queries() 要过滤掉
+# 名单内玩家，而 lookup_core 不能反向 import app_ui（会循环依赖）。
+HIDDEN_UIDS_LOCAL = set((
+    "4047491326", "4168426", "6622657", "21079748748",
+))
+
 INDEX_URL = "https://fzpaihang.github.io/lanlandeku/data/servers/%s/gaoshoubang.json"
 
 # 门派代码 → 中文（实测采集，2026-11-12，覆盖五区全部 29 个门派）
@@ -311,10 +318,25 @@ def save_cache(c):
 
 
 def recent_queries():
-    """最近成功的查询，最多 RECENT_MAX 条；失败不抛异常。"""
+    """最近成功的查询，最多 RECENT_MAX 条；失败不抛异常。
+
+    隐私名单（data/hidden.json）里的人一旦被加进名单，历史记录里的残留也要藏掉：
+    否则首页「最近查询」仍会显示他的 UID + 昵称，等于名单形同虚设。
+    HIDDEN_UIDS_LOCAL 与 apk/app_ui.py 的 HIDDEN_UIDS 保持一致（preflight 会校验），
+    这里不 import app_ui 是为了避免 lookup_core ←→ app_ui 的循环依赖。
+    """
     try:
         items = load_cache().get("recentQueries") or []
-        return [x for x in items if isinstance(x, dict) and x.get("uid")][:RECENT_MAX]
+        out = []
+        for x in items:
+            if not isinstance(x, dict) or not x.get("uid"):
+                continue
+            if str(x.get("uid")).strip() in HIDDEN_UIDS_LOCAL:
+                continue
+            out.append(x)
+            if len(out) >= RECENT_MAX:
+                break
+        return out
     except Exception:
         return []
 

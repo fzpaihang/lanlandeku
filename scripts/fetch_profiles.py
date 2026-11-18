@@ -370,13 +370,28 @@ def fetch_server(srv, names, args):
         prof["updatedAt"] = F.bj_time(t, "%Y-%m-%d %H:%M:%S")
         prof["updatedTs"] = int(t)
         p = os.path.join(out_dir, "%s.json" % uid)
-        with io.open(p, "w", encoding="utf-8") as f:
-            json.dump(prof, f, ensure_ascii=False, separators=(",", ":"))
+        # 原子写：先写 .tmp 再 os.replace，避免进程被杀/磁盘满时留下半截 JSON
+        # （半截档案会被页面当 404 处理，也可能让 fetch_profiles 下一轮读旧值失败）
+        tmp = p + ".tmp"
+        try:
+            with io.open(tmp, "w", encoding="utf-8") as f:
+                json.dump(prof, f, ensure_ascii=False, separators=(",", ":"))
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, p)
+        except Exception:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
         written += 1
 
     # 清掉已下榜玩家的旧文件：只删「本轮目标之外」的，抓取失败的保留旧版
     removed = 0
-    if "--only" not in args and "--limit" not in args:
+    if "--only" not in args and "--limit" not in args and not fail:
+        # 只有本轮 100% 抓成功才敢清理。否则一旦上游漏抓（或接口限流少给几页），
+        # 这里会把没抓到的人当成「已下榜」整批删档 —— 2026-11-15 就这么删过 49 份。
         valid = set(str(u) for u in targets)
         for fn in os.listdir(out_dir):
             if fn.endswith(".json") and fn[:-5] not in valid:
@@ -385,6 +400,8 @@ def fetch_server(srv, names, args):
                     removed += 1
                 except OSError:
                     pass
+    elif fail:
+        print("      本轮有 %d 份抓取失败，跳过旧档案清理（避免误删）" % len(fail))
 
     total = sum(os.path.getsize(os.path.join(out_dir, f)) for f in os.listdir(out_dir)) / 1024.0
     print("[3/3] 已写入 %s" % out_dir)
