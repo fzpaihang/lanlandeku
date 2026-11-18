@@ -2875,6 +2875,11 @@ class PlayerLookup(App):
         self.body.padding = (dp(hp()), dp(12), dp(hp()), dp(14))
         self.body.spacing = dp(12)
         self.body.clear_widgets()
+        # 旧卡片里的搜索框已经随 clear_widgets 一起没了，先摘掉引用，
+        # 免得 _sync_all_inline / _resync_skill_inline 去挪一个孤儿控件。
+        # 武学整卡被隐藏（data/hidden-fields.json）时就不会再赋新值。
+        self.skill_search = None
+        self.skill_list = None
 
         # ① 身份卡
         idc = Card(radius=16, pad=14, spacing=4)
@@ -2974,7 +2979,10 @@ class PlayerLookup(App):
             self.body.add_widget(self._timeline_card(p))
 
         # ⑥ 武学
-        self.body.add_widget(self._skill_card(p))
+        # skills 为空就不画这张卡：字段级隐藏（data/hidden-fields.json）会把
+        # 指定玩家的武学清空，这时候应该整卡消失，而不是留个「武学 0 门」。
+        if p["skills"]:
+            self.body.add_widget(self._skill_card(p))
 
     # ---------- 准备位 ----------
     def _kv_card(self, title, rows, collapsible=False, limit=6):
@@ -3201,8 +3209,12 @@ class PlayerLookup(App):
                 pass
 
     def _resync_skill_inline(self, delay=0.0):
+        # 武学卡可能整块不画（字段级隐藏把 skills 清空），此时没有搜索框
+        w = getattr(self, "skill_search", None)
+        if w is None:
+            return
         try:
-            self.skill_search._resync_inline(delay=delay)
+            w._resync_inline(delay=delay)
         except Exception:
             pass
 

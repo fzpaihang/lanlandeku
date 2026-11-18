@@ -1,8 +1,8 @@
 {
-  "version": 71,
-  "md5": "38d20c408ab1d86dba0a3cd27b311360",
-  "size": 197713,
-  "notes": "新增第十一区「仙人指路」（iOS 三区）：自动识别 19 开头、昵称检索、榜单与档案接入",
-  "builtAt": "2026-11-18 02:24:45",
-  "sig": "37ccd0ab6b85fbcbe2afa6a283ca63f7967a0f93d5e852d570ab962fa265a870ab12c7ffc4a6290aa5b848466fe6039fa82e224d3f6a93ab4596c92e9c1dca06"
+  "version": 72,
+  "md5": "66feea15025f32d03f93cd3d99ca77d7",
+  "size": 198313,
+  "notes": "v72：新增字段级隐藏名单（data/hidden-fields.json），仙人指路「魔渊」只隐藏准备位与全部武学，其余信息照常显示",
+  "builtAt": "2026-11-18 09:32:48",
+  "sig": "b74ff817f9b756d549a9a2c2404dbede0205f0845ceeae8addf183961c9c1193f56aa1342b4effff0b22dd440be4e1bd88499a48c6caf69d228f60ff697fcc06"
 }

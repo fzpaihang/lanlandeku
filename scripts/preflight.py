@@ -353,6 +353,59 @@ def check_exp_window():
         ok("经验快照窗口", "各分区基准均在 3 天内")
 
 
+# -------------------------------------------- 6.1 字段级隐藏名单同步
+def check_hidden_fields():
+    """data/hidden-fields.json 与 apk/lookup_core.py 的 HIDDEN_FIELDS 兜底必须一致。
+
+    与 hidden.json 的区别：这里的人不剔除，只把 skills/prepared/newSkills 清空。
+    网页侧靠 fetch_profiles.py 写盘时清空，APK 侧靠 HIDDEN_FIELDS 兜底 +
+    parse_profile 后的 apply_field_hide()，两边都改了才算数。
+    """
+    fp = os.path.join(ROOT, "data", "hidden-fields.json")
+    if not os.path.exists(fp):
+        ok("字段级隐藏", "无 data/hidden-fields.json，跳过")
+        return
+    try:
+        d = json.loads(read(fp))
+        want = {}
+        for p in (d.get("players") or []):
+            uid = str(p.get("uid") or "").strip()
+            if uid:
+                want[uid] = set(str(x) for x in (p.get("hide") or []))
+    except Exception as e:
+        fail("字段级隐藏", "data/hidden-fields.json 读取失败：%r" % (e,))
+        return
+    try:
+        tree = ast.parse(read(os.path.join(APK, "lookup_core.py")))
+
+        def _val(node):
+            """字面量或 set(...)/frozenset(...)/tuple(...) 包装，都还原成 set。"""
+            if isinstance(node, ast.Call) and getattr(node.func, "id", "") in ("set", "frozenset", "tuple", "list") and node.args:
+                return set(str(x) for x in ast.literal_eval(node.args[0]))
+            return set(str(x) for x in ast.literal_eval(node))
+
+        got = None
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "HIDDEN_FIELDS" for t in n.targets):
+                # 值可能是 set(...) 调用，ast.literal_eval 直接吃整个 dict 会炸，
+                # 所以逐 key/value 还原
+                node = n.value
+                if not isinstance(node, ast.Dict):
+                    break
+                got = {}
+                for k, v in zip(node.keys, node.values):
+                    got[str(ast.literal_eval(k))] = _val(v)
+                break
+        if got is None:
+            warn("字段级隐藏", "lookup_core.py 里没找到 HIDDEN_FIELDS 兜底")
+        elif got != want:
+            fail("字段级隐藏", "APK 兜底 %s ≠ json %s" % (got, want))
+        else:
+            ok("字段级隐藏", "%d 人，APK 兜底与 json 一致" % len(want))
+    except Exception as e:
+        fail("字段级隐藏", "解析 lookup_core.py 失败：%r" % (e,))
+
+
 # ------------------------------------------------------------------ main
 def main():
     if "--fix" in sys.argv:
@@ -367,6 +420,7 @@ def main():
     check_level_parity()
     check_names()
     check_hidden()
+    check_hidden_fields()
     check_exp_window()
 
     fails = [r for r in results if r[0] == "FAIL"]

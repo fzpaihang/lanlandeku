@@ -472,6 +472,26 @@ def try_one(srv, uid, hotver):
     return None, ec
 
 
+# 字段级隐藏兜底（与 data/hidden-fields.json 同步）。
+# 与 HIDDEN_UIDS 的「整条剔除」不同：这些人照样能查、照样出现在榜单，
+# 只是把指定字段藏起来（隐藏名单下载失败时这一份仍然生效）。
+HIDDEN_FIELDS = {
+    "19035589937": set(("skills", "prepared", "newSkills")),
+}
+
+
+def apply_field_hide(prof, uid):
+    """按 HIDDEN_FIELDS 清空指定字段。只清数据不删条目。"""
+    hide = HIDDEN_FIELDS.get(str(uid))
+    if not hide:
+        return prof
+    if "skills" in hide:
+        prof["skills"] = []
+    if "prepared" in hide:
+        prof["prepared"] = {}
+    return prof
+
+
 def parse_profile(data, board_row=None):
     """原始 data → 展示结构。有榜单行时用榜单补 门派/等级/福缘/排名。"""
     names = load_names()
@@ -645,7 +665,7 @@ def _finish(uid, srv, data, cache, hotver, note):
         if str(r.get("userid")) == str(uid):
             row = r
             break
-    prof = parse_profile(data, row)
+    prof = apply_field_hide(parse_profile(data, row), uid)
     # 接口档案里的 userid 字段并不稳定（实测常为空），以本次查询输入的 UID 为准。
     # 摘要条 / 复制 UID / 保存文件名 / 最近查询都依赖它。
     prof["uid"] = uid
@@ -704,9 +724,11 @@ def _lookup_single(uid, srv, cache, hotver, note, deadline=None):
 # ---------- 结果缓存：同一个 UID 10 分钟内直接复用 ----------
 PROFILE_TTL = 600      # 秒。游戏侧档案本身也不是秒级刷新，再短没意义
 PROFILE_MAX = 12       # 最多留 12 份；单份 profile 约 20 KB
-PROFILE_VER = 3        # 结构变了就 +1，旧缓存自动作废（防止缺字段把界面打崩）
+PROFILE_VER = 4        # 结构变了就 +1，旧缓存自动作废（防止缺字段把界面打崩）
                        # v66：history 多存 p（parentName / 0 转初代名），
                        # 旧缓存没有 p 会退化成占位「初代」，bump 后强制重查一次。
+                       # v72：加入字段级隐藏（HIDDEN_FIELDS），旧缓存里可能还留着
+                       # 被隐藏玩家的武学列表，bump 后强制重查一次。
 
 
 def _pkey(uid, server):

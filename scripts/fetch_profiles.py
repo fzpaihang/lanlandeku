@@ -195,6 +195,23 @@ def slim(p, board_row, names, old=None, today=None):
     }
 
 
+def apply_field_hide(prof, hide):
+    """字段级隐藏：把 data/hidden-fields.json 里指定的字段清空。
+
+    只清数据不删条目——玩家本人照样出现在榜单、档案、查询结果里，
+    等级 / 经验 / 装备 / 传承等其它信息照常显示。
+    """
+    if not hide:
+        return prof
+    if "skills" in hide:
+        prof["skills"] = []
+    if "prepared" in hide:
+        prof["prepared"] = {}
+    if "newSkills" in hide:
+        prof["newSkills"] = []
+    return prof
+
+
 def fetch_server(srv, names, args):
     """抓单个服务器的玩家档案，写到 data/servers/<key>/profiles/"""
     cfg = F.server_cfg(srv)
@@ -244,6 +261,13 @@ def fetch_server(srv, names, args):
             if cap and len(targets) > cap:
                 print("      目标 %d 人超过抓取上限 %d，按上限截断" % (len(targets), cap))
                 targets = targets[:cap]
+
+    # 字段级隐藏：这些人照常抓、照常出现在榜单和档案里，只清空指定字段
+    hide_fields = F.hidden_fields_for(F.load_hidden_fields(), srv["key"])
+    if hide_fields:
+        print("      字段级隐藏 %d 位：%s" % (
+            len(hide_fields),
+            ", ".join("%s(%s)" % (u, "/".join(sorted(f))) for u, f in hide_fields.items())))
 
     # 隐私名单：跳过这些玩家，并删掉已存在的档案文件
     hidden_uids = F.hidden_uids_for(F.load_hidden(), srv["key"])
@@ -295,8 +319,10 @@ def fetch_server(srv, names, args):
             # errcode=0 但 data 可能是空对象（账号不在该区时会这样），
             # 不能当成成功，否则会把已有的好档案覆盖成空壳
             if d.get("errcode") == 0 and isinstance(data, dict) and (data.get("name") or data.get("userid")):
-                players[str(uid)] = slim(data, rows.get(uid), names,
-                                         old=olds.get(uid), today=today)
+                players[str(uid)] = apply_field_hide(
+                    slim(data, rows.get(uid), names,
+                         old=olds.get(uid), today=today),
+                    hide_fields.get(str(uid)))
                 if i % 20 == 0 or i == len(targets):
                     print("      %d/%d  uid=%s %s" % (i, len(targets), uid,
                                                      players[str(uid)]["name"]))
@@ -318,8 +344,10 @@ def fetch_server(srv, names, args):
                 d = F.post_with_retry(cfg, "get_user_info", {"userid": uid, "type": 0}, keys, t)
                 data = d.get("data")
                 if d.get("errcode") == 0 and isinstance(data, dict) and (data.get("name") or data.get("userid")):
-                    players[str(uid)] = slim(data, rows.get(uid), names,
-                                             old=olds.get(uid), today=today)
+                    players[str(uid)] = apply_field_hide(
+                        slim(data, rows.get(uid), names,
+                             old=olds.get(uid), today=today),
+                        hide_fields.get(str(uid)))
                     print("      补抓成功 uid=%s %s" % (uid, players[str(uid)]["name"]))
                 else:
                     still.append(uid)

@@ -383,6 +383,45 @@ def hidden_uids_for(hidden, server_key):
                if not servers or server_key in servers)
 
 
+def load_hidden_fields():
+    """读取 data/hidden-fields.json → {uid: (set(server), set(field))}
+
+    与 hidden.json 的「整条剔除」不同：这里的人照样出现在榜单、档案、查询结果里，
+    只是把指定字段（skills 武学列表 / prepared 准备位 / newSkills 近期新增）藏起来。
+    server 为空表示所有分区。
+    """
+    path = os.path.join(BASE_DIR, "data", "hidden-fields.json")
+    out = {}
+    if not os.path.exists(path):
+        return out
+    try:
+        with io.open(path, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception:
+        return out
+    for x in (d.get("players") or []):
+        uid = str(x.get("uid") or "").strip()
+        if not uid:
+            continue
+        servers, fields = out.setdefault(uid, (set(), set()))
+        if x.get("server"):
+            servers.add(str(x["server"]))
+        for k in (x.get("hide") or []):
+            if str(k).strip():
+                fields.add(str(k).strip())
+    return out
+
+
+def hidden_fields_for(hidden_fields, server_key):
+    """该分区下需要字段级隐藏的 {uid: set(field)}"""
+    out = {}
+    for uid, (servers, fields) in hidden_fields.items():
+        if not servers or server_key in servers:
+            if fields:
+                out[uid] = set(fields)
+    return out
+
+
 def load_servers():
     """返回服务器列表：[{key,name,channel,uuid,account,ver,hotver,device}]
 

@@ -1,0 +1,12 @@
+{
+  "_note": "字段级隐藏名单：与 hidden.json 的「整条剔除」不同，这里的人仍然出现在榜单/档案/查询结果里，只把指定字段藏起来。hide 可选 skills（武学列表）、prepared（准备位）、newSkills（近期新增武学）。网页读 profiles/*.json，APK 读实时接口，两侧都要按这份名单生效。",
+  "players": [
+    {
+      "uid": "19035589937",
+      "server": "ios3",
+      "name": "魔渊",
+      "hide": ["skills", "prepared", "newSkills"],
+      "note": "本人要求隐藏准备武学与全部武学，其余信息保留"
+    }
+  ]
+}
