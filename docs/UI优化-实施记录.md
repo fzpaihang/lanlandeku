@@ -1859,4 +1859,85 @@ if not (cfg.get("servers") or []):
 
 `preflight` **8 通过 / 1 警告 / 0 失败**；v71 = 197,713 B / md5 `38d20c408ab1d86dba0a3cd27b311360`。
 
+## 三十六、v72：字段级隐藏（魔渊）+ 档案弹窗「经验快照」表
+
+### 36.1 起因（用户原话）
+
+- 需求一（11-18 09:17）：**「能不能隐藏仙人指路的魔渊UID 19035589937高手榜界面的准备武学和全部武学，其它的功能依旧保留」** —— 附图是网页档案详情里的「准备位 12 个」胶囊组和「武学 266 门」列表。要藏的就是这两块，等级/经验/装备/传承/名次全保留，网页和 App 都要。
+- 需求二（11-18 09:46）：**「现在GitHub的仓库里不是存着每次的经验快照吗，能不能做一个界面跳转为高手榜上对应玩家的每次经验快照，只显示每次扫描后的经验就好，先回答能否理解以及可行性，执行前必须询问我。」**
+- 需求二定案（10:00）：**「就执行1(a) + 2(a) + 3(全部)就好」** —— 档案弹窗内新增一块、纯表格（时间/经验/比上次）、列全部快照不截断。
+
+### 36.2 需求一：两套隐藏机制必须分开
+
+原有的 `data/hidden.json` 是**整条剔除**：榜单剔除 + 档案删除 + 快照回溯删除 + 查询前拦截，那个人在网站上彻底消失。魔渊的情况完全不同——他还在榜上第 8 名，只是不想露武学。**所以另起一套字段级机制。**
+
+| | 整条剔除 | 字段级隐藏（本次新增） |
+|---|---|---|
+| 名单文件 | `data/hidden.json` | `data/hidden-fields.json` |
+| 效果 | 人从榜单/档案/快照/索引里全部消失，查询被拦 | 人还在，只清空指定字段 |
+| 适用 | 本人要求彻底不出现 | 本人只想藏某几块信息 |
+| APK 兜底 | `apk/app_ui.py:353` `HIDDEN_UIDS` | `apk/lookup_core.py` `HIDDEN_FIELDS` |
+| preflight | `check_hidden()` | `check_hidden_fields()`（v72 新增第 9 项） |
+
+`data/hidden-fields.json` 结构：
+
+```json
+{
+  "_note": "字段级隐藏：人还在榜上，只清空 hide 里列的字段。与 hidden.json 的整条剔除是两套机制。",
+  "players": [
+    {
+      "uid": "19035589937",
+      "server": "ios3",
+      "name": "魔渊",
+      "hide": ["skills", "prepared", "newSkills"],
+      "note": "本人要求隐藏准备武学与全部武学，其余信息保留"
+    }
+  ]
+}
+```
+
+### 36.3 需求一：改动清单（6 处）
+
+1. **新建 `data/hidden-fields.json`**（上面那份）。
+2. **`scripts/fetch.py`**：新增 `load_hidden_fields()` → `{uid: (set(server), set(field))}` 与 `hidden_fields_for(hidden_fields, server_key)` → `{uid: set(field)}`，位置在 `hidden_uids_for()` 之后。
+3. **`scripts/fetch_profiles.py`**：新增 `apply_field_hide(prof, hide)`，把 `skills` 清成 `[]`、`prepared` 清成 `{}`、`newSkills` 清成 `[]`。`slim()` 返回后调用；**主抓取循环和补抓循环两处都要**，写成 `apply_field_hide(slim(...), hide_fields.get(str(uid)))`。循环前打印「字段级隐藏 N 位：…」方便确认生效。
+4. **`apk/lookup_core.py`**：模块级 `HIDDEN_FIELDS = {"19035589937": set(("skills", "prepared", "newSkills"))}` + `apply_field_hide(prof, uid)`；`_finish()` 里改成 `prof = apply_field_hide(parse_profile(data, row), uid)`。**`PROFILE_VER` 3 → 4** —— 不 bump 的话本机 10 分钟 profile 缓存里还留着旧武学。
+5. **`apk/app_ui.py`**：准备位卡本来就是 `if prep:`，skills 空自然不渲染；武学卡从 `self.body.add_widget(self._skill_card(p))` 改成 **`if p["skills"]: self.body.add_widget(self._skill_card(p))`**，否则会留一张「武学 0 门」的空卡。`_render()` 里 `clear_widgets()` 之后补 `self.skill_search = None` / `self.skill_list = None`，`_resync_skill_inline()` 开头加 `w = getattr(self, "skill_search", None); if w is None: return` —— 避免去动已经随 `clear_widgets()` 一起消失的孤儿控件。
+6. **`scripts/preflight.py`**：新增第 9 项 `check_hidden_fields()`，用 ast 解析 `lookup_core.py` 的 `HIDDEN_FIELDS` 与 json 比对，不一致直接 FAIL。
+
+> ⚠️ ast 坑：`HIDDEN_FIELDS` 的值写成 `set((...))` 是 `ast.Call`，直接 `ast.literal_eval(n.value)` 抛 `ValueError('malformed node or string: <_ast.Call ...>')`。必须逐 key/value 遍历 `ast.Dict`，再写个 `_val()` 处理 `set/frozenset/tuple/list` 包装。
+
+### 36.4 需求一：验证
+
+- 重抓档案：`fetch_profiles.py --server ios3 --only 19035589937` → 输出「字段级隐藏 1 位」「武学 0 门，准备位 0 个，装备 1 件」。
+- 线上 `data/servers/ios3/profiles/19035589937.json`：`skills 0 / prepared 0 / newSkills 0 / equips 1 / history 5`，`updatedAt 2026-11-18 09:27:12`，name/lv/rank 完好。
+- 模拟器查 `19035589937`：身份卡（魔渊 / 问情宫 / 女 202 岁 / 容貌 5,545 / 第 8 名）、数据卡（2826 / 1675.33 / 22.67亿 / 163 / 10.7万 / 825 / 38.1万 / 5 次）、装备卡（武器 未知）、传承历程（阿康纳特 → 鸾樱 23-03 → 鸾冥 23-03 → 鸾尚 23-05 → 鸾紫 23-06 → 魔渊 23-08）全部正常，**准备位卡与武学卡都不见了**。
+
+### 36.5 需求二：经验快照表（数据不用重抓）
+
+`data/servers/<key>/exp-history.json` 本来就每轮记录全区所有人的经验，所以**一行数据代码都没改**，纯前端：
+
+- `assets/profile.js` 新增 `snapTable(snaps, uid)` + 导出 `FZJH.appendSnapshots(host, snaps, uid)`。只取 `src === 'profile'` 的快照，按 `ts` 升序算与上一条的差，展示时倒序（最新在最上）；首条「比上次」是 `—`，持平时是灰色 `0`，涨红跌绿。
+- `assets/app.js` 新增 `loadSnapshots(base, uid, done)`：一次拉整个分区的 `exp-history.json`，`EXP_CACHE` 存结果，`EXP_PENDING` 让同一分区的并发请求只下载一次；**失败静默 `finish([])`**，快照是附加信息不能把档案打挂。
+- **故意不塞进 `renderProfile()`**：档案本体先渲染出来，快照到了再 append。否则慢网下用户点开一个人要等两份数据。
+- `PF_SEQ`：每次 `openProfile` 自增，回调里 `seq !== PF_SEQ` 就丢弃 —— 快速连点两个玩家时，先点的快照不会串到后点的档案上。
+- `assets/style.css` 新增 `.pf-snap` / `.pf-snap-tbl` 一组样式。**全局 `tbody tr{height:var(--row-h)}`（48px）和 `thead th{position:sticky}` 必须覆写**（`height:auto` / `position:static;cursor:auto`），否则行高过高、表头出现点击手型。
+
+### 36.6 需求二：验证
+
+- `node --check` 两个文件均 OK（node 不在 PATH，用 `C:\Users\shaob\.workbuddy\binaries\node\versions\22.22.2-6\node.exe`）。
+- DOM 桩单测 `E:\workbuddy2\_agent_tmp\test_snap.js`：taptap/3413862 7 行、huawei/10045394739 3 行（`11-17 02:52` 那条 `+5529.2万`，**与之前排查趙匡胤的 5529 万完全对上**）、guanfang/9047501812 4 行、ios3/19035477377 1 行、不存在的 uid 渲染 0 块 —— `ALL PASS`。
+- 无头 Edge（本地 `serve.py 8791`）：`index.html?uid=22039030224&s=taptap_4` → `经验快照 · 8 次`，8 行倒序 `11-17 12:48 6464.7万 +298.1万` … `11-12 17:02 5790.2万 —`。
+- 模拟器 WebView（丹凤朝阳 刘小年 UID 21079729670）：弹窗最底部「经验快照 · 8 次」，`11-18 00:53 20.09亿 +223.9万` … `11-13 00:51 19.97亿 —`，涨红/平灰/首条 — 配色正确。
+  > ⚠️ 踩坑：档案弹窗滚到底时**连续快速 swipe 会让 WebView 渲染出空白弹窗**（截图全白），等 6 秒自动重绘恢复，不是 bug。swipe 之间要留 2 秒。
+
+### 36.7 版本
+
+| 版本 | commit | 内容 |
+|---|---|---|
+| v72 | `10d104a550fd`（字段级隐藏） | `data/hidden-fields.json` + 4 处生效链路 + preflight 第 9 项；魔渊的武学与准备位隐藏 |
+| v72 前端 | `a85ffa323027` | 档案弹窗新增「经验快照」表（`assets/profile.js` / `assets/app.js` / `assets/style.css` + 3 个页面缓存戳） |
+
+`preflight` **9 通过 / 1 警告 / 0 失败**；v72 = 198,313 B / md5 `66feea15025f32d03f93cd3d99ca77d7`。
+
 **至此三个 iOS 区全部接入。** 再遇到新的 iOS 客户端，先确认它的 `channel` 和 `account`，其余照 §35.3 的 7 处清单走。

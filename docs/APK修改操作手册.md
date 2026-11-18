@@ -2,7 +2,7 @@
 
 > 项目：`E:/workbuddy2/fzjh-rank`　仓库：`fzpaihang/lanlandeku`
 > 应用名：**霜霜妙妙屋**（`package.domain = com.fzjh`，`package.name = fzjhlookup`）
-> 最后校准：2026-11-18　线上热更：**v71**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
+> 最后校准：2026-11-18　线上热更：**v72**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
 > 本文汇总的是「改这个 APK 实际会用到的全部操作」；逐次改动的背景与推理见 `docs/UI优化-实施记录.md`。
 > **第一次接手先读 `docs/接手必读.md`**（30 秒状态 + 任务→命令 + 十条铁律），
 > 再看 `.workbuddy/memory/CURRENT-STATE.md`（九区表、cron、关键设计、必做步骤）。
@@ -118,7 +118,7 @@ Python 访问 GitHub API 用 `urllib.request.build_opener(urllib.request.ProxyHa
 - `buildozer.spec`：`source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf,pem`（`pem` 是为了带 CA 包加的）。
 - `apk/main.py` 的 `REQUIRED` 只校验 4 个老文件；**新增 `.py` 必须同时加进 `scripts/pack_update.py` 的 `FILES`**，否则包里没有，功能静默降级。
 - 缓存与用户数据写 `ANDROID_PRIVATE`（`/data/data/com.fzjh.fzjhlookup/files/`），**绝不写 `live/`** —— 每次热更 `live/` 会被整个删掉重建。
-- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 193 KB（**v71 = 197,713 字节 / md5 `38d20c408ab1d86dba0a3cd27b311360`**；v70 是 197,708 字节 / `29ee62ba…`；v69 是 197,667 字节 / `ab069092…`；v68 是 197,153 字节 / `83f64465…`）。
+- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 193 KB（**v72 = 198,313 字节 / md5 `66feea15025f32d03f93cd3d99ca77d7`**；v71 是 197,713 字节 / `38d20c40…`；v70 是 197,708 字节 / `29ee62ba…`；v69 是 197,667 字节 / `ab069092…`；v68 是 197,153 字节 / `83f64465…`）。
 
 ### 2.3 启动器怎么装热更包
 
@@ -739,7 +739,7 @@ python scripts/stamp_assets.py     # 改完 assets/*.js 或 style.css 必跑
 | **`docs/接手必读.md`** | **新会话入口**：状态、任务→命令、十条铁律、交接自检 |
 | `.workbuddy/memory/CURRENT-STATE.md` | 八区表、cron、关键设计、必做步骤（**活的，每次改动后更新**） |
 | `docs/代码流程梳理.md` | 代码地图、重复实现、僵尸产物、待改造清单 |
-| `docs/UI优化-实施记录.md` | v30–v71 逐次改动的背景、推理与验证（§13 起是签名/TLS/输入，§28–§31 是 11-15，§32 是 v68 红字修复，§33 是 v69 第九区老马识途，§34 是 v70 第十区野马分鬃，§35 是 v71 第十一区仙人指路） |
+| `docs/UI优化-实施记录.md` | v30–v72 逐次改动的背景、推理与验证（§13 起是签名/TLS/输入，§28–§31 是 11-15，§32 是 v68 红字修复，§33 是 v69 第九区老马识途，§34 是 v70 第十区野马分鬃，§35 是 v71 第十一区仙人指路，§36 是 v72 字段级隐藏） |
 | `docs/武学分类校对表.md` | 武学分组人工校对 |
 | 工作区记忆 `.workbuddy/memory/2026-11-13.md` 起 | 逐日的关键结论与用户偏好 |
 
