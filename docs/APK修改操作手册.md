@@ -1,8 +1,8 @@
-﻿# APK 修改操作手册
+# APK 修改操作手册
 
 > 项目：`E:/workbuddy2/fzjh-rank`　仓库：`fzpaihang/lanlandeku`
 > 应用名：**霜霜妙妙屋**（`package.domain = com.fzjh`，`package.name = fzjhlookup`）
-> 最后校准：2026-11-18　线上热更：**v73**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
+> 最后校准：2026-11-18　线上热更：**v74**　安装包：Release `apk-v1.0 / fzjh-lookup-v1.0.apk`
 > 本文汇总的是「改这个 APK 实际会用到的全部操作」；逐次改动的背景与推理见 `docs/UI优化-实施记录.md`。
 > **第一次接手先读 `docs/接手必读.md`**（30 秒状态 + 任务→命令 + 十条铁律），
 > 再看 `.workbuddy/memory/CURRENT-STATE.md`（九区表、cron、关键设计、必做步骤）。
@@ -118,7 +118,7 @@ Python 访问 GitHub API 用 `urllib.request.build_opener(urllib.request.ProxyHa
 - `buildozer.spec`：`source.include_exts = py,json,png,jpg,kv,atlas,ttf,otf,pem`（`pem` 是为了带 CA 包加的）。
 - `apk/main.py` 的 `REQUIRED` 只校验 4 个老文件；**新增 `.py` 必须同时加进 `scripts/pack_update.py` 的 `FILES`**，否则包里没有，功能静默降级。
 - 缓存与用户数据写 `ANDROID_PRIVATE`（`/data/data/com.fzjh.fzjhlookup/files/`），**绝不写 `live/`** —— 每次热更 `live/` 会被整个删掉重建。
-- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 193 KB（**v73 = 199,011 字节 / md5 `2834024255a28617fb2487bd84960b47`**；v72 = 198,313 字节 / `66feea15…`；v71 是 197,713 字节 / `38d20c40…`；v70 是 197,708 字节 / `29ee62ba…`；v69 是 197,667 字节 / `ab069092…`；v68 是 197,153 字节 / `83f64465…`）。
+- 当前热更包：12 个 `.py` + `cacert.pem` + `seal.jpg`，约 195 KB（**v74 = 199,570 字节 / md5 `565b44a2e52d0ad128ca69cf24b52c23`**；v73 = 199,011 字节 / `2834024255a2…`；v72 = 198,313 字节 / `66feea15…`；v71 是 197,713 字节 / `38d20c40…`；v70 是 197,708 字节 / `29ee62ba…`；v69 是 197,667 字节 / `ab069092…`；v68 是 197,153 字节 / `83f64465…`）。
 
 ### 2.3 启动器怎么装热更包
 
@@ -281,7 +281,7 @@ App 里根本没有「失败后展示榜单数据」的行为。
   - `board_fallback_on()` / `set_board_fallback()`：读写开关，缺省 `False`。
   - `board_profile(uid, server, cache)`：只从 `cache["boardCache"]` 找人，**不发网络请求**；
     命中返回带 `_board=True`、`_boardTs` 的精简档案。榜单没 `lv` 时用 **`lv_from_exp()`**
-    （0.100402·lv³）反算人物等级，**别用 `lv_of_skill()`**——那是武学等级的 0.015·lv³，口径完全不同。
+    （`0.1·lv³ + 1.35·lv²`）反算人物等级，**别用 `lv_of_skill()`**——那是武学等级的 0.015·lv³，口径完全不同。
 - `app_ui.py`
   - `_begin()` 记 `self._last_uid`；`_done()` 里 `prof is None` 且开关开 → 调 `board_profile()`。
   - `_render()` 见到 `_board` 就转 `_render_board()`：单独一套版式（顶部「非实时」提示条 +
@@ -739,7 +739,7 @@ python scripts/stamp_assets.py     # 改完 assets/*.js 或 style.css 必跑
 | **`docs/接手必读.md`** | **新会话入口**：状态、任务→命令、十条铁律、交接自检 |
 | `.workbuddy/memory/CURRENT-STATE.md` | 八区表、cron、关键设计、必做步骤（**活的，每次改动后更新**） |
 | `docs/代码流程梳理.md` | 代码地图、重复实现、僵尸产物、待改造清单 |
-| `docs/UI优化-实施记录.md` | v30–v73 逐次改动的背景、推理与验证（§13 起是签名/TLS/输入，§28–§31 是 11-15，§32 是 v68 红字修复，§33 是 v69 第九区老马识途，§34 是 v70 第十区野马分鬃，§35 是 v71 第十一区仙人指路，§36 是 v72 字段级隐藏，§37 是 v73 六处隐患修复） |
+| `docs/UI优化-实施记录.md` | v30–v74 逐次改动的背景、推理与验证（§13 起是签名/TLS/输入，§28–§31 是 11-15，§32 是 v68 红字修复，§33 是 v69 第九区老马识途，§34 是 v70 第十区野马分鬃，§35 是 v71 第十一区仙人指路，§36 是 v72 字段级隐藏，§37 是 v73 六处隐患修复，§38 是 v74 人物等级反算公式修正） |
 | `docs/武学分类校对表.md` | 武学分组人工校对 |
 | 工作区记忆 `.workbuddy/memory/2026-11-13.md` 起 | 逐日的关键结论与用户偏好 |
 
