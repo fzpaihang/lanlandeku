@@ -362,6 +362,30 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
 .pf-tag span{color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
 .pf-tag.key{background:var(--accent-soft);color:var(--accent)}
 
+/* 经验快照表（档案弹窗底部） */
+.pf-snap{border:1px solid var(--line-2);border-radius:9px;overflow:hidden;background:#fff}
+.pf-snap-tbl{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
+.pf-snap-tbl th{
+  position:static;background:#faf8f3;color:var(--muted);
+  font-size:11.5px;font-weight:600;text-align:left;height:30px;padding:0 10px;
+  border-bottom:1px solid var(--line-2);cursor:auto;white-space:nowrap;
+}
+.pf-snap-tbl th.num{text-align:right}
+.pf-snap-tbl th:first-child{width:40%}
+.pf-snap-tbl th:nth-child(2){width:32%}
+.pf-snap-tbl td{
+  padding:6px 10px;font-size:12.5px;border-bottom:1px solid var(--line-2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* 全局 tbody tr 有 48px 行高，快照表要自然高度 */
+.pf-snap-tbl tbody tr{height:auto}
+.pf-snap-tbl tbody tr:last-child td{border-bottom:0}
+.pf-snap-tbl td.when{color:var(--ink-2)}
+.pf-snap-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.pf-snap-tbl td.grow.up{color:var(--up);font-weight:600}
+.pf-snap-tbl td.grow.down{color:var(--down);font-weight:600}
+.pf-snap-tbl td.grow.flat{color:var(--muted)}
+
 .pf-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:1px}
 .pf-list li{
   display:flex;align-items:baseline;justify-content:space-between;gap:10px;

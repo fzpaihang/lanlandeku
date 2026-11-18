@@ -1,6 +1,7 @@
 /* 玩家档案渲染 —— 高手榜详情弹窗 与 独立查询页 共用
  *
  * 用法： FZJH.renderProfile(hostElement, profileObject)
+ *       FZJH.appendSnapshots(hostElement, snapshots, uid)   —— 追加「经验快照」表
  * profile 结构 = 抓取脚本 parse_profile() 的产物（历史档案 JSON 与实时接口返回同构）
  */
 (function () {
@@ -150,6 +151,76 @@
     return wrap;
   }
 
+  /* 经验快照表：数据来自本分区 exp-history.json 的 snapshots
+   * 口径与 assets/exp.js 一致，只认 src === 'profile' 的快照；
+   * 该玩家不在某条快照里就跳过（下榜 / 换人），不做截断（快照本身最多留 8 天）。
+   */
+  function snapTable(snaps, uid) {
+    if (!uid) return null;
+    var rows = [];
+
+    (snaps || []).forEach(function (s) {
+      if (!s || s.src !== 'profile') return;
+      var m = s.exp || {};
+      if (!Object.prototype.hasOwnProperty.call(m, uid)) return;
+      var v = Number(m[uid]);
+      if (!isFinite(v)) return;
+      rows.push({ ts: Number(s.ts) || 0, date: s.date || '', time: s.time || '', exp: v });
+    });
+
+    if (!rows.length) return null;
+
+    // 先按时间升序算「比上次涨多少」，再倒序展示（最近的排最前）
+    rows.sort(function (a, b) { return a.ts - b.ts; });
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].grow = i ? Math.round(rows[i].exp - rows[i - 1].exp) : null;
+    }
+    rows.reverse();
+
+    var sec = section('经验快照 · ' + rows.length + ' 次');
+    var box = h('div', 'pf-snap');
+
+    var t = document.createElement('table');
+    t.className = 'pf-snap-tbl';
+    var cap = document.createElement('caption');
+    cap.className = 'sr-only';
+    cap.textContent = '该玩家每次扫描记录的经验值';
+    t.appendChild(cap);
+
+    var thead = document.createElement('thead');
+    var trh = document.createElement('tr');
+    trh.appendChild(h('th', null, '时间'));
+    trh.appendChild(h('th', 'num', '经验'));
+    trh.appendChild(h('th', 'num', '比上次'));
+    thead.appendChild(trh);
+    t.appendChild(thead);
+
+    var tb = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+
+      var tdT = h('td', 'when', String(r.date).slice(5) + ' ' + r.time);
+      tdT.title = r.date + ' ' + r.time;
+      tr.appendChild(tdT);
+
+      var tdE = h('td', 'num', fmtBig(r.exp));
+      tdE.title = fmtInt(Math.round(r.exp));
+      tr.appendChild(tdE);
+
+      var g = r.grow;
+      // 差值先取整再判符号，避免浮点尾数造成「-0」这类假变化
+      var tdG = h('td', 'num grow ' + (g === null ? 'flat' : (g > 0 ? 'up' : (g < 0 ? 'down' : 'flat'))));
+      tdG.textContent = g === null ? '—' : (g === 0 ? '0' : (g > 0 ? '+' : '') + fmtBig(g));
+      tr.appendChild(tdG);
+
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    box.appendChild(t);
+    sec.appendChild(box);
+    return sec;
+  }
+
   function renderProfile(host, p) {
     host.textContent = '';
 
@@ -253,4 +324,12 @@
   }
 
   FZJH.renderProfile = renderProfile;
+
+  /* 快照表是「附加信息」：档案先渲染出来，快照数据到了再追加到 DOM 末尾，
+     这样即使 exp-history.json 拉取失败或很慢，也不影响看档案本体。 */
+  FZJH.appendSnapshots = function (host, snaps, uid) {
+    if (!host) return;
+    var s = snapTable(snaps, uid);
+    if (s) host.appendChild(s);
+  };
 })();

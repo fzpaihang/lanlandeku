@@ -457,8 +457,41 @@
   // 只放内存，刷新页面即失效，所以不会看到「昨天的数据」；key 带分区路径，
   // 避免切区后同名 uid 串档。
   var PF_CACHE = Object.create(null);
+  var PF_SEQ = 0;   // 每次 openProfile 递增，用来丢弃上一个玩家迟到的渲染回调
+
+  // 经验快照按分区缓存：exp-history.json 一个分区一份（最大约 21 KB），
+  // 同一次浏览里翻多个玩家只下载一次。key 带分区路径，切区后各取各的。
+  var EXP_CACHE = Object.create(null);
+  var EXP_PENDING = Object.create(null);
+
+  function loadSnapshots(base, uid, done) {
+    var url = base + 'exp-history.json';
+    var hit = EXP_CACHE[url];
+    if (hit) { done(hit); return; }
+
+    if (EXP_PENDING[url]) { EXP_PENDING[url].push(done); return; }
+    EXP_PENDING[url] = [done];
+
+    var finish = function (snaps) {
+      EXP_CACHE[url] = snaps;
+      var q = EXP_PENDING[url] || [];
+      delete EXP_PENDING[url];
+      q.forEach(function (fn) { fn(snaps); });
+    };
+
+    // 快照是附加信息，失败就静默跳过，不能把档案一起打挂
+    fetch(url, { cache: 'no-cache' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) { finish((d && d.snapshots) || []); })
+      .catch(function () { finish([]); });
+  }
 
   function openProfile(row) {
+    var uid = String(row.userid);
+    var seq = ++PF_SEQ;   // 连点两个玩家时，丢弃上一个玩家的迟到回调
     pfName.textContent = row.name || '—';
     pfSub.textContent = '第 ' + row.rank + ' 名 · ' + (row.menpai || '—') + ' · UID ' + row.userid;
     pfBody.textContent = '';
@@ -474,9 +507,32 @@
 
     var base = (window.FZJH && FZJH.base) ? FZJH.base : './data/servers/taptap/';
     var cacheKey = base + 'profiles/' + row.userid + '.json';
+
+    // 档案与快照并行取。谁先到都不影响：档案渲染时若快照已就绪就顺手挂上，
+    // 快照后到就等档案渲染完再追加，避免快照拖慢档案显示。
+    var snaps = null;      // null = 还在路上；[] = 已到但没有该玩家的数据
+    var rendered = false;
+
+    var mountSnaps = function () {
+      if (!rendered || !snaps || seq !== PF_SEQ) return;
+      FZJH.appendSnapshots(pfBody, snaps, uid);
+    };
+
+    loadSnapshots(base, uid, function (list) {
+      snaps = list;
+      mountSnaps();
+    });
+
+    var showProfile = function (p) {
+      if (seq !== PF_SEQ) return;
+      renderProfile(p);
+      rendered = true;
+      mountSnaps();
+    };
+
     var hit = PF_CACHE[cacheKey];
     if (hit) {
-      renderProfile(hit);
+      showProfile(hit);
       return;
     }
     fetch(cacheKey, { cache: 'no-cache' })
@@ -486,7 +542,7 @@
       })
       .then(function (p) {
         PF_CACHE[cacheKey] = p;
-        renderProfile(p);
+        showProfile(p);
       })
       .catch(function (e) {
         pfBody.textContent = '';
