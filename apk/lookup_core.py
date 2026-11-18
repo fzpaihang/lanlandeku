@@ -80,17 +80,19 @@ EQUIP_CN = {
     "cape": "披风", "mask": "面具",
 }
 
-# 人物等级 ↔ 经验的真实关系：exp = 0.1*lv³ + 1.35*lv²（v73 重新拟合）
+# 人物等级 ↔ 经验的真实关系（游戏原式，v77 起）：exp = 0.1 * (lv + 4)³
 #
-# 以前只有三次项 0.100402*lv³，是按高等级样本拟合的，三次项占主导时误差被淹没；
-# 到低等级段二次项就显出来了 —— 全库 716 人（lv 505~4292）实测：
-#   只用三次项          偏差中位 +0.76 级，500~999 级段 +3.5 级，最大 +4.17
-#   加上二次项后        偏差中位  0.00 级，全库最大 +0.52，98.7% 能精确落回整数等级
-# 同一次接口响应的 (lv, exp) 严格配对复测：taptap_4 120 人旧公式命中率 0%，新公式 96%；
-# taptap 120 人旧公式 76%，新公式 100%。
-LV_A = 0.1
-LV_B = 1.35
-LV_COEF = 0.100402      # 旧的三次项系数，仅作 lv_from_exp() 的牛顿迭代初值
+# 游戏里是「等级定经验」的整数区间函数：lv 级占据
+#     [0.1*(lv+4)³, 0.1*(lv+5)³)
+# 这一段经验区间。所以反算必须落在区间里，不能直接四舍五入。
+#
+# 演进史（同样的榜单数据、同样的验证方法）：
+#   0.100402*lv³        +0.76 中位 / 低等级段 +3.5 级（按高等级样本拟合，已弃用）
+#   0.1*lv³+1.35*lv²    99.0% 命中（v74 拟合，比原式差一步）
+#   0.1*(lv+4)³         100.00% 命中、最大偏差 0 级（v77，游戏原式）
+# 实测：11 区 715 条 (lv, expBoard) 全部命中；20 万个区间内随机点 0 失败。
+LV_BASE = 0.1           # exp = LV_BASE * (lv + LV_OFFSET)³
+LV_OFFSET = 4.0
 
 
 def fmt_big(n):
@@ -108,9 +110,10 @@ def fmt_big(n):
 
 
 def lv_from_exp(exp):
-    """由经验反算人物等级：解 0.1*x³ + 1.35*x² = exp（牛顿迭代，初值用旧三次项公式）。
+    """由经验反算人物等级：解 exp = 0.1*(lv+4)³，按整数区间回代校正。
 
     只在榜单没有 lv 时兜底用；有榜单等级时一律显示游戏给的值，不动名次。
+    cbrt 的浮点误差在整数边界上会让 floor 偏一级，所以先算出候选再回代验证。
     """
     try:
         exp = float(exp)
@@ -118,17 +121,15 @@ def lv_from_exp(exp):
         return None
     if exp <= 0:
         return None
-    x = (exp / LV_COEF) ** (1.0 / 3.0)      # 初值：5 次以内收敛
-    for _ in range(40):
-        f = LV_A * x ** 3 + LV_B * x ** 2 - exp
-        d = 3 * LV_A * x ** 2 + 2 * LV_B * x
-        if not d:
-            break
-        step = f / d
-        x -= step
-        if abs(step) < 1e-9:
-            break
-    return int(round(x))
+    guess = int((exp / LV_BASE) ** (1.0 / 3.0) - LV_OFFSET)
+    for cand in (guess, guess - 1, guess + 1, guess - 2, guess + 2):
+        if cand < 0:
+            continue
+        lo = LV_BASE * (cand + LV_OFFSET) ** 3
+        hi = LV_BASE * (cand + 1 + LV_OFFSET) ** 3
+        if lo <= exp < hi:
+            return cand
+    return max(0, guess)
 
 
 SKILL_LV_MAX = 1100     # 游戏内武学等级上限
@@ -701,7 +702,7 @@ def board_profile(uid, server=None, cache=None):
                 continue
             lv, est = r.get("lv"), False
             if not lv and r.get("exp"):
-                # 人物等级用 lv_from_exp（0.1·lv³+1.35·lv²），不是武学那套 f(lv)=0.015·lv³
+                # 人物等级用 lv_from_exp（0.1·(lv+4)³），不是武学那套 f(lv)=0.015·lv³
                 lv, est = lv_from_exp(r["exp"]), True
             return {
                 "uid": int(key),

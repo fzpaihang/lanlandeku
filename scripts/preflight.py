@@ -286,22 +286,22 @@ def check_names():
 def check_lv_from_exp(L):
     """人物等级反算（exp → lv）与 worker 版一致性 + 精度回归。
 
-    v73 前用的是纯三次项 0.100402·lv³，低等级段会系统性偏大 3~4 级；
-    改成 0.1·lv³ + 1.35·lv² 后全库 716 人能还原 99.0% 的整数等级。
+    游戏原式是 exp = 0.1*(lv+4)³，lv 级占据 [0.1(lv+4)³, 0.1(lv+5)³) 这段区间，
+    所以反算必须走「区间回代」而不是四舍五入。
     这里锁住两件事：①apk 与 worker 两侧常量/结果一致；②精度不回退。
     """
     # 常量对齐
     try:
         src = read(os.path.join(ROOT, "worker", "src", "profile.js"))
-        m = re.search(r"const LV_A\s*=\s*([0-9.]+)", src)
-        mb = re.search(r"const LV_B\s*=\s*([0-9.]+)", src)
+        m = re.search(r"const LV_BASE\s*=\s*([0-9.]+)", src)
+        mb = re.search(r"const LV_OFFSET\s*=\s*([0-9.]+)", src)
         if not (m and mb):
-            warn("等级反算(worker)", "profile.js 未找到 LV_A/LV_B，可能还是旧 formula")
+            warn("等级反算(worker)", "profile.js 未找到 LV_BASE/LV_OFFSET，可能还是旧 formula")
         else:
-            wa, wb = float(m.group(1)), float(mb.group(1))
-            if (wa, wb) != (L.LV_A, L.LV_B):
+            wb, wo = float(m.group(1)), float(mb.group(1))
+            if (wb, wo) != (L.LV_BASE, L.LV_OFFSET):
                 fail("等级反算常量", "apk=(%s, %s) worker=(%s, %s)"
-                     % (L.LV_A, L.LV_B, wa, wb))
+                     % (L.LV_BASE, L.LV_OFFSET, wb, wo))
                 return
     except Exception as e:
         warn("等级反算(worker)", "读 profile.js 失败：%r" % (e,))
@@ -337,9 +337,9 @@ def check_lv_from_exp(L):
         warn("等级口径(人物)", "没读到榜单样本，跳过精度检查")
         return
     rate = 100.0 * hit / tot
-    if rate < 90.0 or worst > 3:
+    if rate < 99.0 or worst > 1:
         fail("等级口径(人物)", "exp→lv 命中 %.1f%%（%d/%d）最大偏差 %.2f 级，"
-             "公式可能退化成纯三次项" % (rate, hit, tot, worst))
+             "公式可能没按 (lv+4)³ 区间回代" % (rate, hit, tot, worst))
     else:
         ok("等级口径(人物)", "exp→lv 命中 %.1f%%（%d/%d）最大偏差 %.2f 级"
            % (rate, hit, tot, worst))
