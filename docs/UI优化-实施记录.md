@@ -2462,3 +2462,91 @@ lv = max(floor((exp/10 * potEfficiency * 500/0.15)^(1/3) / 100), 1)
 |---|---|---|---|
 | v78 | 只修 v77 `version.json` notes 的样本数笔误 | 199,935 B / `de7e7f1d234d…`（同 v77） | `86e5737c7bfd` |
 | **v79** | **榜单 `lv` 改按实时经验反算（原值存 `lvBoard`）；删手动「等级」排序；`PROFILE_VER` → 5** | **200,180 B / `a76571ece93c78337620a6ace3f841ec`** | **`6f6000adc5de`** |
+
+---
+
+## 四十三、v80：多昵称索引 + 昵称候选上限 20 + iOS 三区只跑前 50
+
+### 43.1 起因（用户原话）
+
+> 「1apk里搜索昵称时，最多显示8个合适目标，但是像无名氏通常有很多，导致不显示像搜到的那个人。2apk里定向查询返回的详细数据能不能把属性四维也就是根骨、臂力、身法、悟性加上？能的话只改apk不动网页，如果不能返回四维的话就不动了。3把ios三个区的高手榜、经验变化页都改成只跑前50名，不用每天拉取100人了，其它相关的不要动。」
+
+后续追加：
+
+> 「把 22039038872 应该也是无名氏，确认一下他前几转是不是叫段潇，是的话就手动把他的昵称索引成陆云」
+> 「现在的昵称索引机制在某玩家改名后，该玩家是不是就有多个昵称可以索引到他的 uid 了？是的话就不动，不是的话就做一个多昵称索引」
+
+### 43.2 任务② 为什么不做（四维）
+
+| 接口 | 有没有 `gengu` / `liliang` / `shenfa` / `wuxing` |
+|---|---|
+| `get_user_info`（type 0，我们抓档案用的） | **没有**。实测返回 30 个字段，四项全缺 |
+| `get_board/1` 的每一行 | **有**这四项（行字段全集里就有） |
+
+游戏客户端自己的做法也一样：`HttpManager.lua:540-550` 的 `getUserInfo()` 只传 `type=0`，
+`WzRankLayer.lua:136` 等调用点拿到档案后是 `Helper:tableCover(data, userData)`——**用榜单行覆盖档案**，
+所以四维本质上只有「上过榜的人」才有。用户确认「只有排行榜的人有四维吗？那就不做了」→ 本项取消，不改代码。
+
+（顺带记录：`scripts/fetch.py` 的 `out_rows` 目前只存了 `wuxing` 一项，另外三项被丢弃；全库 715 行里
+`wuxing` 715/715 有值，`gengu/liliang/shenfa` 715/715 全缺。将来真要用，得从 `get_board` 的原始行取。）
+
+### 43.3 任务① 昵称候选上限 8 → 20
+
+索引里重名的只有 14 个名字，最多的是**「无名氏」10 个**，其余最多 2 个。
+`apk/app_ui.py` 两处 `NI.search(..., 8)`（`_do_search()` 与 `start()`）改成 20，
+`_show_candidates()` 本身是 `ScrollView`、`rows = min(len(hits), 5)` 只影响卡片高度，不用动。
+
+### 43.4 任务③ iOS 三区只跑前 50
+
+`config.json` 的 `ios1 / ios2 / ios3` 的 `maxRank` 由 100 改 50，然后
+`scripts/sync_creds.py --apply` 同步到私有 gist 与 CI Secret `FZJH_SERVERS`
+（gist `updated_at 2026-11-18T10:25:08Z`、Secret payload 2296 字节 / 11 分区）。
+
+改完必须重抓三区，链路是 `fetch.py` → `fetch_profiles.py` → `merge_exp.py`：
+
+| 分区 | 榜单行数 | 档案 | 快照 |
+|---|---|---|---|
+| ios1 | 100 → **50** | 100 → **50**（清理旧文件 50 个） | 3 条，最后一条 `n=50` |
+| ios2 | 100 → **50** | 100 → **50**（清理 50） | 3 条，最后一条 `n=50` |
+| ios3 | 99 → **50** | 99 → **50**（清理 49） | 3 条，最后一条 `n=50` |
+
+**前端一行都没改**：高手榜与经验变化页都直接读 `gaoshoubang.json` 的 `rows`（`assets/exp.js:303`
+`state.rows = (board.rows || []).map(...)`），行数自动跟着变。索引人数从 1104 降到 **955**
+（三区各少约 50，其余因新榜单微调）。
+
+### 43.5 多昵称索引（核心改动）
+
+**改动前的机制**：`apk/archive_local.py:192-199` 其实早就会在昵称变化时写 `hit["a"] = alias[-3:]`，
+但①全库 339 条 `extra-names` 里带 `a` 的 **0 条**（这段几乎没触发过）；②`build_lookup_index.py`
+完全不读 `a`；③`names_index.py` 也不读。→ 改名后旧名搜不到，等于没有多昵称索引。
+
+**改动后（三处打通）**：
+
+| 位置 | 改了什么 |
+|---|---|
+| `scripts/build_lookup_index.py` | `load_extra_names()` 收集每条 `a` 里的旧名，按 `(uid, 旧名)` 去重、跳过与当前名相同的、剔除 `hidden` 里的人，输出索引顶层 **`aliases`**：`[[uid, 旧昵称, server, serverName, lv], ...]` |
+| `apk/names_index.py` | 新增 `_aliases = []` 与 `_parse_aliases(raw)`（老索引没有这个键就返回空）；新增 `_search_rows()` 返回「当前名 ∪ 历史名」并按 `(uid, name)` 去重；`search()` 改用它；`_read_cache()` / `_load_blocking()` 两处都补 `_aliases` 赋值（`global` 声明同步加） |
+| `data/extra-names.json` | 手工给 uid `22039038872` 补真名与旧名：`{"u": 22039038872, "n": "陆云", ..., "a": ["无名氏", "段潇"]}` |
+
+**陆云这个号**：`data/lookup-index.json` 里原本是 `{'n': '无名氏', 's': 'taptap_4', 'lv': 672}`；
+live 查 `get_user_info` 得到 `inheritHistory` 4 条，前 3 世的 `parentName` / `inheritName` 都是「段潇」，
+第 4 条 `parentName=段潇 → inheritName=无名氏`——**确认前几转叫段潇**，所以索引成「陆云」+ 旧名「段潇」「无名氏」。
+
+### 43.6 验证
+
+| 项 | 结果 |
+|---|---|
+| 索引 | 11 区 / **955 人** / 5 转 7686 / 260.4 KB；`hidden` 5 条；**`aliases` 2 条** |
+| `aliases` 内容 | `[[22039038872,'无名氏','taptap_4','墨羽惊鸿',672],[22039038872,'段潇','taptap_4','墨羽惊鸿',672]]` |
+| 本地 `names_index.search()` | 「段潇」→ 1 条（uid 22039038872）；「陆云」→ 1 条；「无名氏」→ 20 条 |
+| 网页 DOM（ios1） | `50 / 50 人`、排序条只剩 `rank`/`exp`、表头 `data-key` 无 `lv` |
+| 网页 DOM（ios1 经验页） | `11-18 01:12 → 11-18 18:19 · 17 小时`、`50` 人、横幅「不足 3 天」正常 |
+| 设备端索引 | 删缓存重启后 `files/lookup-index.json` 266,650 B / `count 955` / `aliases` 2 条 / `updatedAt 2026-11-18 10:29:02` |
+| 设备端源码 | `files/live/app_ui.py` 里 `NI.search(text, 20)` 与 `NI.search(raw, 20)` 各 1 处、`NI.search(..., 8)` 0 处 |
+| `preflight` | **11 项通过 / 1 警告 / 0 失败**（「等级口径(人物)」样本数从 715 降到 566，因 iOS 三区减半） |
+
+### 43.7 版本表
+
+| 版本 | 内容 | 包大小 / md5 | 提交 |
+|---|---|---|---|
+| **v80** | **昵称候选上限 8→20；多昵称索引 `aliases`；iOS 三区只跑前 50；陆云改名** | **200,547 B / `f3500651cb096ec5e7f290d683193382`** | **`212c2a4fada6`** |
