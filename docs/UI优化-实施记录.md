@@ -2383,3 +2383,82 @@ lv = max(floor((exp/10 * potEfficiency * 500/0.15)^(1/3) / 100), 1)
 | v76 | 隐私名单新增「药乐」（整条剔除） | 199,934 B / `be0bce74f39f…` | `c9d28b6bcba2` |
 | **v77** | **人物等级反算改游戏原式 `0.1·(lv+4)³`，区间回代** | **199,935 B / `de7e7f1d234d…`** | **`fda844505228`** |
 | v78 | 只修 v77 `version.json` notes 里的样本数笔误（735 → 715），代码与包体完全相同 | 199,935 B / `de7e7f1d234d…`（同上） | `86e5737c7bfd` |
+
+---
+
+## 四十二、v79：榜单等级与经验口径统一 + 去掉「等级」排序
+
+### 42.1 起因
+
+用户看榜单时发现「等级和经验对不上」，并且手动排序里的「等级」和「经验」排出来一模一样：
+
+> 高手榜的榜单默认按游戏排名排序就可以，这个排序是按玩家上次点榜的时候的武学造诣排的，而且现在不是可以手动选等级/经验排吗实际上，但是等级和经验排序实际上是一样的，可以把手动等级排序删除，但是在排行榜上显示的经验等级都按照实时的显示，现在应该是这样吧？就是显示等级和经验要对的上。
+> —— 用户 m06148
+
+追问三项后用户拍板（m06236）：
+
+> 等级列的值会变是正常的，就是因为这个所以我才要求做手动选项，数据层统一按你来，apk里等级后边的估保留就行
+
+### 42.2 问题实测
+
+`scripts/merge_exp.py` 早就在把榜单 `exp` 换成档案实时值（`r["exp"] = p_exp`），但 `lv` 一直是 `scripts/fetch.py:605` 抓下来的**榜单原始等级**——游戏把 `lv` 和 `exp` 一起缓存进榜单，不活跃玩家会一直拿到旧 `lv`，于是同一行里「经验是新的、等级是旧的」。
+
+11 区 715 行实测（用 `lv_from_exp(exp)` 对比榜单 `lv`）：**174 行不一致（24.3%）**，`exp != expBoard` 的 234 行。分区明细：
+
+| 分区 | 不一致 / 总 | 最严重一例 |
+|---|---|---|
+| huawei | 16 / 50 | 趙匡胤 2783 → **2818（+35）** |
+| ios2 | 24 / 100 | 又见桃花 2964 → 2970（+6） |
+| ios3 | 23 / 99 | 凌抱鹤 1921 → 1930（+9） |
+| taptap_4 | 19 / 100 | 火炎焱 873 → 893（+20） |
+| taptap | 27 / 98 | 天山喵喵 3741 → 3745（+4） |
+| taptap_3 | 15 / 29 | 临风听蝉 2489 → 2497（+8） |
+| ios1 | 14 / 100 | 无名氏 3617 → 3620（+3） |
+| guanfang | 12 / 50 | 萌新酱 2833 → 2837（+4） |
+| 4399 | 9 / 49 | 淡墨霞烟 3196 → 3200（+4） |
+| taptap_2 | 9 / 20 | 独孤唯他 2860 → 2866（+6） |
+| yyh | 6 / 20 | 让让我嘛 2505 → 2510（+5） |
+
+副作用：榜单本身按游戏 `lv` 排（`rank` 是游戏给的），统一成实时 `lv` 后 `taptap_4` 只有 **63/100** 行位置不变（会出现「rank3 的等级比 rank4 低」这种倒挂）。用户接受。
+
+### 42.3 改动
+
+**数据层（CI 每次都会跑，改完 11 区一起生效）**
+
+1. **新建 `scripts/lv_formula.py`**（零依赖，scripts 侧唯一公式实现）：`LV_BASE = 0.1` / `LV_OFFSET = 4.0`，`lv_from_exp(exp)` 先 `guess = int((exp / LV_BASE) ** (1/3) - LV_OFFSET)`，再对 `(guess, guess-1, guess+1, guess-2, guess+2)` 逐个回代 `[0.1(c+4)³, 0.1(c+5)³)` 验证。
+   - **为什么不复用 `apk/lookup_core.py`**：那是 APK 侧模块，头顶 `import fetch` → `Crypto`；而 `merge-exp.yml` 只装标准库（连 pycryptodome 都没装），`build_lookup_index.py` 更是不碰网络。公式本身极短，复制一份比引依赖稳。
+2. **`scripts/merge_exp.py`**：`merge_server()` 循环里 `board_lv = r.get("lv")`、`if "lvBoard" not in r: r["lvBoard"] = board_lv`（与 `expBoard` 同款「首次记录、重跑不覆盖」）；循环末尾 `live_lv = lv_from_exp(r.get("exp"))`，非 None 就 `r["lv"] = live_lv`。打印行加 `| 等级校正 N 人（最多 M 级）`。
+3. **`scripts/build_lookup_index.py`**：新增 `_live_lv(row)`（先 `lv_from_exp(row["exp"])`，`None` 才回退 `row["lv"]`），`players.append` 用它——因为 `index-extra.json`（51–100 名）是 `fetch.py` 直出的原始榜单值，不经过 `merge_exp.py`，得在这里补算。`extra-names` 那处不动（没有 `exp` 可反算）。
+4. **`scripts/fetch_profiles.py`**：`slim()` 里 `"lv"` 从「抄榜单」改成 `lv_from_exp(num(p.get("exp"), 0)) or (board_row or {}).get("lv")`。
+
+**前端 / APK**
+
+5. **`index.html`**：删排序条里的「等级」按钮（`data-sort="lv"`）；表头 `<th class="c-lv num" data-key="lv">` 去掉 `data-key`（列保留、不可排）。
+6. **`assets/style.css`**：加 `thead th:not([data-key]){cursor:default}` + 去掉 hover 变色——否则去掉 `data-key` 后它仍显示手型光标，用户会去点。
+7. **`apk/lookup_core.py`**：`parse_profile()` 与 `board_profile()` 的等级都改成「经验反算优先」，`lvEstimated = True`（页面上显示成「2818（估）」）；只有 `lv_from_exp` 返回 `None` 时才回退榜单 `lv`。`PROFILE_VER` **4 → 5**，让旧缓存里的榜单旧 `lv` 作废。
+8. **`scripts/preflight.py`**：`check_lv_from_exp()` 的精度回归原来拿 `lv` + `expBoard` 对拍，`merge_exp` 改完 `lv` 后变成**循环论证**（第一次跑报「命中 75.7%（541/715）最大偏差 35.00 级」），改用 `r.get("lvBoard", r.get("lv"))` + `expBoard`；同时新增 `scripts/lv_formula.py` 与 `apk/lookup_core.py` 常量/结果一致性校验（11 个探针）。阈值 v77 已收紧到「<99% 或 >1 级 FAIL」。
+
+### 42.4 验证
+
+| 项 | 结果 |
+|---|---|
+| 11 区全量 `lv == lv_from_exp(exp)` | **715 / 715 一致，0 例外** |
+| `lvBoard` 覆盖 | 11 区全齐（715/715） |
+| 等级校正人数 | huawei 16（最多 35 级）、taptap_4 19（20 级）、ios2 24（6 级）、ios3 23（9 级）、taptap 27（4 级）、guanfang 15（5 级） |
+| 索引重建 | 11 区 / 1104 人 / 5 转 7686 人 / 274.4 KB，`hidden` 5 条 |
+| `preflight` | **11 项通过 / 1 警告 / 0 失败**（含「等级口径(人物) exp→lv 命中 100.0%（715/715）最大偏差 0.00 级」） |
+| 网页 DOM 实测 | 排序条只剩 `rank` / `exp`；表头 `data-key` 只剩 rank/name/menpai/exp/fuyuan/looks/age（等级列不可排）；等级列值 = 反算值 |
+| 模拟器 v79 | 华为区查 `10045394739` 趙匡胤 → 等级 **2829（估）**、经验 22.75 亿、第 48 名，「（估）」后缀保留 |
+
+### 42.5 踩坑
+
+- **回灌脚本把源码一起覆盖了**：我启动自制的 `backfill_remote.py` 同步线上较新数据，该脚本只对 `.json` 比对 `updatedAt`，对 `.js`/`.css`/`.py` 直接按远端字节覆盖 → 刚改的 `assets/app.js`、`assets/style.css`、`apk/lookup_core.py` 被顶回旧版（`lv` 逻辑还变回了 v74 的 `LV_A`/`LV_B`，导致 preflight 报 `module 'lookup_core' has no attribute 'LV_BASE'`）。**以后回灌一律用 `git fetch origin main` + `git checkout origin/main -- data`，只碰 `data/`。**
+- **PowerShell 内联 `-c` 校验中文会假阴性**：`Select-String`/`Get-Content` 显示乱码，内联 python 的 `in` 判断也会因编码失真报 NO。校验脚本一律写成 `.py` 文件再跑。
+- **`pack_update.py` 只会 +1，不会校对**：本地 `version.json` 落后线上时（本地 v76 / 线上 v78），跑两次会打出 v77、v80 这种「倒退版本号」。打包前先 `git checkout origin/main -- apk/update/version.json` 对齐。
+
+### 42.6 版本表
+
+| 版本 | 内容 | 包大小 / md5 | 提交 |
+|---|---|---|---|
+| v78 | 只修 v77 `version.json` notes 的样本数笔误 | 199,935 B / `de7e7f1d234d…`（同 v77） | `86e5737c7bfd` |
+| **v79** | **榜单 `lv` 改按实时经验反算（原值存 `lvBoard`）；删手动「等级」排序；`PROFILE_VER` → 5** | **200,180 B / `a76571ece93c78337620a6ace3f841ec`** | **`6f6000adc5de`** |
