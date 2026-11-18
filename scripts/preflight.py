@@ -257,6 +257,8 @@ def check_level_parity():
     except Exception:
         pass
 
+    check_lv_from_exp(L)
+
     # 云函数 staging 是构建产物，过期只提示
     st = os.path.join(ROOT, "api", "build", "staging", "lookup_core.py")
     if os.path.exists(st):
@@ -278,6 +280,69 @@ def check_names():
         fail("names.json", "两份已漂移：data=%s… apk=%s…" % (ha[:8], hb[:8]))
     else:
         ok("names.json", "两份一致 %s…" % ha[:8])
+
+
+# ------------------------------------------- 4b. 人物等级 lv ↔ 经验 口径
+def check_lv_from_exp(L):
+    """人物等级反算（exp → lv）与 worker 版一致性 + 精度回归。
+
+    v73 前用的是纯三次项 0.100402·lv³，低等级段会系统性偏大 3~4 级；
+    改成 0.1·lv³ + 1.35·lv² 后全库 716 人能还原 99.0% 的整数等级。
+    这里锁住两件事：①apk 与 worker 两侧常量/结果一致；②精度不回退。
+    """
+    # 常量对齐
+    try:
+        src = read(os.path.join(ROOT, "worker", "src", "profile.js"))
+        m = re.search(r"const LV_A\s*=\s*([0-9.]+)", src)
+        mb = re.search(r"const LV_B\s*=\s*([0-9.]+)", src)
+        if not (m and mb):
+            warn("等级反算(worker)", "profile.js 未找到 LV_A/LV_B，可能还是旧 formula")
+        else:
+            wa, wb = float(m.group(1)), float(mb.group(1))
+            if (wa, wb) != (L.LV_A, L.LV_B):
+                fail("等级反算常量", "apk=(%s, %s) worker=(%s, %s)"
+                     % (L.LV_A, L.LV_B, wa, wb))
+                return
+    except Exception as e:
+        warn("等级反算(worker)", "读 profile.js 失败：%r" % (e,))
+
+    # 精度回归：拿真实榜单 expBoard + lv 对拍
+    hit = tot = 0
+    worst = 0.0
+    try:
+        for key in sorted(os.listdir(os.path.join(ROOT, "data", "servers"))):
+            p = os.path.join(ROOT, "data", "servers", key, "gaoshoubang.json")
+            if not os.path.exists(p):
+                continue
+            try:
+                b = json.loads(read(p))
+            except Exception:
+                continue
+            for r in (b.get("rows") or []):
+                lv, eb = r.get("lv"), r.get("expBoard")
+                if not lv or not eb:
+                    continue
+                g = L.lv_from_exp(eb)
+                if g is None:
+                    continue
+                tot += 1
+                if g == int(lv):
+                    hit += 1
+                worst = max(worst, abs(g - lv))
+    except Exception as e:
+        warn("等级口径(人物)", "精度回归跑了异常：%r" % (e,))
+        return
+
+    if not tot:
+        warn("等级口径(人物)", "没读到榜单样本，跳过精度检查")
+        return
+    rate = 100.0 * hit / tot
+    if rate < 90.0 or worst > 3:
+        fail("等级口径(人物)", "exp→lv 命中 %.1f%%（%d/%d）最大偏差 %.2f 级，"
+             "公式可能退化成纯三次项" % (rate, hit, tot, worst))
+    else:
+        ok("等级口径(人物)", "exp→lv 命中 %.1f%%（%d/%d）最大偏差 %.2f 级"
+           % (rate, hit, tot, worst))
 
 
 # ------------------------------------------------------- 6. 隐私名单同步

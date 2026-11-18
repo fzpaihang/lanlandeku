@@ -79,8 +79,17 @@ EQUIP_CN = {
     "cape": "披风", "mask": "面具",
 }
 
-# exp ≈ 0.100402 × lv³（98 人样本实测，最大误差 0.033%）；榜单没有等级时用它反算
-LV_COEF = 0.100402
+# 人物等级 ↔ 经验的真实关系：exp = 0.1*lv³ + 1.35*lv²（v73 重新拟合）
+#
+# 以前只有三次项 0.100402*lv³，是按高等级样本拟合的，三次项占主导时误差被淹没；
+# 到低等级段二次项就显出来了 —— 全库 716 人（lv 505~4292）实测：
+#   只用三次项          偏差中位 +0.76 级，500~999 级段 +3.5 级，最大 +4.17
+#   加上二次项后        偏差中位  0.00 级，全库最大 +0.52，98.7% 能精确落回整数等级
+# 同一次接口响应的 (lv, exp) 严格配对复测：taptap_4 120 人旧公式命中率 0%，新公式 96%；
+# taptap 120 人旧公式 76%，新公式 100%。
+LV_A = 0.1
+LV_B = 1.35
+LV_COEF = 0.100402      # 旧的三次项系数，仅作 lv_from_exp() 的牛顿迭代初值
 
 
 def fmt_big(n):
@@ -98,13 +107,27 @@ def fmt_big(n):
 
 
 def lv_from_exp(exp):
+    """由经验反算人物等级：解 0.1*x³ + 1.35*x² = exp（牛顿迭代，初值用旧三次项公式）。
+
+    只在榜单没有 lv 时兜底用；有榜单等级时一律显示游戏给的值，不动名次。
+    """
     try:
         exp = float(exp)
     except (TypeError, ValueError):
         return None
     if exp <= 0:
         return None
-    return int(round((exp / LV_COEF) ** (1.0 / 3.0)))
+    x = (exp / LV_COEF) ** (1.0 / 3.0)      # 初值：5 次以内收敛
+    for _ in range(40):
+        f = LV_A * x ** 3 + LV_B * x ** 2 - exp
+        d = 3 * LV_A * x ** 2 + 2 * LV_B * x
+        if not d:
+            break
+        step = f / d
+        x -= step
+        if abs(step) < 1e-9:
+            break
+    return int(round(x))
 
 
 SKILL_LV_MAX = 1100     # 游戏内武学等级上限
@@ -659,7 +682,7 @@ def board_profile(uid, server=None, cache=None):
                 continue
             lv, est = r.get("lv"), False
             if not lv and r.get("exp"):
-                # 人物等级用 lv_from_exp（0.100402·lv³），不是武学那套 f(lv)=0.015·lv³
+                # 人物等级用 lv_from_exp（0.1·lv³+1.35·lv²），不是武学那套 f(lv)=0.015·lv³
                 lv, est = lv_from_exp(r["exp"]), True
             return {
                 "uid": int(key),
