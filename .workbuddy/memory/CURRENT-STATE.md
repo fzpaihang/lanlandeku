@@ -1,7 +1,7 @@
 ﻿# 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-18 13:55（热更 v75：分区凭据同步固化成 `scripts/sync_creds.py`，gist 与 CI Secret 一次写齐；`apk/lookup_core.py` 加 `_norm_cfg()` 兼容裸数组，`build-apk.yml` 注入步骤同样兼容）
+> 最后更新：2026-11-18 14:25（热更 v76：隐私名单新增仙人指路「药乐」`19035702184` 整条剔除，名单 **5 人**；榜单/档案/快照/索引/最近查询全部剔除，远端旧档案用 `publish.py --delete` 删掉）
 
 ---
 
@@ -11,9 +11,9 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v75** |
+| APK 热更版本 | **v76** |
 | 分区数 | **11**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为/**老马识途**/**野马分鬃**/**仙人指路**） |
-| 索引人数 | **1104**（含老马识途 100、野马分鬃 100、仙人指路 100） |
+| 索引人数 | **1103**（含老马识途 100、野马分鬃 100、仙人指路 99） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
 | 临时文件 | `E:/workbuddy2/_agent_tmp` |
 | token | `E:/workbuddy2/_agent_tmp/gh_token.txt` |
@@ -200,8 +200,11 @@ Secret 写成裸数组 → `build-apk.yml` 注入步骤抛 `AttributeError: 'lis
 自检：`python scripts/preflight.py` 会比对两处数值，并在 staging 过期时告警。
 
 ### 6. 隐私名单
-`data/hidden.json` 4 人：玲珑望月(4047491326) / 微生念(4168426) / 微生梦(6622657) / 咸味桃酥(21079748748)。
-链路：榜单剔除 → 索引过滤 → 档案删除 → APK 查询前拦截。
+`data/hidden.json` **5 人**：玲珑望月(4047491326/4399) / 微生念(4168426/taptap) / 微生梦(6622657/taptap) /
+咸味桃酥(21079748748/taptap_3) / **药乐(19035702184/ios3，v76 新增)**。
+链路：榜单剔除 → 索引过滤 → 档案删除 → APK 查询前拦截（`app_ui.HIDDEN_UIDS` + `lookup_core.HIDDEN_UIDS_LOCAL` 两份兜底，
+`preflight` 校验三份副本一致）。**远端那份档案要 `publish.py "说明" 文件... --delete data/servers/<key>/profiles/<uid>.json`**，
+只删本地的话直链仍可访问。
 
 ---
 
@@ -287,6 +290,7 @@ Secret 写成裸数组 → `build-apk.yml` 注入步骤抛 `AttributeError: 'lis
 | v70 | **新增第十区「野马分鬃」（iOS 二区，`channel=fzjh`）**：UID 8 前缀自动识别，定时 **8 点**单独一批（cron `0 0 * * *`），索引 1003 人 |
 | v71 | **新增第十一区「仙人指路」（iOS 三区，`channel=fzjh3`）**：UID 19 前缀 11 位自动识别，定时 **10 点**单独一批（cron `0 2 * * *`），索引 1104 人 |
 | v72 | **字段级隐藏**（`data/hidden-fields.json`）：人还在榜上只清指定字段，与 `hidden.json` 整条剔除是两套机制；魔渊 `19035589937`（ios3）藏掉 skills/prepared/newSkills。**档案弹窗新增「经验快照」表**（`FZJH.appendSnapshots` + `loadSnapshots` + `PF_SEQ`），列该玩家每次扫描的时间/经验/比上次。`preflight` 加第 9 项字段级隐藏检查 |
+| v76 | **隐私名单新增「药乐」**（ios3 `19035702184`，整条剔除）：`data/hidden.json` 5 人、`apk/app_ui.py::HIDDEN_UIDS` 与 `apk/lookup_core.py::HIDDEN_UIDS_LOCAL` 两份兜底同步；ios3 榜单 100→99 行重排名次、档案与快照条目删除、`extra-names.json` 337→336、索引 1104→1103；远端旧档案用 `publish.py --delete` 删除 |
 | v75 | **分区凭据同步固化**：新增 `scripts/sync_creds.py`（`--check` / `--apply` / `--gist-only` / `--secret-only`），把 `config.json` 一次写进私有 gist（`{"servers": [...]}` 字典，写完回读校验）与 CI Secret `FZJH_SERVERS`（PyNaCl SealedBox 加密整份 config）。`apk/lookup_core.py` 加 `_norm_cfg()`：裸数组自动包成 dict，读不到 servers 时打印提示（原来静默 return False）；`build-apk.yml` 注入步骤兼容 dict / 数组两种 Secret 形状，空配置 `exit 1`。起因是修 11-17 起连续 6 次失败的 APK 云端构建。包 = 199,910 B / md5 `ba8ee82cff92…`，提交 `1ad93e71069b` |
 | v74 | **人物等级反算公式修正**：`0.100402×lv³` → `0.1×lv³ + 1.35×lv²`。旧公式是纯三次项、只在高等级段准，低等级段系统性偏大 3~4 级（墨羽惊鸿 100 人按 expBoard 反推偏差中位 +3.52，如梦令 888 级被反推成 891）；新公式全库 716 人命中整数等级 **99.0%**、最大偏差 1.0 级，同批严格校验墨羽惊鸿 120 人旧 0% → 新 96%。只影响「榜单没有 lv 时」的兜底反算，显示的等级与名次仍用游戏给的值。`preflight` 新增第 11 项「等级口径(人物)」精度回归。包 = 199,570 B / md5 `565b44a2e52d…`，提交 `cb20f5f7e126` |
 | v73 | **代码审查后修 6 处隐患**：`fetch.py` 翻页中途报错整轮作废（不再写残缺榜单、不再级联删档案）；`fetch_profiles.py` 档案原子写 + 失败时不清理旧档；`publish.py` 路径规范化堵住敏感文件绕过（`..`/绝对路径）；`exp.html` 排序键 `exp`→`expN`（原来 100% 失效）；输入框 `'²'` 类字符不再闪退；候选弹窗返回键 + 最近查询隐私过滤。`preflight` 增至 **10 项**，隐私名单校验三份副本（json / app_ui / lookup_core）。包 = 199,011 B / md5 `2834024255a2…`，提交 `c9a994382b73` |

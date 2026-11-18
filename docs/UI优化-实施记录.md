@@ -2193,3 +2193,101 @@ ios1 +0.69 / ios2 +0.66 / ios3 +1.92。新公式各分区最大偏差全部 ≤ 
 |---|---|---|---|
 | v74 | 人物等级反算改 0.1·lv³+1.35·lv² | 199,570 B / `565b44a2e52d…` | `cb20f5f7e126` |
 | **v75** | **分区凭据同步固化 + 两种形状兼容** | **199,910 B / `ba8ee82cff92…`** | **`1ad93e71069b`** |
+
+---
+
+## 四十、v76：隐私名单新增「药乐」（整条剔除）
+
+### 40.1 起因
+
+> 现在隐藏一下仙人指路区的药乐，apk和网页都不显示，像之前四个隐藏玩家一样
+> —— 用户 m05244
+
+和 v72 那次（只藏武学字段）不同，这次要的是**和既有 4 人一样的整条剔除**：榜单里没有他、按 UID 查被拒、按昵称搜不到、档案文件删掉。
+
+目标：`data/servers/ios3/gaoshoubang.json` 里的 `rank 64 / userid 19035702184 / 药乐 / 永夜楼 / lv 1793 /  kongfu 1314.33`。
+
+### 40.2 整条剔除要动的地方（实测链路）
+
+| 层 | 位置 | 作用 |
+|---|---|---|
+| 抓取 | `scripts/fetch.py:359 load_hidden()` / `:380 hidden_uids_for()` / `:620-628` | 榜单剔除后 `x["rank"] = i` 重排名次 |
+| 快照 | `scripts/fetch.py:314-318 update_history(..., drop)` | 写盘前回溯删掉历史快照里的这些 uid |
+| 档案 | `scripts/fetch_profiles.py:272-286` | 跳过抓取 + `os.remove` 残留档案 |
+| 索引 | `scripts/build_lookup_index.py:71 / :136 / :159 / :183 / :195` | 三处过滤 + 写 `"hidden"` 字段 |
+| APK 兜底 | `apk/app_ui.py:353 HIDDEN_UIDS` | `_hidden()`（`:2585`）在 `_begin()`（`:2630`）里拦截 |
+| APK 最近查询 | `apk/lookup_core.py:50 HIDDEN_UIDS_LOCAL` | `recent_queries()`（`:334`）过滤 |
+| APK 昵称搜索 | `apk/names_index.py:392 / :420` | 按索引 `hidden` 字段过滤 `search()` 与 `get()` |
+| 自检 | `scripts/preflight.py:349 _hidden_ids_from()` / `:361 check_hidden()` | 校验 **三份副本**一致 |
+
+**网页侧零硬编码**：`assets/app.js:575` 只是注释说明隐私由数据层剔除，改数据就够。
+
+`cloud/archive_name.py`（CI Issue 归档）**没有** hidden 过滤，但既有 4 人在 `extra-names.json` 里也已被清空，所以本轮同样处理 `data/extra-names.json`。
+
+### 40.3 改动
+
+脚本 `E:\workbuddy2\_agent_tmp\hide_yaole.py` 一次做完 7 处：
+
+| # | 文件 | 改动 |
+|---|---|---|
+| 1 | `data/hidden.json` | 追加 `{"server": "ios3", "uid": 19035702184, "name": "药乐"}` → **5 人** |
+| 2 | `apk/app_ui.py:353` | `HIDDEN_UIDS` 加 `"19035702184"` |
+| 3 | `apk/lookup_core.py:50-53` | `HIDDEN_UIDS_LOCAL` 加 `"19035702184"` |
+| 4 | `data/servers/ios3/gaoshoubang.json` | 剔除该行，**100 → 99 行**，`rank` 从 1 重排到 99 |
+| 5 | `data/servers/ios3/profiles/19035702184.json` | 删除 |
+| 6 | `data/servers/ios3/exp-history.json` | 2 条快照里都删掉该 uid |
+| 7 | `data/extra-names.json` | 删该条，**337 → 336** |
+
+然后 `build_lookup_index.py` → 11 区 / **1103** 人 / 5转 7686 人 / 274.3 KB，`hidden` 5 条。
+
+### 40.4 这次踩到的新坑：远端档案要 `--delete`
+
+只在本地删 `profiles/19035702184.json` 是不够的——**远端那份还在，网页直链 `data/servers/ios3/profiles/19035702184.json` 仍然能访问**。`check_drift.py` 当时报「仅远端有 1」，就是这个文件。
+
+正确做法（`scripts/publish.py` 的删除语法，`--delete` 后面跟路径，不带 `--check` 时生效）：
+
+```bash
+python scripts/publish.py "隐私名单新增：仙人指路「药乐」19035702184 整条隐藏" \
+  apk/app_ui.py apk/lookup_core.py apk/update/code.zip apk/update/version.json \
+  data/extra-names.json data/hidden.json data/lookup-index.json \
+  data/servers/ios3/exp-history.json data/servers/ios3/gaoshoubang.json \
+  --delete data/servers/ios3/profiles/19035702184.json
+```
+
+### 40.5 发布前的数据回灌
+
+`check_drift` 一开始报「已修改 45」，逐项核对发现**taptap_4 线上比本地新**（CI 12:49 那批刚跑完）：
+
+- `data/servers/taptap_4/gaoshoubang.json`：remote `2026-11-18 12:50:27` / local `11-17 12:48:41`
+- `data/servers/taptap_4/exp-history.json`：remote 13:22:05 **9 条** / local 8 条
+- 35 份 `taptap_4/profiles/*.json`：remote `updatedAt 12:51:27` / local `11-17 12:49:58`
+
+先拉回（`pull_taptap4.py` + `pull_taptap4_profiles.py` 用 git blob sha 精确比对）再重建索引，drift 从 45 降到 10。
+
+⚠️ **`gaoshoubang.json` 必须原样字节写回**：远端是 `indent=1` 的多行 JSON（41,632 B），我一开始用 `json.dump(separators=(",",":"))` 写回成单行 31,002 B，内容完全相同但 `check_drift` 仍判「已修改」。改成把 API 返回的 base64 原样落盘才对齐。
+
+### 40.6 验证
+
+1. **打包**：`pack_update.py` → **v76 / 12 文件 / 195.2 KB / md5 `be0bce74f39f10c635a9e75c2976aef1` / size 199,934**。
+2. **`preflight.py`** = **11 项通过 / 1 项警告 / 0 项失败**，其中新增两条都 PASS：`隐私名单 5 人，APK 兜底与 json 一致`、`隐私名单 三份副本一致（json / app_ui / lookup_core）`。
+3. **发布**：`publish.py ... --delete ...` → 提交 **`c9d28b6bcba2`**（10 个变更 = 9 改 + 1 删）。
+4. **线上逐项**（GitHub Contents API，`ref=main`）：
+   - `apk/update/version.json` → version **76** / md5 `be0bce74f39f…` / size 199934
+   - `data/hidden.json` → **5 人**，含 `{"server": "ios3", "uid": 19035702184, "name": "药乐"}`
+   - `data/lookup-index.json` → `count 1103`，`hidden` 5 条含 `[19035702184, 'ios3']`，该 uid **不在** `players`
+   - `data/servers/ios3/gaoshoubang.json` → **99 行**，榜单里查不到该 uid
+   - `data/servers/ios3/profiles/19035702184.json` → **HTTP 404**（已删）
+   - `data/servers/ios3/exp-history.json` → 2 条快照，该 uid 出现 **0 次**
+   - `data/extra-names.json` → count **336**，无该 uid
+5. **昵称检索**（本地 `sys.path.insert(0,'apk'); import names_index as NI`，`NI._players = NI._parse(raw)`）：
+   `药乐` → `[]`、`19035702184` → `[]`、`永夜楼` → `[]`。
+6. **设备端**：`am force-stop` + 删 `files/lookup_cache.json` / `files/lookup-index.json` / `files/servers-remote.json` + 冷启动 →
+   logcat `[launcher] 发现新版本 v76` → `已切换到 v76`，`files/live/version.txt` = **76**；
+   输入 `19035702184` 点查询 → 卡片「无法查询 / 该角色已设置为不公开档案，换一个 UID 或昵称再试。」+ 状态条「该角色不支持查询」。
+
+### 40.7 版本
+
+| 版本 | 内容 | 包大小 / md5 | 提交 |
+|---|---|---|---|
+| v75 | 分区凭据同步固化 + 两种形状兼容 | 199,910 B / `ba8ee82cff92…` | `1ad93e71069b` |
+| **v76** | **隐私名单新增「药乐」（ios3，整条剔除）** | **199,934 B / `be0bce74f39f…`** | **`c9d28b6bcba2`** |
