@@ -1,7 +1,7 @@
 ﻿# 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-18 10:25（热更 v72：新增字段级隐藏机制 + 高手榜档案弹窗「经验快照」表）
+> 最后更新：2026-11-18 12:40（热更 v73：代码审查后修 6 处隐患 + preflight 增至 10 项）
 
 ---
 
@@ -11,7 +11,7 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v72** |
+| APK 热更版本 | **v73** |
 | 分区数 | **11**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为/**老马识途**/**野马分鬃**/**仙人指路**） |
 | 索引人数 | **1104**（含老马识途 100、野马分鬃 100、仙人指路 100） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
@@ -204,7 +204,7 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 
 | 改了什么 | 必须做什么 |
 |---|---|
-| 任何改动 | `python scripts/preflight.py`（**9 项**：语法/缓存戳/热更包/等级/names/隐私/字段级隐藏/经验快照窗口） |
+| 任何改动 | `python scripts/preflight.py`（**10 项**：语法/缓存戳/热更包/等级/names/隐私/隐私三副本/字段级隐藏/经验快照窗口） |
 | `assets/*.js` / `style.css` | **`python scripts/stamp_assets.py`**（否则 WebView 用缓存） |
 | `apk/*.py` | `python -m py_compile` → `scripts/pack_update.py "说明"` → 推 `code.zip`+`version.json` |
 | `config.json`（加分区） | 更新 gist + CI Secret `FZJH_SERVERS` |
@@ -282,5 +282,6 @@ gist id：`91b6a13fa2cc94584a6647ce57b260f9`
 | v70 | **新增第十区「野马分鬃」（iOS 二区，`channel=fzjh`）**：UID 8 前缀自动识别，定时 **8 点**单独一批（cron `0 0 * * *`），索引 1003 人 |
 | v71 | **新增第十一区「仙人指路」（iOS 三区，`channel=fzjh3`）**：UID 19 前缀 11 位自动识别，定时 **10 点**单独一批（cron `0 2 * * *`），索引 1104 人 |
 | v72 | **字段级隐藏**（`data/hidden-fields.json`）：人还在榜上只清指定字段，与 `hidden.json` 整条剔除是两套机制；魔渊 `19035589937`（ios3）藏掉 skills/prepared/newSkills。**档案弹窗新增「经验快照」表**（`FZJH.appendSnapshots` + `loadSnapshots` + `PF_SEQ`），列该玩家每次扫描的时间/经验/比上次。`preflight` 加第 9 项字段级隐藏检查 |
+| v73 | **代码审查后修 6 处隐患**：`fetch.py` 翻页中途报错整轮作废（不再写残缺榜单、不再级联删档案）；`fetch_profiles.py` 档案原子写 + 失败时不清理旧档；`publish.py` 路径规范化堵住敏感文件绕过（`..`/绝对路径）；`exp.html` 排序键 `exp`→`expN`（原来 100% 失效）；输入框 `'²'` 类字符不再闪退；候选弹窗返回键 + 最近查询隐私过滤。`preflight` 增至 **10 项**，隐私名单校验三份副本（json / app_ui / lookup_core）。包 = 199,011 B / md5 `2834024255a2…`，提交 `c9a994382b73` |
 | 数据 | 应用汇首百昵称补录；修经验快照混口径（删 `src=None`） |
 | 工具 | 2026-11-15：`preflight` / `publish` / `check_drift` / `plan_refresh`；CI 映射抽脚本、merge-exp 补 artifact、删重复 `api/index.py` |

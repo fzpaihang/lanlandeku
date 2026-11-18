@@ -1941,3 +1941,80 @@ if not (cfg.get("servers") or []):
 `preflight` **9 通过 / 1 警告 / 0 失败**；v72 = 198,313 B / md5 `66feea15025f32d03f93cd3d99ca77d7`。
 
 **至此三个 iOS 区全部接入。** 再遇到新的 iOS 客户端，先确认它的 `channel` 和 `account`，其余照 §35.3 的 7 处清单走。
+---
+
+## 三十七、v73：代码全量审查后的六处隐患修复
+
+### 37.1 起因
+
+用户要求「完整的审查一遍 apk 和网站的代码以及运行流程，有什么需要优化修改的地方、有什么 bug，告诉我有哪些隐患就行，我来决定是否修改以及修改方案，你不要擅自执行」。四个审查子代理分别跑 `apk/app_ui.py`+`lookup_core.py`+`names_index.py`、`apk/main.py` 等运行时、`scripts/`、`assets/*`+workflow，产出带 ID 的隐患清单（D1–D5 / F1–F5 / S1–S6 / R1–R8）。用户逐项决策后定下这一轮的范围：
+
+> 「图二的 bug D1-D4 可以修复，D5 不会出现的只有我会打包不用动。图三的 F1-F4 的 bug 是显示错误吗？不影响功能的话可以修，关于 f5 用户没有 Android 5/6 可以不动。S1 是特意设置，S2 是防止仓库数据太多做的措施没记错的话，可以把 5000 条扩充一下，s3-s6 不用管。R1-R8 不用动。图五里的只动一下 exp.html:55 的 class="tbl-exp" 死标记，其它的不动，我可能有些描述不明确的地方你不要贸然执行，一定多询问我，优化过程中保证已有功能不被破坏。」
+
+后来昵称归档扩容一项被用户撤回：「昵称归档相关的不动了，等真的快到 5000 上限时再调整」。最终只做 **D1–D4 + F1–F4 + tbl-exp 死标记**。
+
+### 37.2 六处改动
+
+| ID | 位置 | 病 | 改法 |
+|---|---|---|---|
+| **D1** | `scripts/fetch.py` 翻页循环 | `if d.get("errcode") != 0 or not rs: break`，只有「一条都没抓到」才 `return 1` → 第 2 页被限流就把 10–20 人当完整榜单写盘，`fetch_profiles.py` 的下榜清理接着删掉几十份档案 | 新增 `err_page` 记录 `(页号, errcode)`；循环后 `if err_page: print("!! 第 %d 页报错，本轮作废…"); return 1`，保留上一版文件 |
+| **D2** | `scripts/fetch_profiles.py` 下榜清理 | 无条件 `os.remove()` 不在本轮 targets 的档案 | 条件改为 `if "--only" not in args and "--limit" not in args and not fail:`；`elif fail:` 打印「本轮有 N 份抓取失败，跳过旧档案清理（避免误删）」 |
+| **D3** | `scripts/fetch_profiles.py` 写档案 | `io.open(p, "w")` 直接覆盖，写一半断电就是坏 JSON | `.tmp` + `flush` + `os.fsync` + `os.replace`，失败先删 tmp 再 raise |
+| **D4** | `scripts/publish.py` 敏感文件拦截 | `norm()` 只去开头 `./`，纯字符串前缀匹配 → **实测** `apk/../config.json`、`apk/./config.json`、`E:/workbuddy2/fzjh-rank/config.json`（`os.path.join(ROOT, abs)` 直接顶掉 ROOT）全部绕过 REFUSE | 新增 `resolve_repo_path(path)`：`isabs` 判断后拼 ROOT → `realpath` → `commonpath` 校验必须落在仓库内（不同盘符的 `ValueError` 也 `die`）→ 返回规范化相对路径；`--delete` 也过 `check_sensitive` |
+| **F1** | `exp.html` 排序键 | `data-sort="exp"` / `data-key="exp"`，但 `assets/exp.js:324` 的行对象字段是 **`expN`** → `var x = a[k]` 取到 `undefined`，`x === y` 恒成立，退化成按名次排；`aria-sort`/`aria-pressed` 照旧高亮，用户看到箭头却没反应 | `exp.html:49`/`:62` 的 `exp` 改成 `expN` |
+| **F2** | `apk/app_ui.py` `start()` | `if raw.isdigit(): uid = int(raw)` 未捕获异常 —— `'²'.isdigit()` 为 `True` 但 `int('²')` 抛 `ValueError`，主线程裸崩 | `try: uid = int(raw) / except ValueError: uid = None`，`None` 就走昵称分支 |
+| **F3** | `apk/app_ui.py` `_show_candidates()` | `_popup` 只在 `_pick` 与返回键分支里 `dismiss()`，**从不置 None**；返回键分支的判断是 `if self._popup is not None: dismiss(); self._popup = None; return True` —— 控件已关但标志还在，第一次按返回键被白吞 | 加 `_close_popup()` 统一 dismiss + 置 None；`self._popup.bind(on_dismiss=lambda *a: setattr(self, "_popup", None))` 兜住点击遮罩的 `auto_dismiss`；`_pick` 里也置 None |
+| **F4** | `apk/lookup_core.py` `recent_queries()` | 完全不过 `HIDDEN_UIDS`，名单变更后首页「最近查询」仍展示隐藏玩家的 UID + 昵称 | 新增模块级 `HIDDEN_UIDS_LOCAL`（与 `app_ui.py` 的 `HIDDEN_UIDS` 同值），`recent_queries()` 逐条 `continue` 过滤，并补 `if len(out) >= RECENT_MAX: break` |
+| — | `exp.html:55` | `class="tbl-exp"` 在 `style.css` / `*.js` 全仓零命中，纯死标记 | 删掉 `class` 属性，保留 `id="tbl"` |
+
+另外 `scripts/preflight.py` 抽了一个 `_hidden_ids_from(path, name)` 用 ast 读取 `NAME = set((...))`，`check_hidden()` 现在校验**三份副本**：`data/hidden.json` / `apk/app_ui.py` 的 `HIDDEN_UIDS` / `apk/lookup_core.py` 的 `HIDDEN_UIDS_LOCAL`。这样 F4 新加的副本不会被忘掉。
+
+ast 有个坑：值写成 `set((...))` 时节点是 `ast.Call`，直接 `ast.literal_eval(n.value)` 会抛 `ValueError('malformed node or string: <_ast.Call ...>')`，必须逐 key/value 遍历 `ast.Dict` 并用 `_val()` 处理 `set/frozenset/tuple/list` 包装。
+
+### 37.3 D4 的回归实测
+
+`publish.py --check` 逐个喂路径，8 例全部按预期：
+
+| 传入 | 结果 |
+|---|---|
+| `apk/../config.json` | 拒绝（`config.json`） |
+| `E:/workbuddy2/fzjh-rank/config.json` | 拒绝 |
+| `.keys/update.key` | 拒绝（`.keys/`） |
+| `apk/./config.json` | 拒绝（`apk/config.json`） |
+| `apk/gh.json` | 拒绝 |
+| `dist/x.apk` | 拒绝 |
+| `worker/.dev.vars` | 拒绝 |
+| `docs/接手必读.md` | 通过（「所有文件与远端一致」exit 0） |
+
+写这个函数时自己踩了一次：形参写成 `rel` 但函数体用 `path`，直接 `NameError: name 'path' is not defined`。
+
+### 37.4 F2 的验证
+
+`apk/app_ui.py` 的 `start()` 被抽出来单测：
+- `'²'` → 不再抛，走昵称分支
+- `'19035589937'` → `("begin", 19035589937)`
+- `'abc'` → 走昵称分支
+
+### 37.5 打包与发布
+
+- `stamp_assets.py` → 0 个页面需改（本轮没动 JS/CSS；`exp.html` 只改了属性值与 `class`，不参与 `?v=` 计算）
+- `pack_update.py "修：翻页中途失败整轮作废…"` → **v73 / 12 文件 / 194.3 KB / md5 `2834024255a28617fb2487bd84960b47` / size 199,011 / sig `881afb9e37f635a6…`**
+- `preflight.py` → **10 通过 / 1 警告 / 0 失败**（WARN 仍是云函数 staging 旧 `int()` 副本）
+- `publish.py` → 提交 **`c9a994382b73`**（9 文件，基于远端 `a7450e7364d7`）
+- 线上 curl 逐项确认：`version.json` = 73 / md5 对得上；`exp.html` 两处 `expN`、`tbl-exp` 零命中；`lookup_core.py:50` 有 `HIDDEN_UIDS_LOCAL`、`:334` 有过滤；`app_ui.py:2514` `_close_popup`、`:2522` `on_dismiss`、`:2556-2557` `except ValueError`；`fetch_profiles.py:375` `tmp = p + ".tmp"`、`:380` `os.fsync`、`:404` 跳过清理；`publish.py:124` `resolve_repo_path`、`:140`/`:142`/`:145` 三条「路径不在仓库内」；`fetch.py:553`/`:561`/`:587`/`:590` 的 `err_page`
+
+### 37.6 版本表
+
+| 版本 | md5 | 说明 |
+|---|---|---|
+| v73 | `2834024255a28617fb2487bd84960b47` | 代码审查后六处隐患修复（D1–D4 / F1–F4 / tbl-exp），preflight 增至 10 项 |
+
+### 37.7 本轮明确不做的事
+
+- **D5**：`pack_update.py` 非原子写 —— 只有用户本人打包，不会并发
+- **S1**：`names_index.py` 的 `CERT_NONE` —— 用户确认是特意设置的
+- **S2**：昵称归档 5000 上限 —— 用户说「等真的快到 5000 上限时再调整」，整个链路冻结
+- **S3–S6**：热更包验签放行 / 解压白名单 / 原子切换 / Issue 作者校验 —— 不改
+- **R1–R8**：preflight 不在 CI、plan_refresh 未知 cron 退化 all、merge_exp 的 ts 与 expBoard 语义、node_bin 写死路径等 —— 不改
+- **F5**：老 WebView 上 `URLSearchParams` / `fetch` 缺失导致整站 JS 挂 —— 用户没有 Android 5/6 设备
+- 图五其它轻微项（日均硬拼 `+`、`EXP_CACHE` 缓存失败、`build-apk.yml` 固定 cache key、三工作流 `git push` 未写 `origin HEAD:main` 等）—— 不动
