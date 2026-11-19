@@ -1,7 +1,7 @@
 # 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-19 12:52（网页文案：`lookup.html` 下载按钮包体 22.6→**23.6 MB**，与 release 资产 24,728,132 字节实际一致；提交 `5bed56da9b02`。上一条 11:05：校准：索引人数 955→**956**，与 `data/lookup-index.json` 实际 count 对齐；数据已对齐远端 `8f72d82`，清掉 4 个下榜残留档案。上一条 11-18 18:40，热更 v80：多昵称索引 `aliases`（改名后旧名照样搜得到）、昵称候选上限 8→20、iOS 三区榜单/档案/快照只跑前 50（索引 1104→956）。上一条 v79：榜单等级 `lv` 改为按实时经验反算（原始榜单值存 `lvBoard`），并去掉手动的「等级」排序——等级由经验唯一决定。另有 v78：人物等级反算改用游戏原式 `exp = 0.1×(lv+4)³`，按整数区间回代——11 区 715 条榜单样本 100% 命中、最大偏差 0 级，preflight 第 6 项因此从「99.0%」收紧到「<99% 即 FAIL」）
+> 最后更新：2026-11-19 15:50（**热更 v81：APK 收藏功能**——结果页底栏「收藏/已收藏」、查询页「我的收藏」卡（最多 50 人，点行填入、点「移除」删除），只存 uid/name/server/serverName/at 四字段到 `lookup_cache.json` 的 `favorites`，隐私名单拦截；**修经验快照污染**——`scripts/merge_exp.py:129` 的 `prev_map` 原来取 `snaps[-1]`，而 `scripts/fetch.py` 会先写一条 `src="board"` 的本轮榜单快照，导致未刷新者被回填成榜单旧值（taptap_4 11-18 12:50 那条 100 人里 65 人被污染、30 人经验倒退、11-21 当天 61 人增幅合计虚高 +1889 万），改成倒序取第一条 `src` 为 None 或 `profile` 的快照，并把那 65 个值里可从 11-17 快照回填的 61 个修正（另 4 个是 11-18 新进榜者，保留首个榜单值）；顺带清掉 5 个已下线但磁盘残留的墨羽惊鸿孤儿档案。包 = 202,552 B / md5 `f3b38d8fed4c…`，提交 `279e2360735d`。上一条 12:52（网页文案：`lookup.html` 下载按钮包体 22.6→**23.6 MB**，与 release 资产 24,728,132 字节实际一致；提交 `5bed56da9b02`。上一条 11:05：校准：索引人数 955→**956**，与 `data/lookup-index.json` 实际 count 对齐；数据已对齐远端 `8f72d82`，清掉 4 个下榜残留档案。上一条 11-18 18:40，热更 v80：多昵称索引 `aliases`（改名后旧名照样搜得到）、昵称候选上限 8→20、iOS 三区榜单/档案/快照只跑前 50（索引 1104→956）。上一条 v79：榜单等级 `lv` 改为按实时经验反算（原始榜单值存 `lvBoard`），并去掉手动的「等级」排序——等级由经验唯一决定。另有 v78：人物等级反算改用游戏原式 `exp = 0.1×(lv+4)³`，按整数区间回代——11 区 715 条榜单样本 100% 命中、最大偏差 0 级，preflight 第 6 项因此从「99.0%」收紧到「<99% 即 FAIL」）
 
 ---
 
@@ -11,7 +11,7 @@
 |---|---|
 | 仓库 | `fzpaihang/lanlandeku`（唯一分支 main） |
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
-| APK 热更版本 | **v80** |
+| APK 热更版本 | **v81** |
 | 分区数 | **11**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为/**老马识途**/**野马分鬃**/**仙人指路**） |
 | 索引人数 | **956**（iOS 三区自 v80 起各 50） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
@@ -279,6 +279,7 @@ Secret 写成裸数组 → `build-apk.yml` 注入步骤抛 `AttributeError: 'lis
 
 | 版本 | 内容 |
 |---|---|
+| v81 | **APK 收藏功能 + 修经验快照污染**：<br>`apk/lookup_core.py` 新增 `FAV_MAX = 50` / `favorites()` / `is_favorite()` / `add_favorite()` / `remove_favorite()` / `toggle_favorite()` / `refresh_favorite()`，存 `load_cache()["favorites"]`，每条 `{uid,name,server,serverName,at}`——只存四字段，不存整份 profile（一份带 skills/equips 有几十 KB）；`HIDDEN_UIDS_LOCAL` 内的 uid 加不进也不显示。<br>`apk/app_ui.py`：结果页底栏三控件（收藏/已收藏 · 导出 · 再查一个），新增 `_is_fav()` / `_toggle_fav()` / `_fav_card()` / `_drop_fav()`；`_set_foot(on, exportable=None)` 的默认值从 `True` 改成 `None` 并在函数内按 `p.get("_board")` 现算，因为 `_relayout()` 旋转会重调 `_set_foot(True)`；查询页在最近查询卡与入口卡之间插「我的收藏」卡（为空则整张卡不出现）；`_done()` 里 `L.refresh_favorite(prof)` 让改名后收藏仍显示新昵称。榜单兜底页数据残缺，不给收藏与导出。<br>**快照污染**：`scripts/merge_exp.py:129` 的 `prev_map = (snaps[-1].get("exp") or {}) if snaps else {}` → 倒序取第一条 `src is None or src == "profile"` 的快照。起因是 `scripts/fetch.py:275-325 update_history()` 本轮先写入一条 `src="board"` 的快照，`snaps[-1]` 于是是榜单旧值，`elif uid_s in prev_map` 把未刷新者回填成榜单里的浮点经验。实测污染 `data/servers/taptap_4/exp-history.json` 的 2026-11-18 12:50 那条（`fresh=35` / 100 人，65 个浮点值且 65/65 等于旧榜 `expBoard`、`expSrc` 全为 `board`）；影响时点精确到 **2026-11-21 当天**（`WINDOW_DAYS=3` 基准正好命中该条），届时 61 人增幅失真、合计 +18,890,942；11-22 起窗口滚过自愈。已回填 61 个值并取整，另 4 人（沐白歌 22039060705 / 久恒 22039039979 / 念卿一梦 22039044797 / 心随云往 22039060095）11-17 榜与快照均无记录，是新进榜者，保留首个榜单值。修后：非整数 0 / 经验倒退 0 / 11-21 偏差 0。<br>另删 5 个磁盘残留孤儿档案（`taptap_4/profiles/` 下 22039002682 / 22039026462 / 22039028414 / 22039030225 / 22039061175，HEAD `3752754` 已删但本地未清）。`preflight` 10 通过 / 2 警告 / 0 失败。包 = 202,552 B / md5 `f3b38d8fed4c…`，提交 `279e2360735d` |
 | 文案 | **2026-11-19 网页文案校准**：`lookup.html:65` 下载按钮「下载 App（22.6 MB）」→ **23.6 MB**。实测 release `apk-v1.0` 的 `fzjh-lookup-v1.0.apk` = 24,728,132 字节（GitHub 资产区显示 23.6 MB，MiB 口径），旧文案差了约 1 MB。纯 HTML 文本改动，不涉及 JS/CSS，无需 `stamp_assets.py`；`preflight` 11 通过 / 1 警告 / 0 失败；`publish.py` 提交 `5bed56da9b02`，线上 `lookup.html` 已生效 |
 | v46 | 蓝色水滴残影（Kivy `use_handles=False`） |
 | v47 | 11 项界面/数据问题 |
