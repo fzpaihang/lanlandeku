@@ -121,7 +121,7 @@
       a.textContent = r.name || '—';
       top.appendChild(a);
       if (isMe) top.appendChild(h('span', 'badge-me', '我'));
-      if (r._shadow) top.appendChild(h('span', 'badge-me', '影子'));
+      if (r._shadow) top.appendChild(h('span', 'badge-me', '隐藏'));
       if (r.menpai) top.appendChild(h('span', 'school', r.menpai));
       body.appendChild(top);
 
@@ -213,7 +213,7 @@
       a.textContent = r.name || '—';
       nm.appendChild(a);
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
-      if (r._shadow) nm.appendChild(h('span', 'badge-me', '影子'));
+      if (r._shadow) nm.appendChild(h('span', 'badge-me', '隐藏'));
       if (r.menpai) nm.appendChild(h('span', 'school-inline', r.menpai));
       wrap.appendChild(nm);
       tdName.appendChild(wrap);
@@ -255,10 +255,20 @@
     el.count.hidden = true;
   }
 
+  /* 是不是口令哈希（明文一律不算） */
+  function isHashParam(v) {
+    return !!(window.FZJH && FZJH.isShadowParam && FZJH.isShadowParam(v));
+  }
+
   function boot() {
     // 影子模式：me 里装的是口令，不再当 uid 高亮
     if (window.FZJH && FZJH.shadowMode) state.me = '';
     state.shadowKey = (window.FZJH && FZJH.shadowKey) || '';
+    // 地址栏里是明文口令时，站内链接改带 k=<hash>，别把明文继续传下去；
+    // me=<uid>（APK 的「高亮我自己」）必须原样保留
+    if (state.shadowKey && state.meRaw && !isHashParam(state.meRaw) && !/^[0-9]{1,12}$/.test(state.meRaw)) {
+      state.meRaw = '';
+    }
     Promise.all([
       fetch(boardUrl(), { cache: 'no-cache' }).then(function (r) {
         if (!r.ok) throw new Error('榜单 HTTP ' + r.status);

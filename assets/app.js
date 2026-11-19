@@ -150,7 +150,7 @@
       btn.addEventListener('click', function () { openProfile(r); });
       top.appendChild(btn);
       if (isMe) top.appendChild(h('span', 'badge-me', '我'));
-      if (r._shadow) top.appendChild(h('span', 'badge-me', '影子'));
+      if (r._shadow) top.appendChild(h('span', 'badge-me', '隐藏'));
       if (r.inheritCount !== null && r.inheritCount !== undefined) {
         var z = Number(r.inheritCount) || 0;
         top.appendChild(h('span', 'zhuan' + (z >= 4 ? ' hi' : ''), z + '转'));
@@ -227,7 +227,7 @@
       btn.addEventListener('click', function () { openProfile(r); });
       nm.appendChild(btn);
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
-      if (r._shadow) nm.appendChild(h('span', 'badge-me', '影子'));
+      if (r._shadow) nm.appendChild(h('span', 'badge-me', '隐藏'));
       if (r.menpai) nm.appendChild(h('span', 'school-inline', r.menpai));
       wrap.appendChild(nm);
       // 侠名下方只保留转数；uid 不展示（详情弹窗里有），避免 11 位 uid 把列撑得不整齐
@@ -578,6 +578,11 @@
     }
   });
 
+  /* 是不是口令哈希（明文一律不算） */
+  function isHashParam(v) {
+    return !!(window.FZJH && FZJH.isShadowParam && FZJH.isShadowParam(v));
+  }
+
   /* ---------- 启动 ---------- */
 
   // 隐私名单（data/hidden.json）已由数据层在生成榜单 / 快照 / 档案时剔除，
@@ -586,6 +591,11 @@
     // 影子模式：me 里装的是口令（或 k 里带口令），此时不按 uid 高亮任何人
     if (window.FZJH && FZJH.shadowMode) state.me = '';
     state.shadowKey = (window.FZJH && FZJH.shadowKey) || '';
+    // 地址栏里是明文口令时，站内链接改带 k=<hash>，别把明文继续传下去；
+    // me=<uid>（APK 的「高亮我自己」）必须原样保留
+    if (state.shadowKey && state.meRaw && !isHashParam(state.meRaw) && !/^[0-9]{1,12}$/.test(state.meRaw)) {
+      state.meRaw = '';
+    }
     loadBoard();
   }
 
@@ -607,7 +617,7 @@
         // 只有真的插进了影子行才标注，否则等于给普通榜单挂了个唬人的标签
         var shadowOn = !!(shadowEntry && (shadowEntry.rows || []).length);
         el.updated.textContent = fmtUpdated(d.updatedTs, d.updatedAt) +
-          (shadowOn ? ' · 影子榜' : '');
+          (shadowOn ? ' · 隐藏榜' : '');
         el.updated.title = '数据时间：' + (d.updatedAt || '未知');
         buildChips();
         buildZhuanChips();
