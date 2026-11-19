@@ -1,16 +1,15 @@
 name: 重建昵称索引
 
 # data/lookup-index.json 是「昵称 → uid」的静态对照表，供 APK 本地模糊搜索。
-# 它只在下面这些情况才需要变：
-#   有人进榜 / 掉榜、改名、换门派、等级变化、隐私名单（hidden.json）变化、
-#   APK 回写了新昵称（data/extra-names.json）
-# 每天跟着抓取重建没有意义（榜单每次都会动，索引里那行也跟着动，纯制造提交），
-# 所以不放在 refresh.yml 里，改成**事件驱动 + 每周兜底**：
-#   - APK 查到一个没收录的角色 → archive_local.py 写 data/extra-names.json
-#     → 这里立刻重建索引，其他所有人下次刷新就能按昵称搜到
-#   - 每周一 04:00 兜一次底（榜单变动、改 hidden.json、补 5 转表）
-#   - 随时可手动触发
-# 加新分区、改 hidden.json 之后，也可以手动跑一次立刻生效。
+# 它需要变的情况：有人进榜 / 掉榜、改名、换门派、等级变化、
+# 隐私名单（hidden.json）变化、APK 回写了新昵称（data/extra-names.json）。
+# 现在有**三条**重建入口：
+#   1. refresh.yml 每轮抓完自动重建（「重建昵称索引」步骤）——主力路径，
+#      保证新上榜的人下一轮就能按昵称搜到。
+#   2. 本文件事件驱动 —— APK 查到一个没收录的角色 → archive_local.py 写
+#      data/extra-names.json → 这里立刻重建索引，所有人下次刷新就能搜到。
+#   3. 本文件每周一 04:00 兜底一次（防止上面两条都漏了）。
+# 随时可手动触发；加新分区、改 hidden.json 之后也可以手动跑一次立刻生效。
 on:
   push:
     branches: [main]

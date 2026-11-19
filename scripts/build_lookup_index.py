@@ -12,9 +12,12 @@
          APK 侧合并进搜索池，改名后按旧昵称一样能搜到人。
 隐私：hidden.json 里的玩家在生成榜单时已被剔除，这里再挡一次（写进 hidden 字段）。
 
-**多久跑一次**：这份索引是「昵称 → uid」的静态对照表，不需要每天重建。
-它由 .github/workflows/lookup-index.yml 每周跑一次，也可随时手动触发。
-下面这些情况**必须手动跑一次**，否则改动不会生效：
+**多久跑一次**：
+  1. 每轮抓取之后 —— .github/workflows/refresh.yml 的「重建昵称索引」步骤会自动跑，
+     所以刚上榜的人下一轮就能按昵称搜到，不用等一周。
+  2. 事件驱动 —— APK 回写 data/extra-names.json 时 lookup-index.yml 立刻重建。
+  3. 每周一 04:00 兜底 —— 同一份 lookup-index.yml schedule。
+本地改完数据想立刻生效可以直接跑一次；下面这些情况**必须手动跑一次**：
   - 新增分区（data/servers/index.json 多了一条）
   - 改 data/hidden.json（隐私名单要进 hidden 字段，否则仍能被昵称搜到）
   - 手工补了 data/cangsong-5zhuan.json

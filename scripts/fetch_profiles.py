@@ -27,6 +27,7 @@ from lv_formula import lv_from_exp  # noqa: E402  人物等级反算（纯计算
 
 SLEEP = 0.7
 NEW_DAYS = 30          # 「近期新增」保留天数
+KEEP_DAYS = 30         # 掉榜档案保留天数：超期没再上榜才删（回归后仍可查）
 
 SLOT_CN = {
     "quanjiao1": "拳脚一", "quanjiao2": "拳脚二", "neigong": "内功",
@@ -214,6 +215,39 @@ def apply_field_hide(prof, hide):
     return prof
 
 
+def prune_profiles(out_dir, targets, now=None):
+    """清理「长期没再上榜」的旧档案，返回 (删除数, 保留数)。
+
+    - 还在本轮目标里的一律不动。
+    - 掉榜但 updatedTs 在 KEEP_DAYS 天内的先留着：他可能只是暂时掉出 100 名，
+      回来时档案还在，配合 exp-history 里延续的经验值（merge_exp.py「继承掉榜」），
+      就能正常看到两次经验变化、也能点开武学/装备详情。
+    - 读不到 updatedTs 的保守保留（宁可多留一份，也不要误删）。
+    """
+    now = time.time() if now is None else now
+    deadline = now - KEEP_DAYS * 86400
+    valid = set(str(u) for u in targets)
+    removed = kept = 0
+    for fn in os.listdir(out_dir):
+        if not fn.endswith(".json") or fn[:-5] in valid:
+            continue
+        fp = os.path.join(out_dir, fn)
+        try:
+            with io.open(fp, "r", encoding="utf-8") as f:
+                ts = int((json.load(f) or {}).get("updatedTs") or 0)
+        except (OSError, ValueError, TypeError):
+            ts = 0
+        if not ts or ts >= deadline:
+            kept += 1
+            continue
+        try:
+            os.remove(fp)
+            removed += 1
+        except OSError:
+            pass
+    return removed, kept
+
+
 def fetch_server(srv, names, args):
     """抓单个服务器的玩家档案，写到 data/servers/<key>/profiles/"""
     cfg = F.server_cfg(srv)
@@ -389,19 +423,13 @@ def fetch_server(srv, names, args):
             raise
         written += 1
 
-    # 清掉已下榜玩家的旧文件：只删「本轮目标之外」的，抓取失败的保留旧版
-    removed = 0
+    removed = kept_dropped = 0
     if "--only" not in args and "--limit" not in args and not fail:
         # 只有本轮 100% 抓成功才敢清理。否则一旦上游漏抓（或接口限流少给几页），
         # 这里会把没抓到的人当成「已下榜」整批删档 —— 2026-11-15 就这么删过 49 份。
-        valid = set(str(u) for u in targets)
-        for fn in os.listdir(out_dir):
-            if fn.endswith(".json") and fn[:-5] not in valid:
-                try:
-                    os.remove(os.path.join(out_dir, fn))
-                    removed += 1
-                except OSError:
-                    pass
+        removed, kept_dropped = prune_profiles(out_dir, targets)
+        if kept_dropped:
+            print("      掉榜未满 %d 天的档案保留 %d 份（等回归后仍可查）" % (KEEP_DAYS, kept_dropped))
     elif fail:
         print("      本轮有 %d 份抓取失败，跳过旧档案清理（避免误删）" % len(fail))
 

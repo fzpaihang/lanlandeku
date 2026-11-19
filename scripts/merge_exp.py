@@ -149,6 +149,22 @@ def merge_server(key, verbose=True):
         elif uid_s in prev_map:
             exp_map[uid_s] = prev_map[uid_s]
 
+    # 掉榜的人也要继续留在快照里，沿用上一轮的值。
+    # 否则他一掉榜就在后续每一条快照里消失：等他重新上榜时，前端取 3 天前基准
+    # （assets/exp.js:309）拿不到这个 uid，只能显示「—」，看不到两次经验变化。
+    # 这里只做「继承」，不参与 fresh 计数，也不会让没上榜的人凭空多出经验。
+    # 继承跟着档案走：fetch_profiles.py 会把掉榜超过 KEEP_DAYS 天的档案删掉，
+    # 档案没了就不再继承，快照体积自然收敛，不会无限增长。
+    try:
+        have_prof = set(fn[:-5] for fn in os.listdir(prof_dir) if fn.endswith(".json"))
+    except OSError:
+        have_prof = set()
+    carried = 0
+    for uid_s, v in prev_map.items():
+        if uid_s not in exp_map and (not have_prof or uid_s in have_prof):
+            exp_map[uid_s] = v
+            carried += 1
+
     entry = {
         "ts": board_ts or int(time.time()),
         "date": bj_date(board_ts or time.time()),
@@ -169,8 +185,8 @@ def merge_server(key, verbose=True):
 
     if verbose:
         pct = (max_delta / 1e8) if max_delta else 0
-        print("  %-9s %3d 人 | 用档案 %3d | 保留榜单 %3d | 最大差 %.0f 万（%s）| 等级校正 %d 人（最多 %d 级）"
-              % (key, len(rows), used, kept, max_delta / 1e4, max_who, lv_changed, lv_shift))
+        print("  %-9s %3d 人 | 用档案 %3d | 保留榜单 %3d | 继承掉榜 %3d | 最大差 %.0f 万（%s）| 等级校正 %d 人（最多 %d 级）"
+              % (key, len(rows), used, kept, carried, max_delta / 1e4, max_who, lv_changed, lv_shift))
         if pct:
             pass
     return {"key": key, "total": len(rows), "used": used, "kept": kept}

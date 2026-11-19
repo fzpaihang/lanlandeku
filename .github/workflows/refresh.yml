@@ -1,4 +1,4 @@
-﻿name: 刷新高手榜
+name: 刷新高手榜
 
 # 北京时间 = UTC+8，每个分区一天只跑一次全量，时间错开
 #   0 22 * * *  → 次日 06:00  苍松迎客（taptap）
@@ -11,7 +11,7 @@
 #   0 0 * * *   → 当日 08:00  野马分鬃（ios2）
 #   0 2 * * *   → 当日 10:00  仙人指路（ios3）
 # 单区全量约 5–8 分钟，各任务互不重叠，也避免连续请求触发限流。
-# 昵称索引（data/lookup-index.json）不在这条链路里重建，见 lookup-index.yml。
+# 每轮抓完就重建昵称索引（data/lookup-index.json），保证刚上榜的人立刻能按昵称搜到。
 on:
   schedule:
     - cron: '0 22 * * *'   # 06:00 苍松迎客
@@ -148,10 +148,12 @@ jobs:
           if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/merge_exp.py
           else python scripts/merge_exp.py --server "$T"; fi
 
-      # 昵称索引（data/lookup-index.json）**不在这里重建**：
-      # 它是「昵称 → uid」的静态对照表，只有进榜/掉榜、改名、隐私名单变化时才需要变。
-      # 每天跟着抓取重建只会让那一行随榜单抖动，制造无意义提交。
-      # 现在由 .github/workflows/lookup-index.yml 每周跑一次，也可随时手动触发。
+      - name: 重建昵称索引
+        # 每轮抓完立刻重建：新上榜的人下一轮就能按昵称搜到，不用等一周。
+        # 索引里的 updatedAt 每轮都会变，会跟着数据提交一起走，不需要单独的提交步骤。
+        # 事件驱动（extra-names.json 回写）与每周兜底仍由 lookup-index.yml 负责。
+        if: (github.event_name == 'schedule') || (inputs.mode == 'full')
+        run: python scripts/build_lookup_index.py
 
       - name: 提交数据
         env:
