@@ -2816,6 +2816,13 @@ class PlayerLookup(App):
                 pass
             if reason == "timeout":
                 self._fail("查询超时", "网络较慢或服务繁忙，稍后再试")
+            elif reason == "busy":
+                # 游戏接口限流（20616）。以前这种情况会一路落到「该分区未找到」，
+                # 用户以为选错区，反复换分区重试，越试越被限流。
+                # 别写具体秒数：失败那次也算进 QUERY_COOLDOWN（30 秒），
+                # 说「10 秒后重试」会和紧接着的「操作太快了」自相矛盾。
+                self._fail("请求繁忙，请稍后再试",
+                           "游戏接口限流（同一时间查的人太多），过一会儿再查就行")
             elif reason == "net":
                 self._fail("网络不可用", "检查一下网络连接；服务限流时也会这样")
             elif server == "auto":

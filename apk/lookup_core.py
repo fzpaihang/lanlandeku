@@ -638,8 +638,21 @@ _LAST = {"reason": "unknown"}
 
 
 def last_reason():
-    """上一次 lookup 的失败原因：ok / notfound / net / timeout / config。"""
+    """上一次 lookup 的结果：ok / notfound / busy / net / timeout / unknown。
+
+    notfound 是「服务端明确回没有这个角色」，busy 是「被限流（20616）」，
+    net 是「连不上/握手失败」。界面按这个分别给提示，别混成一句。
+    """
     return _LAST.get("reason", "unknown")
+
+
+def _reason_of(ec):
+    """errcode → 失败原因。0 = 服务端明确说没这个人；20616 = 被限流。"""
+    if ec == 0:
+        return "notfound"
+    if ec == 20616:
+        return "busy"
+    return "net"
 
 
 def try_one(srv, uid, hotver):
@@ -848,6 +861,7 @@ def board_profile(uid, server=None, cache=None):
 
 def _finish(uid, srv, data, cache, hotver, note):
     """命中后：写缓存 → 用榜单补门派/福缘/排名 → 组装展示结构。"""
+    _LAST["reason"] = "ok"
     cache["lastServer"] = srv["key"]
     cache["hotver"] = hotver
     save_cache(cache)
@@ -882,6 +896,8 @@ def _redetect_hotver(srv, hotver):
 
 def _lookup_single(uid, srv, cache, hotver, note, deadline=None):
     """只查指定分区。20616 限流 / 网络异常做退避重试，必要时校正版本号。"""
+    last_ec = -1
+    all_busy = True
     for attempt in range(3):
         if deadline and time.time() > deadline:
             _LAST["reason"] = "timeout"
@@ -892,7 +908,11 @@ def _lookup_single(uid, srv, cache, hotver, note, deadline=None):
         if data:
             return _finish(uid, srv, data, cache, hotver, note)
         if ec == 0:
-            return None                      # 服务端明确回「没有这个角色」
+            _LAST["reason"] = "notfound"     # 服务端明确回「没有这个角色」
+            return None
+        last_ec = ec
+        if ec != 20616:
+            all_busy = False
         if ec in (20616, -1) and attempt < 2:
             time.sleep(1.2 * (attempt + 1))  # 限流冷却，避免继续撞墙
             continue
@@ -901,15 +921,23 @@ def _lookup_single(uid, srv, cache, hotver, note, deadline=None):
     if deadline and time.time() > deadline:
         _LAST["reason"] = "timeout"
         return None
+    # 先落好原因：下面探版本号可能失败/超时，不能把真实原因弄丢。
+    # 以前这里什么都不写，于是「被限流」一路走到界面就变成了「该分区未找到」。
+    _LAST["reason"] = _reason_of(last_ec)
+    if all_busy:
+        # 全程只被限流：重探版本号只会再撞几次墙（探测本身要发好几个请求），
+        # 也不会探出任何东西，直接返回「请求繁忙」。
+        return None
     hv = _redetect_hotver(srv, hotver)
     if hv and hv != hotver:
         hotver = hv
         cache["hotver"] = hv
         save_cache(cache)
         note("版本号校正为 %s，重试…" % hv)
-        data, _ec = try_one(srv, uid, hv)
+        data, ec = try_one(srv, uid, hv)
         if data:
             return _finish(uid, srv, data, cache, hotver, note)
+        _LAST["reason"] = _reason_of(ec)
     return None
 
 
@@ -994,6 +1022,9 @@ def _lookup_uncached(uid, progress=None, cfg=None, cache=None, server=None):
     cache = cache if cache is not None else load_cache()
     servers = cfg.get("servers") or []
     hotver = int(cache.get("hotver") or cfg.get("hotver") or 18464)
+    # 每次查询都从干净状态开始：任何失败分支写完原因后直接返回，
+    # 绝不会把上一次查询的原因（可能是 ok）留给界面读。
+    _LAST["reason"] = "unknown"
     uid = int(uid)
     # 总预算必须在这里就位：单分区分支在任何循环之前就直接 return 了
     deadline = time.time() + LOOKUP_BUDGET
@@ -1022,7 +1053,11 @@ def _lookup_uncached(uid, progress=None, cfg=None, cache=None, server=None):
                 cache["lastServer"] = exact_key
                 save_cache(cache)
                 return data
-            # 规则命中的区查不到：可能是规则外的新渠道，或角色已删。
+            # 限流/超时不是「这个区没有他」，继续轮询只会继续撞墙，且会把
+            # 真实原因（busy）覆盖成 notfound —— 必须原样返回。
+            if _LAST.get("reason") in ("busy", "timeout"):
+                return None
+            # 规则命中的区明确回「查无此人」：可能是规则外的新渠道，或角色已删。
             # 不直接放弃，落回轮询（跳过刚试过的这个区）。
             note("该区未找到，继续尝试其他分区…")
 
@@ -1031,24 +1066,36 @@ def _lookup_uncached(uid, progress=None, cfg=None, cache=None, server=None):
         order = [s for s in order if s["key"] != exact_key]
     hit = None
     clean_miss = True   # 所有分区都明确回「没有这个角色」（errcode=0 但 data 空）
-    _LAST["reason"] = "unknown"
+    saw_busy = False    # 至少有一个分区是被限流（20616），不是查无此人
+    other_err = False    # 除限流外还有别的错误（可能是版本号过期）
 
     # 第一轮：用缓存的热更版本号快速试
     for i, srv in enumerate(order, 1):
         if time.time() > deadline:
             _LAST["reason"] = "timeout"
-            break
+            return None
         note("正在尝试 %d/%d · %s …" % (i, len(order), srv["name"]))
         data, ec = try_one(srv, uid, hotver)
         if data:
             hit = (srv, data)
             break
+        if ec == 20616:
+            saw_busy = True
+        if ec not in (0, 20616):
+            other_err = True
         if ec not in (0,):
             clean_miss = False
 
     # 所有分区都干净地回「查无此人」→ 不必浪费时间去探测版本号
     if not hit and clean_miss:
         _LAST["reason"] = "notfound"
+        return None
+
+    # 失败全部是限流时，重探版本号只是再撞几次墙（探测本身要发一串请求），
+    # 也探不出任何东西，直接按「请求繁忙」返回。
+    # 混着别的错误码就不跳：那可能是版本号过期，第二轮还有救。
+    if not hit and saw_busy and not other_err:
+        _LAST["reason"] = "busy"
         return None
 
     # 第二轮：可能游戏刚更新，重新探测版本号
@@ -1075,7 +1122,6 @@ def _lookup_uncached(uid, progress=None, cfg=None, cache=None, server=None):
             _LAST["reason"] = "net"
         return None
     srv, data = hit
-    _LAST["reason"] = "ok"
     return _finish(uid, srv, data, cache, hotver, note)
 
 

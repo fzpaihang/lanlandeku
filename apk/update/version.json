@@ -1,8 +1,8 @@
 {
-  "version": 81,
-  "md5": "f3b38d8fed4c0ec8aa665815fb8cba9f",
-  "size": 202552,
-  "notes": "App：新增收藏功能（结果页底栏收藏/已收藏，查询页我的收藏卡）",
-  "builtAt": "2026-11-19 15:23:10",
-  "sig": "64f2fc330e2be120c00a08e65e1841553a3fe50be988c86d6781f562452f1511e7be686f1fd8dee41943de5a503d1dcb09a2eebe1a5501a3f6a5a8cf5902190a"
+  "version": 83,
+  "md5": "13d821a6a6ffdf3707386b949a583b27",
+  "size": 203491,
+  "notes": "修：请求繁忙（接口限流）不再误报为「该分区未找到」，改为提示请稍后再试",
+  "builtAt": "2026-11-19 18:58:35",
+  "sig": "c27005e2859d9a33282d53c50cbc848632beda85f7c35ed102da3a1aed66327d12d637c76d2acafc0d7775102c52325e6dced14a00212ecb9aff350a8c16dd03"
 }
