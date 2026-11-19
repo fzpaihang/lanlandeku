@@ -12,7 +12,9 @@
     zhuan: '',        // 转数筛选：'' = 全部；墨羽惊鸿这类混合分区才有意义
     hasPrev: false,
     chipsAll: false,   // 门派筛选是否展开全部
-    me: new URLSearchParams(location.search).get('me') || ''
+    me: new URLSearchParams(location.search).get('me') || '',
+    meRaw: new URLSearchParams(location.search).get('me') || '',   // me 原始值：影子模式下 me 里装的是口令
+    shadowKey: ''      // 命中的影子口令，站内跳转要透传
   };
 
   var el = {
@@ -131,7 +133,7 @@
       if (state.hasPrev && r.delta !== null && r.delta !== undefined && r.delta !== 0) {
         left.appendChild(h('span', 'delta ' + (r.delta > 0 ? 'up' : 'down'),
           (r.delta > 0 ? '▲' : '▼') + Math.abs(r.delta)));
-      } else if (state.hasPrev && r.delta === null) {
+      } else if (state.hasPrev && !r._shadow && r.delta === null) {
         left.appendChild(h('span', 'delta new', 'NEW'));
       }
       card.appendChild(left);
@@ -148,6 +150,7 @@
       btn.addEventListener('click', function () { openProfile(r); });
       top.appendChild(btn);
       if (isMe) top.appendChild(h('span', 'badge-me', '我'));
+      if (r._shadow) top.appendChild(h('span', 'badge-me', '影子'));
       if (r.inheritCount !== null && r.inheritCount !== undefined) {
         var z = Number(r.inheritCount) || 0;
         top.appendChild(h('span', 'zhuan' + (z >= 4 ? ' hi' : ''), z + '转'));
@@ -207,7 +210,7 @@
       if (state.hasPrev && r.delta !== null && r.delta !== undefined && r.delta !== 0) {
         tdRank.appendChild(h('span', 'delta ' + (r.delta > 0 ? 'up' : 'down'),
           (r.delta > 0 ? '▲' : '▼') + Math.abs(r.delta)));
-      } else if (state.hasPrev && r.delta === null) {
+      } else if (state.hasPrev && !r._shadow && r.delta === null) {
         tdRank.appendChild(h('span', 'delta new', 'NEW'));
       }
       tr.appendChild(tdRank);
@@ -224,6 +227,7 @@
       btn.addEventListener('click', function () { openProfile(r); });
       nm.appendChild(btn);
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
+      if (r._shadow) nm.appendChild(h('span', 'badge-me', '影子'));
       if (r.menpai) nm.appendChild(h('span', 'school-inline', r.menpai));
       wrap.appendChild(nm);
       // 侠名下方只保留转数；uid 不展示（详情弹窗里有），避免 11 位 uid 把列撑得不整齐
@@ -449,7 +453,10 @@
   function urlFor(uid) {
     var q = [];
     if (window.FZJH && FZJH.key) q.push('s=' + encodeURIComponent(FZJH.key));
-    if (state.me) q.push('me=' + encodeURIComponent(state.me));
+    // 用 meRaw（不是 state.me）：影子模式下 me 里装的是口令，丢了链接就回不到影子榜
+    if (state.meRaw) q.push('me=' + encodeURIComponent(state.meRaw));
+    // 口令本来就挂在 me 上时不再重复带 k
+    if (state.shadowKey && state.shadowKey !== state.meRaw) q.push('k=' + encodeURIComponent(state.shadowKey));
     if (uid) q.push('uid=' + encodeURIComponent(uid));
     return location.pathname + (q.length ? '?' + q.join('&') : '');
   }
@@ -576,6 +583,9 @@
   // 隐私名单（data/hidden.json）已由数据层在生成榜单 / 快照 / 档案时剔除，
   // 前端不再重复过滤，省掉一次请求和一套死分支。
   function boot() {
+    // 影子模式：me 里装的是口令（或 k 里带口令），此时不按 uid 高亮任何人
+    if (window.FZJH && FZJH.shadowMode) state.me = '';
+    state.shadowKey = (window.FZJH && FZJH.shadowKey) || '';
     loadBoard();
   }
 
@@ -586,10 +596,18 @@
         return r.json();
       })
       .then(function (d) {
-        state.rows = (d.rows || []).slice();
+        var rows = (d.rows || []).slice();
+        // 影子榜：按原始名次把自己插回去（只有口令命中才走这里，其他访客完全无感）
+        var shadowEntry = (window.FZJH && FZJH.shadowMode && FZJH.shadow && FZJH.shadow.servers)
+          ? FZJH.shadow.servers[FZJH.key] : null;
+        if (shadowEntry) rows = FZJH.mergeShadow(rows, shadowEntry);
+        state.rows = rows;
         state.hasPrev = !!d.hasPrev;
         state.rows.forEach(function (r) { r.rank = r.rank || 0; });
-        el.updated.textContent = fmtUpdated(d.updatedTs, d.updatedAt);
+        // 只有真的插进了影子行才标注，否则等于给普通榜单挂了个唬人的标签
+        var shadowOn = !!(shadowEntry && (shadowEntry.rows || []).length);
+        el.updated.textContent = fmtUpdated(d.updatedTs, d.updatedAt) +
+          (shadowOn ? ' · 影子榜' : '');
         el.updated.title = '数据时间：' + (d.updatedAt || '未知');
         buildChips();
         buildZhuanChips();

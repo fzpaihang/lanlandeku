@@ -511,6 +511,93 @@ def check_hidden_fields():
         fail("字段级隐藏", "解析 lookup_core.py 失败：%r" % (e,))
 
 
+# ------------------------------------------------ 6.2 影子榜一致性
+def check_shadow():
+    """影子榜三处必须对得上：
+
+    1. data/shadow.json 里的分区 / uid 必须都来自 data/hidden.json 里
+       带 "shadow": true 的玩家（否则就是有人被意外放出到影子榜里）；
+    2. 网页 assets/servers.js 的 SHADOW_HASH 与 apk/lookup_core.py 的
+       SHADOW_HASH 必须是同一个值（两处各存一份 sha256，改一处忘另一处
+       就会出现「网页能进影子榜、APK 里进不去」这种半死状态）；
+    3. 只存摘要不存明文：两个文件里都不许出现口令明文。
+    """
+    hp = os.path.join(ROOT, "data", "hidden.json")
+    try:
+        d = json.loads(read(hp))
+    except Exception as e:
+        fail("影子榜", "data/hidden.json 读取失败：%r" % (e,))
+        return
+    shadow = {}
+    for x in (d.get("players") or []):
+        if isinstance(x, dict) and x.get("shadow"):
+            uid = str(x.get("uid") or "").strip()
+            if uid:
+                shadow.setdefault(uid, set())
+                if x.get("server"):
+                    shadow[uid].add(str(x["server"]))
+
+    # 1. shadow.json 不许出现名单外的人
+    sp = os.path.join(ROOT, "data", "shadow.json")
+    if os.path.exists(sp):
+        try:
+            sd = json.loads(read(sp))
+            servers = (sd.get("servers") or {})
+            bad = []
+            for key, ent in servers.items():
+                for r in ((ent or {}).get("rows") or []):
+                    uid = str(r.get("userid") or "")
+                    okk = uid in shadow and (not shadow[uid] or key in shadow[uid])
+                    if not okk:
+                        bad.append("%s/%s" % (key, uid))
+            if bad:
+                fail("影子榜", "data/shadow.json 有名单外的人：%s" % "、".join(bad[:5]))
+            else:
+                n = sum(len((e or {}).get("rows") or []) for e in servers.values())
+                ok("影子榜", "%d 个分区 %d 人，均在 hidden.json 影子名单内" % (len(servers), n))
+        except Exception as e:
+            fail("影子榜", "data/shadow.json 读取失败：%r" % (e,))
+            return
+    else:
+        ok("影子榜", "data/shadow.json 尚未产出（首轮 CI 后生成）")
+
+    if not shadow:
+        return
+
+    # 2. 两处 SHADOW_HASH 必须一致
+    def _hash_from(path):
+        m = re.search(r"SHADOW_HASH\s*=\s*['\"]([0-9a-f]{64})['\"]", read(path))
+        return m.group(1) if m else None
+
+    web = _hash_from(os.path.join(ROOT, "assets", "servers.js"))
+    apk = _hash_from(os.path.join(APK, "lookup_core.py"))
+    if not web or not apk:
+        fail("影子榜", "SHADOW_HASH 缺失：web=%r apk=%r" % (web, apk))
+        return
+    if web != apk:
+        fail("影子榜", "两处 SHADOW_HASH 不一致：servers.js %s… ≠ lookup_core.py %s…"
+             % (web[:8], apk[:8]))
+        return
+    ok("影子榜", "口令摘要两处一致（%s…）" % web[:8])
+
+    # 3. 不许有明文：这三份文件里只要有一个字符串的 sha256 等于 SHADOW_HASH，
+    #    那就是有人把口令明文写进去了（注释里写也算，仓库是公开的）。
+    for rel in ("assets/servers.js", "assets/app.js", "assets/exp.js",
+                "data/hidden.json", "data/shadow.json"):
+        fp = os.path.join(ROOT, rel)
+        if not os.path.exists(fp):
+            continue
+        for tok in re.findall(r"[A-Za-z0-9!@#$%^&*_.-]{8,}", read(fp)):
+            if hashlib.sha256(tok.encode("utf-8")).hexdigest() == web:
+                fail("影子榜", "%s 里出现口令明文（%s…）" % (rel, tok[:3]))
+                return
+    for tok in re.findall(r"[A-Za-z0-9!@#$%^&*_.-]{8,}", read(os.path.join(APK, "lookup_core.py"))):
+        if hashlib.sha256(tok.encode("utf-8")).hexdigest() == web:
+            fail("影子榜", "apk/lookup_core.py 里出现口令明文（%s…）" % tok[:3])
+            return
+    ok("影子榜", "未发现口令明文")
+
+
 # ------------------------------------------------------------------ main
 def main():
     if "--fix" in sys.argv:
@@ -526,6 +613,7 @@ def main():
     check_names()
     check_hidden()
     check_hidden_fields()
+    check_shadow()
     check_exp_window()
 
     fails = [r for r in results if r[0] == "FAIL"]

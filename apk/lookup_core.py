@@ -5,6 +5,7 @@
     lookup(uid, progress=None) -> dict | None
 返回的 dict 已包含展示所需的全部字段（含从榜单补充的门派/等级/福缘/排名）。
 """
+import hashlib
 import io
 import json
 import os
@@ -51,6 +52,12 @@ HIDDEN_UIDS_LOCAL = set((
     "4047491326", "4168426", "6622657", "21079748748",
     "19035702184",
 ))
+
+# 网页「影子榜」口令的 sha256：明文只在用户手里，仓库和 APK 里都只留摘要。
+# 网页端凭 k=<这个 hash> 判断是否放出名单里那两个人的真实名次；必须与
+# assets/servers.js 的 SHADOW_HASH 一致，改一处就要同步改另一处
+# （scripts/preflight.py 的 check_shadow() 会校验这两处相等）。
+SHADOW_HASH = "601260b1695f7625078effee02d36dd9e8aebe4c4d688fd61f8ef77ac53f8db5"
 
 INDEX_URL = "https://fzpaihang.github.io/lanlandeku/data/servers/%s/gaoshoubang.json"
 
@@ -358,6 +365,64 @@ def save_cache(c):
             os.remove(tmp)
         except Exception:
             pass
+
+
+def web_key():
+    """已保存的网页口令 hash；没存过或缓存坏了都返回空串。
+
+    这里存的是 hash 不是明文：缓存文件在安卓上可被 adb backup / 第三方
+    文件管理器读到，明文一旦写进去等于口令泄露。
+    """
+    try:
+        v = load_cache().get("webKey")
+        return str(v) if v else ""
+    except Exception:
+        return ""
+
+
+def set_web_key(h):
+    """保存网页口令 hash；传空串/None 表示清除该键。
+
+    注意是 del 键而不是写空串：留着空值会让 has_web_key() 之外的
+    判断（以及以后可能的迁移代码）分不清「没设置过」和「已清除」。
+    """
+    try:
+        c = load_cache()
+        if not isinstance(c, dict):
+            c = {}
+        if h:
+            c["webKey"] = str(h)
+        else:
+            try:
+                del c["webKey"]
+            except Exception:
+                pass
+        save_cache(c)
+        return True
+    except Exception:
+        return False
+
+
+def check_web_key(pw):
+    """校验用户输入的明文口令；对齐首尾空白，非字符串/空串一律 False。"""
+    try:
+        if not isinstance(pw, str):
+            return False
+        pw = pw.strip()
+        if not pw:
+            return False
+        # 用 hexdigest 比较即可：只是本地放行开关，不是密码学场景的认证。
+        return hashlib.sha256(pw.encode("utf-8")).hexdigest() == SHADOW_HASH
+    except Exception:
+        return False
+
+
+def has_web_key():
+    """是否已经存过口令（网页会自动进影子榜）。"""
+    try:
+        return bool(web_key())
+    except Exception:
+        return False
 
 
 def recent_queries():

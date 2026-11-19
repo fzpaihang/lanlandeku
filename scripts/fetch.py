@@ -383,6 +383,129 @@ def hidden_uids_for(hidden, server_key):
                if not servers or server_key in servers)
 
 
+def load_shadow():
+    """读取 data/hidden.json 里带 "shadow": true 的玩家 → {uid: set(server)}
+
+    影子玩家和普通隐藏玩家一样，照旧从公开榜单 / 昵称索引里整条剔除；
+    区别是他们自己用口令打开网页时，前端会按「原始名次」把这些行插回榜单，
+    让本人看到自己（含真实名次）。别人不带口令，看到的还是剔除后的榜单。
+
+    名单只有一份真源（data/hidden.json），这里只多认一个 shadow 标记，
+    避免再维护一份影子名单跟 hidden.json 漂移。
+    """
+    path = os.path.join(BASE_DIR, "data", "hidden.json")
+    out = {}
+    if not os.path.exists(path):
+        return out
+    try:
+        with io.open(path, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception:
+        return out
+    players = d.get("players")
+    if not isinstance(players, list):
+        return out
+    for x in players:
+        if not isinstance(x, dict) or not x.get("shadow"):
+            continue
+        uid = str(x.get("uid") or "").strip()
+        if not uid:
+            continue
+        out.setdefault(uid, set())
+        if x.get("server"):
+            out[uid].add(str(x["server"]))
+    return out
+
+
+def shadow_uids_for(shadow, server_key):
+    """该分区下的影子玩家 uid 集合"""
+    return set(u for u, servers in shadow.items()
+               if not servers or server_key in servers)
+
+
+SHADOW_PATH = os.path.join(BASE_DIR, "data", "shadow.json")
+
+
+def read_shadow():
+    """读 data/shadow.json（不存在或坏了都返回空结构，绝不抛）"""
+    try:
+        with io.open(SHADOW_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+        if isinstance(d, dict):
+            return d
+    except Exception:
+        pass
+    return {}
+
+
+def drop_shadow_server(server_key):
+    """该分区已无影子玩家：把旧记录从 data/shadow.json 摘掉，返回是否真的删了。"""
+    doc = read_shadow()
+    servers = doc.get("servers")
+    if not isinstance(servers, dict) or server_key not in servers:
+        return False
+    servers.pop(server_key, None)
+    doc["servers"] = servers
+    tmp = SHADOW_PATH + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8") as f:
+        json.dump(doc, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, SHADOW_PATH)
+    return True
+
+
+def write_shadow_server(server_key, rows, board_total, t):
+    """把该分区的影子行写进 data/shadow.json，其它分区原样保留。
+
+    rows 必须是「从榜单剔除隐藏玩家之前」抄下来的原始行，rank 就是游戏原始名次。
+    这里只负责榜单侧字段；经验 / 等级由 merge_exp.py 用档案值覆盖，
+    与公开榜完全同一个口径（否则影子榜的经验会和别人对不上）。
+
+    为什么单独一个文件而不是塞进 gaoshoubang.json：网页是纯静态的，
+    任何放在 data/ 下的东西都能被直接 GET 到。影子名单本身在 hidden.json 里
+    已经公开写着，所以这里不新增暴露面；真正的门槛是前端只在带口令时才读它。
+    """
+    doc = read_shadow()
+    servers = doc.get("servers")
+    if not isinstance(servers, dict):
+        servers = {}
+    prev = {}
+    for x in ((servers.get(server_key) or {}).get("rows") or []):
+        try:
+            prev[str(x.get("userid"))] = int(x.get("rank"))
+        except (TypeError, ValueError):
+            pass
+
+    out_rows = []
+    for x in rows:
+        y = dict(x)
+        try:
+            cur = int(y.get("rank"))
+        except (TypeError, ValueError):
+            cur = None
+        pr = prev.get(str(y.get("userid")))
+        y["prevRank"] = pr
+        y["delta"] = (pr - cur) if (pr and cur) else None
+        out_rows.append(y)
+
+    servers[server_key] = {
+        "server": server_key,
+        "updatedAt": bj_time(t, "%Y-%m-%d %H:%M:%S"),
+        "updatedTs": int(t),
+        "boardTotal": int(board_total),
+        "rows": out_rows,
+    }
+    doc["servers"] = servers
+    doc["updatedAt"] = bj_time(t, "%Y-%m-%d %H:%M:%S")
+    doc["updatedTs"] = int(t)
+
+    os.makedirs(os.path.dirname(SHADOW_PATH), exist_ok=True)
+    tmp = SHADOW_PATH + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8") as f:
+        json.dump(doc, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, SHADOW_PATH)
+    return len(out_rows)
+
+
 def load_hidden_fields():
     """读取 data/hidden-fields.json → {uid: (set(server), set(field))}
 
@@ -619,6 +742,11 @@ def fetch_server(srv, board, max_pages):
     # 隐私名单：整条从榜单剔除（不是只遮数值）
     hidden = load_hidden()
     drop = hidden_uids_for(hidden, srv["key"])
+    # 影子玩家（hidden.json 里带 "shadow": true）要在剔除之前抄一份原始行：
+    # 此时 rank 还是游戏原始名次，剔除后被重排的 rank 已经不是真实名次了。
+    shadow_uids = shadow_uids_for(load_shadow(), srv["key"])
+    shadow_rows = [dict(x) for x in out_rows if str(x["userid"]) in shadow_uids]
+    board_total_all = len(rows)
     if drop:
         keep = [x for x in out_rows if str(x["userid"]) not in drop]
         if len(keep) != len(out_rows):
@@ -701,7 +829,19 @@ def fetch_server(srv, board, max_pages):
         except OSError:
             pass
 
-    n_hist = update_history(board_rows, t, out_dir, drop)
+    # 快照里保留影子玩家（drop 减去影子）：
+    # 他们本来就在公开榜时代进过快照，用户要求别把历史抹掉；
+    # 他们的档案现在也照抓，merge_exp 会继续沿用上一轮的值，不会断档。
+    n_hist = update_history(board_rows, t, out_dir, drop - shadow_uids)
+
+    # 影子榜：给被剔除的隐藏玩家单独留一份「原始名次」的行，本人带口令打开
+    # 网页时才由前端把这些行插回榜单（别人不带口令看不到）。
+    # 用的是剔除前抄下来的 shadow_rows，rank 才是游戏真实名次。
+    if shadow_uids:
+        n_sh = write_shadow_server(srv["key"], shadow_rows, board_total_all, t)
+        print("      影子榜 %d 人（原始榜共 %d 人，含未公开的）" % (n_sh, board_total_all))
+    elif drop_shadow_server(srv["key"]):
+        print("      影子榜：本分区已无影子玩家，清掉旧记录")
 
     print("[3/3] 已写入 %s" % cur_path)
     print("      榜单 %d 人  |  更新于 %s" % (len(board_rows), payload["updatedAt"]))

@@ -7,7 +7,14 @@
   function histUrl() { return base() + 'exp-history.json'; }
   var WINDOW_DAYS = 3;
 
-  var state = { rows: [], sortKey: 'grow', sortDir: 'desc', me: new URLSearchParams(location.search).get('me') || '' };
+  var state = {
+    rows: [],
+    sortKey: 'grow',
+    sortDir: 'desc',
+    me: new URLSearchParams(location.search).get('me') || '',
+    meRaw: new URLSearchParams(location.search).get('me') || '',   // me 原始值：影子模式下 me 里装的是口令
+    shadowKey: ''      // 命中的影子口令，跳转时要透传
+  };
 
   var el = {
     tbody: document.getElementById('tbody'),
@@ -27,7 +34,9 @@
   function linkFor(uid) {
     var q = ['uid=' + encodeURIComponent(uid)];
     if (window.FZJH && FZJH.key) q.push('s=' + encodeURIComponent(FZJH.key));
-    if (state.me) q.push('me=' + encodeURIComponent(state.me));
+    // 用 meRaw：影子模式下 me 里装的是口令，丢了就回不到影子榜
+    if (state.meRaw) q.push('me=' + encodeURIComponent(state.meRaw));
+    if (state.shadowKey && state.shadowKey !== state.meRaw) q.push('k=' + encodeURIComponent(state.shadowKey));
     return './index.html?' + q.join('&');
   }
 
@@ -112,6 +121,7 @@
       a.textContent = r.name || '—';
       top.appendChild(a);
       if (isMe) top.appendChild(h('span', 'badge-me', '我'));
+      if (r._shadow) top.appendChild(h('span', 'badge-me', '影子'));
       if (r.menpai) top.appendChild(h('span', 'school', r.menpai));
       body.appendChild(top);
 
@@ -203,6 +213,7 @@
       a.textContent = r.name || '—';
       nm.appendChild(a);
       if (state.me && String(r.userid) === String(state.me)) nm.appendChild(h('span', 'badge-me', '我'));
+      if (r._shadow) nm.appendChild(h('span', 'badge-me', '影子'));
       if (r.menpai) nm.appendChild(h('span', 'school-inline', r.menpai));
       wrap.appendChild(nm);
       tdName.appendChild(wrap);
@@ -245,6 +256,9 @@
   }
 
   function boot() {
+    // 影子模式：me 里装的是口令，不再当 uid 高亮
+    if (window.FZJH && FZJH.shadowMode) state.me = '';
+    state.shadowKey = (window.FZJH && FZJH.shadowKey) || '';
     Promise.all([
       fetch(boardUrl(), { cache: 'no-cache' }).then(function (r) {
         if (!r.ok) throw new Error('榜单 HTTP ' + r.status);
@@ -256,6 +270,11 @@
       })
     ]).then(function (res) {
       var board = res[0], hist = res[1];
+      // 影子榜：按原始名次把自己插回去；经验口径仍走快照，不需要额外分支
+      var boardRows = (board.rows || []).slice();
+      var shadowEntry = (window.FZJH && FZJH.shadowMode && FZJH.shadow && FZJH.shadow.servers)
+        ? FZJH.shadow.servers[FZJH.key] : null;
+      if (shadowEntry) boardRows = FZJH.mergeShadow(boardRows, shadowEntry);
       // 只认 src === 'profile' 的快照。
       // 历史坑（v39）：11-11 那批快照的 exp 是排行榜浮点值，与档案整数值相减会
       // 出现「+21.7 万 / −3.2 万」这种假增长。应用汇首次导入时也混进过一条
@@ -300,7 +319,7 @@
         el.spanInfo.textContent = '暂无对比数据';
       }
 
-      state.rows = (board.rows || []).map(function (r) {
+      state.rows = boardRows.map(function (r) {
         var uid = String(r.userid);
         // 当前值优先取「最新快照」，和基准同源同口径；快照里没有才退回榜单行。
         // 榜单的 updatedTs 可能比快照新，两边混用会又出现一次口径差。
@@ -322,7 +341,8 @@
         return {
           userid: r.userid, rank: r.rank, name: r.name, menpai: r.menpai,
           expN: curExp == null ? null : Math.round(curExp),
-          grow: grow, perDay: perDay, pct: pct
+          grow: grow, perDay: perDay, pct: pct,
+          _shadow: !!r._shadow
         };
       });
 

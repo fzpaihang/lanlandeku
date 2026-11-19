@@ -27,6 +27,7 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 SERVERS = os.path.join(DATA, "servers")
+SHADOW_PATH = os.path.join(DATA, "shadow.json")
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 from lv_formula import lv_from_exp  # noqa: E402  人物等级反算（纯计算，无第三方依赖）
@@ -62,6 +63,51 @@ def write(path, obj, indent=None):
     os.replace(tmp, path)
 
 
+def merge_row(r, prof_dir, board_ts):
+    """把单个榜单行（或影子行）的经验/等级与档案对齐，返回统计。
+
+    公开榜和影子榜必须走同一个函数：两边的经验口径要完全一致，
+    否则本人带口令看到的自己，经验会比旁边的人旧一轮。
+    """
+    uid = str(r.get("userid"))
+    board_exp = r.get("exp")
+    board_lv = r.get("lv")
+    # 只在首次合并时记录榜单原值：重复执行不能把 expBoard 覆盖成档案值
+    if "expBoard" not in r:
+        r["expBoard"] = board_exp
+    if "lvBoard" not in r:
+        r["lvBoard"] = board_lv
+
+    st = {"used": 0, "kept": 0, "delta": 0, "who": "", "lv_changed": 0, "lv_shift": 0}
+
+    p = load(os.path.join(prof_dir, uid + ".json"))
+    p_ts = int((p or {}).get("updatedTs") or 0)
+    p_exp = (p or {}).get("exp")
+
+    if p and p_exp and p_ts and p_ts >= board_ts - FRESH_GAP:
+        r["exp"] = p_exp
+        r["expSrc"] = "profile"
+        st["used"] = 1
+        if isinstance(board_exp, (int, float)):
+            base = r.get("expBoard", board_exp)
+            d = abs(p_exp - base) if isinstance(base, (int, float)) else 0
+            st["delta"], st["who"] = d, r.get("name") or uid
+    else:
+        r["expSrc"] = "board"
+        st["kept"] = 1
+
+    # 等级跟着经验走：显示值与经验永远自洽。
+    # 榜单 lv 是「上次点榜时」的快照，和榜单 exp 同批，比档案 exp 旧，
+    # 直接留着就会出现「等级不动、经验涨了」的错位。
+    live_lv = lv_from_exp(r.get("exp"))
+    if live_lv is not None:
+        if board_lv is not None and live_lv != board_lv:
+            st["lv_changed"] = 1
+            st["lv_shift"] = abs(live_lv - int(board_lv))
+        r["lv"] = live_lv
+    return st
+
+
 def merge_server(key, verbose=True):
     board_path = os.path.join(SERVERS, key, "gaoshoubang.json")
     board = load(board_path)
@@ -80,45 +126,37 @@ def merge_server(key, verbose=True):
     lv_changed = 0
     lv_shift = 0
     for r in rows:
-        uid = str(r.get("userid"))
-        board_exp = r.get("exp")
-        board_lv = r.get("lv")
-        # 只在首次合并时记录榜单原值：重复执行不能把 expBoard 覆盖成档案值
-        if "expBoard" not in r:
-            r["expBoard"] = board_exp
-        if "lvBoard" not in r:
-            r["lvBoard"] = board_lv
-
-        p = load(os.path.join(prof_dir, uid + ".json"))
-        p_ts = int((p or {}).get("updatedTs") or 0)
-        p_exp = (p or {}).get("exp")
-
-        if p and p_exp and p_ts and p_ts >= board_ts - FRESH_GAP:
-            r["exp"] = p_exp
-            r["expSrc"] = "profile"
-            used += 1
-            if isinstance(board_exp, (int, float)):
-                base = r.get("expBoard", board_exp)
-                d = abs(p_exp - base) if isinstance(base, (int, float)) else 0
-                if d > max_delta:
-                    max_delta, max_who = d, r.get("name") or uid
-        else:
-            r["expSrc"] = "board"
-            kept += 1
-
-        # 等级跟着经验走：显示值与经验永远自洽。
-        # 榜单 lv 是「上次点榜时」的快照，和榜单 exp 同批，比档案 exp 旧，
-        # 直接留着就会出现「等级不动、经验涨了」的错位。
-        live_lv = lv_from_exp(r.get("exp"))
-        if live_lv is not None:
-            if board_lv is not None and live_lv != board_lv:
-                lv_changed += 1
-                lv_shift = max(lv_shift, abs(live_lv - int(board_lv)))
-            r["lv"] = live_lv
+        st = merge_row(r, prof_dir, board_ts)
+        used += st["used"]
+        kept += st["kept"]
+        lv_changed += st["lv_changed"]
+        lv_shift = max(lv_shift, st["lv_shift"])
+        if st["delta"] > max_delta:
+            max_delta, max_who = st["delta"], st["who"]
 
     board["expSrc"] = "mixed"      # 表格里可能混着两种来源，逐行看 expSrc
     board["mergedAt"] = bj_time(time.time())
     write(board_path, board, indent=1)
+
+    # 影子榜（data/shadow.json）：被隐藏的玩家单独存一份原始名次的行，
+    # 本人带口令打开网页时才由前端插回榜单。这里必须用同一个 merge_row 合并，
+    # 否则本人看到的自己经验会比旁边的人旧一轮，两个榜单的口径一对比就露馅。
+    shadow = load(SHADOW_PATH) or {}
+    sh_servers = shadow.get("servers")
+    if not isinstance(sh_servers, dict):
+        sh_servers = {}
+    sh_entry = sh_servers.get(key) or {}
+    srows = sh_entry.get("rows") or []
+    sh_used = sh_kept = 0
+    if srows:
+        for r in srows:
+            st = merge_row(r, prof_dir, board_ts)
+            sh_used += st["used"]
+            sh_kept += st["kept"]
+        sh_entry["mergedAt"] = bj_time(time.time())
+        sh_servers[key] = sh_entry
+        shadow["servers"] = sh_servers
+        write(SHADOW_PATH, shadow, indent=1)
 
     # 经验快照：把本轮快照的 exp 换成合并后的值
     hist_path = os.path.join(SERVERS, key, "exp-history.json")
@@ -148,6 +186,13 @@ def merge_server(key, verbose=True):
             fresh += 1
         elif uid_s in prev_map:
             exp_map[uid_s] = prev_map[uid_s]
+
+    # 影子玩家也要进快照（不带口令的页面根本不会读他们，见 assets/exp.js），
+    # 不进的话他们的经验曲线会从「被隐藏那天」起永久断档。
+    # 不参与 fresh 计数：fresh 是「本轮真正刷新档案的人数」的排查指标。
+    for r in srows:
+        if r.get("exp") is not None:
+            exp_map[str(r.get("userid"))] = r["exp"]
 
     # 掉榜的人也要继续留在快照里，沿用上一轮的值。
     # 否则他一掉榜就在后续每一条快照里消失：等他重新上榜时，前端取 3 天前基准
@@ -187,6 +232,9 @@ def merge_server(key, verbose=True):
         pct = (max_delta / 1e8) if max_delta else 0
         print("  %-9s %3d 人 | 用档案 %3d | 保留榜单 %3d | 继承掉榜 %3d | 最大差 %.0f 万（%s）| 等级校正 %d 人（最多 %d 级）"
               % (key, len(rows), used, kept, carried, max_delta / 1e4, max_who, lv_changed, lv_shift))
+        if srows:
+            print("  %-9s 影子 %d 人 | 用档案 %d | 保留榜单 %d"
+                  % (key, len(srows), sh_used, sh_kept))
         if pct:
             pass
     return {"key": key, "total": len(rows), "used": used, "kept": kept}

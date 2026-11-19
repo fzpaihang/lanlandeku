@@ -745,6 +745,21 @@ class AppBar(BoxLayout):
         )
         self.add_widget(self.right_btn)
 
+        # 右侧按钮的长按状态（Kivy 没有原生长按，得自己计时，见 _right_timeout）。
+        # 这几项在 __init__ 里先建好：bind_right 可能在控件还没上屏时就被调用，
+        # getattr 兜底虽然也能用，但状态散在各处更容易漏初始化。
+        self._right_cb = None
+        self._right_long_cb = None
+        self._right_long_ev = None
+        self._right_down_pos = None
+        self._right_touch_on = False
+        self._right_disp_on = False
+        self._right_dragged = False
+        # 手势号：每次按下 +1，长按触发时把当前号记进 _right_consumed_gid，
+        # 抬手时两者相等就说明这次手势已经被长按用掉了，不再走短按。
+        self._right_gesture_id = 0
+        self._right_consumed_gid = 0
+
         # 副标题可点：结果页的 UID 点一下就复制，省掉底栏一个按钮
         self._sub_cb = None
         self.sub_lab.bind(on_touch_down=self._sub_touch)
@@ -848,14 +863,143 @@ class AppBar(BoxLayout):
         self.back.bind(on_release=fn)
 
     def bind_right(self, fn):
-        old = getattr(self, "_right_cb", None)
-        if old:
+        """给右侧按钮挂短按回调（长按另见 bind_right_long）。"""
+        self._right_cb = fn
+        self._right_dispatch()
+
+    def bind_right_long(self, fn):
+        """给右侧按钮再挂一个「长按 0.6 秒」的回调。
+
+        和 bind_right 一样，重复调用只留最后一次：结果页会把这一颗按钮
+        改成「重新查询」，叠着不清理就会出现「长按还弹口令框」。
+        短按语义仍由 bind_right 的 fn 负责，两者互不影响。
+        """
+        self._right_long_cb = fn
+        self._right_cancel_long()
+
+    # ---------- 右侧按钮：短按 / 长按分发 ----------
+    #
+    # Kivy 的 Button 只有 on_release，没有原生长按，只能自己计时：按下时起一个
+    # 0.6 秒的 Clock 任务，抬手时看它有没有已经跑过。
+    #
+    # 短按仍然走 on_release（Button 自己的派发），只是 on_release 上挂的是
+    # 一个固定的分发器 _right_short，它转给「当前」的 _right_cb。这样
+    # bind_right 只换回调、不需要反复 unbind，也顺带避免了旧实现的隐患。
+    #
+    # 「长按后不再触发短按」用「手势号」判定，不用定时器复位：
+    # on_release 和我们的 on_touch_up 谁先跑，Kivy 不保证；只要比对手势号，
+    # 两种顺序都成立。手势号在每次 on_touch_down 递增，天然就是复位时机。
+    def _right_dispatch(self):
+        """把手势事件装到 right_btn 上（只装一次，后续 bind_right 不会叠加）。"""
+        if self._right_disp_on:
+            return
+        self._right_disp_on = True
+        self.right_btn.bind(on_touch_down=self._right_down)
+        self.right_btn.bind(on_touch_up=self._right_up)
+        self.right_btn.bind(on_touch_move=self._right_move)
+        # 这个绑定只装一次，永远不会被 unbind：它转给 _right_cb，
+        # 换页时只要改 _right_cb 就够了（等价于旧 bind_right 的 unbind+rebind）。
+        self.right_btn.bind(on_release=self._right_short)
+
+    def _right_short(self, *_a):
+        """on_release 的统一入口：判定这次手势算不算短按。"""
+        if self._right_dragged:
+            return          # 按下后拖动过：和滚动页面区分开，不当作点击
+        if self._right_consumed_gid == self._right_gesture_id:
+            return          # 这次手势已经被长按消费掉了
+        cb = self._right_cb
+        if cb is None:
+            return
+        try:
+            cb()
+        except Exception as e:
+            print("[appbar] 右侧按钮回调失败：%r" % (e,))
+
+    def _right_hit(self):
+        """按钮此刻可点吗：没回调、或宽度/透明度为 0（查询页某些状态不显示）都不算。"""
+        if self._right_cb is None and self._right_long_cb is None:
+            return False
+        return self.right_btn.opacity > 0 and self.right_btn.width > 0
+
+    def _right_down(self, inst, touch):
+        if not self._right_hit():
+            return False
+        # 只认第一根手指：多指同时按会各自起一个计时器，抬手时互相打架
+        if self._right_touch_on:
+            return False
+        self._right_touch_on = True
+        self._right_dragged = False
+        # 新手势：手势号 +1，同时把上一轮「已被长按消费」的记录自然作废
+        self._right_gesture_id += 1
+        try:
+            self._right_down_pos = (touch.x, touch.y)
+        except Exception:
+            self._right_down_pos = None
+        self._right_cancel_long()
+        if self._right_long_cb is not None:
+            self._right_long_ev = Clock.schedule_once(self._right_timeout, 0.6)
+        return False        # 不吞事件，让 Button 自己走按下态
+
+    def _right_move(self, inst, touch):
+        """手指滑走就取消长按：滚动页面时划过顶栏不该弹框，也不该算点击。"""
+        if not self._right_touch_on:
+            return False
+        if self._right_moved(touch):
+            self._right_dragged = True
+            self._right_cancel_long()
+        return False
+
+    def _right_moved(self, touch, limit=None):
+        lim = limit if limit is not None else dp(12)
+        try:
+            ox, oy = self._right_down_pos
+        except Exception:
+            return False
+        return abs(touch.x - ox) + abs(touch.y - oy) > lim
+
+    def _right_up(self, inst, touch):
+        if not self._right_touch_on:
+            return False
+        self._right_touch_on = False
+        if self._right_moved(touch):
+            self._right_dragged = True
+        self._right_cancel_long()
+        # 短按不在这里派发：交给 on_release → _right_short。
+        # 这里只负责收掉计时器，返回 False 以免吞掉 Button 自己的 release。
+        return False
+
+    def _right_timeout(self, _dt):
+        self._right_long_ev = None
+        if not self._right_touch_on:
+            return
+        # 记下「这一号手势已经被长按消费」，抬手时 _right_short 就会跳过
+        self._right_consumed_gid = self._right_gesture_id
+        cb = self._right_long_cb
+        if cb is None:
+            return
+        # 长按回调很可能是开弹窗（ModalView 会吞掉后续触摸事件，我们的
+        # on_touch_up 就收不到了）。这里主动收掉手势标记，否则下一次按下
+        # 会撞上「已经有手指按着」的守卫，长按再也起不来。
+        self._right_touch_on = False
+        # ButtonBehavior 也是靠 on_touch_up 复位按下态的，收不到 up 就会一直
+        # 停在 'down'（弹窗盖上来时那块按钮是暗的）。手动推回正常态。
+        try:
+            self.right_btn.state = "normal"
+        except Exception:
+            pass
+        try:
+            cb()
+        except Exception as e:
+            print("[appbar] 右侧按钮长按回调失败：%r" % (e,))
+
+    def _right_cancel_long(self):
+        ev = self._right_long_ev
+        self._right_long_ev = None
+        if ev is not None:
             try:
-                self.right_btn.unbind(on_release=old)
+                ev.cancel()
             except Exception:
                 pass
-        self._right_cb = fn
-        self.right_btn.bind(on_release=fn)
 
     def set_fallback(self, on):
         """只改开关的显示，不负责保存（保存由界面层做）。"""
@@ -1493,6 +1637,9 @@ class PlayerLookup(App):
         self.tone_bar = ToneBar()
         self.appbar = AppBar()
         self.appbar.bind_right(lambda *a: self._open_web())
+        # 长按 0.6 秒弹网页口令框；短按保持「打开网页」不变。
+        # 口令只影响网页端显示，所以入口挂在「网页」这个动作上，不另设按钮。
+        self.appbar.bind_right_long(lambda *a: self._web_key_dialog())
         self.appbar.bind_back(lambda *a: self.show_query())
 
         # scroll_type 只保留 ['bars'] + 关掉越界拖动：
@@ -1819,7 +1966,11 @@ class PlayerLookup(App):
                     title_size=dp(0), background_color=(0, 0, 0, 0),
                     auto_dismiss=True)
         self._pop = pop
-        pop.bind(on_dismiss=lambda *a: setattr(self, "_pop", None))
+        # 关掉时收键盘：弹窗都关了、输入框早没了，软键盘留在屏幕上就成了
+        # 一块盖住底部的空白。放在 on_dismiss 而不是按钮回调里，是因为
+        # 取消 / 返回键 / 点窗外这几种关闭方式都得走到这里。
+        pop.bind(on_dismiss=lambda *a: (setattr(self, "_pop", None),
+                                        self._web_key_hide_ime()))
         save.bind(on_release=lambda *a: (pop.dismiss(), self._export_save()))
         share.bind(on_release=lambda *a: (pop.dismiss(), self._export_share()))
         cancel.bind(on_release=lambda *a: pop.dismiss())
@@ -1873,6 +2024,16 @@ class PlayerLookup(App):
             q.append("s=" + key)
         if uid:
             q.append("me=" + str(uid))
+        # k = 网页口令的 sha256（影子榜）。和 me 是两件事，互不替代：
+        #   me = 要高亮的那个人的 uid（谁都能带，只影响高亮）
+        #   k  = 口令凭据（只有本机存过口令才带，带了网页才把自己放回榜单）
+        # 口令不落明文，缓存的也是 hash，网页端拿 hash 直接比对。
+        try:
+            wk = L.web_key()
+        except Exception:
+            wk = ""
+        if wk:
+            q.append("k=" + wk)
         url = WEB_BASE + ("?" + "&".join(q) if q else "")
         if self._open_in_app(url):
             return
@@ -1882,6 +2043,123 @@ class PlayerLookup(App):
         self.set_status(msg, C_ACCENT)
         if self.mode == "result":
             self._flash(msg)
+
+    # ---------- 网页口令（影子榜）----------
+    def _web_key_dialog(self):
+        """长按顶栏「网页」弹出的口令框。
+
+        口令只做本机校验：输入 → sha256 → 与 L.SHADOW_HASH 比对，通过就把
+        hash 写进本机缓存。之后 _open_web 每次拼 URL 都带上 k=<hash>，
+        网页端认这个 hash 才把隐藏名单里的自己放回榜单（影子榜）。
+        本机不存明文，也**不改**查询逻辑：隐藏玩家在 APK 里照旧查不到。
+        """
+        from kivy.uix.popup import Popup
+
+        if getattr(self, "_pop", None) is not None:
+            return                  # 已有弹窗开着，不叠第二层
+        # 先放掉页面输入框的焦点，否则软键盘和下面的 TextInput 抢同一个输入法
+        try:
+            if getattr(self, "inp", None) is not None and self.inp.focus:
+                self.inp.focus = False
+        except Exception:
+            pass
+        self._hide_inline()
+
+        box = Card(pad=16, spacing=10, size_hint_y=1)
+        box.add_widget(lab("网页口令", 14, C_INK, bold=True, height=28, shorten=True))
+        tip = lab("输入网页口令后，打开网页会自动进入影子榜（只影响网页显示，"
+                  "不影响查询）", 11.5, C_INK2, height=1, halign="left")
+        tip.bind(texture_size=lambda inst, sz: setattr(inst, "height", sz[1] + dp(4)))
+        box.add_widget(tip)
+        # use_native=False：原生覆盖层（inline_input.py）把 inputType 写死成普通
+        # 文本，套在密码框上就会明文显示。口令短、纯 ASCII，走 Kivy 自带输入足够。
+        pin = RoundInput(
+            text="", hint_text="口令", password=True, font_name=FONT,
+            font_size=sp(16), multiline=False, use_native=False,
+            size_hint_y=None, height=dp(44),
+            foreground_color=C_INK, hint_text_color=C_MUTED, cursor_color=C_ACCENT,
+        )
+        box.add_widget(pin)
+        ok = PrimaryButton(text="确定", font_name=FONT, font_size=sp(15),
+                           size_hint_y=None, height=dp(46))
+        clear = txt_button("清除口令", C_INK2, height=40, size=13.5)
+        cancel = txt_button("取消", C_INK2, height=40, size=14)
+        # 高度留够：标题 28 + 折行的说明约 40 + 输入框 44 + 三个按钮 46/40/40，
+        # 加上内边距和间距接近 320dp。写死 268 会把最下面那个按钮切掉半截。
+        pop = Popup(title="", content=box, size_hint=(None, None),
+                    size=(dp(304), dp(344)), separator_height=0,
+                    title_size=dp(0), background_color=(0, 0, 0, 0),
+                    auto_dismiss=True)
+        self._pop = pop
+        pop.bind(on_dismiss=lambda *a: (setattr(self, "_pop", None),
+                                        self._web_key_hide_ime(pin)))
+        ok.bind(on_release=lambda *a: self._web_key_apply(pin.text, pop))
+        clear.bind(on_release=lambda *a: self._web_key_clear(pop))
+        cancel.bind(on_release=lambda *a: pop.dismiss())
+        for w in (ok, clear, cancel):
+            box.add_widget(w)
+        pop.open()
+
+    def _web_key_hide_ime(self, pin=None):
+        """收掉口令框留下的软键盘。
+
+        弹窗关掉时，里面那个 TextInput 往往已经不在界面树上了，它自己的
+        失焦收键盘不一定还会跑；这里显式再收一次，免得键盘盖在页面上。
+        """
+        try:
+            if pin is not None and pin.focus:
+                pin.focus = False
+        except Exception:
+            pass
+        try:
+            from kivy.core.window import Window
+            Window.release_keyboard(None)
+        except Exception:
+            pass
+        try:
+            _sdl_stop_text_input()
+        except Exception:
+            pass
+
+    def _web_key_tip(self, text, color=C_INK2):
+        """口令框的反馈：结果页没有查询页那张状态条，走顶栏副标题闪一句。"""
+        if self.mode == "result":
+            self._flash(text)
+        else:
+            self.set_status(text, color)
+
+    def _web_key_apply(self, pw, pop):
+        """「确定」：只在本机校验口令，通过就把 hash 存进缓存。"""
+        try:
+            good = L.check_web_key(pw)
+        except Exception:
+            good = False
+        if not good:
+            self._web_key_tip("口令不对", C_ACCENT)
+            return
+        try:
+            L.set_web_key(L.SHADOW_HASH)
+        except Exception as e:
+            print("[webkey] 保存失败：%r" % (e,))
+            self._web_key_tip("口令保存失败，请重试", C_ACCENT)
+            return
+        try:
+            pop.dismiss()
+        except Exception:
+            pass
+        self._web_key_tip("口令已保存，打开网页即可看到影子榜", C_ACCENT)
+
+    def _web_key_clear(self, pop):
+        """「清除口令」：连键一起删掉，下次开网页就不带 k 了。"""
+        try:
+            L.set_web_key("")
+        except Exception as e:
+            print("[webkey] 清除失败：%r" % (e,))
+        try:
+            pop.dismiss()
+        except Exception:
+            pass
+        self._web_key_tip("已清除口令", C_INK2)
 
     def _open_in_app(self, url):
         """优先用内嵌 WebView 打开；不支持或失败返回 False，由调用方回退外部浏览器。"""
@@ -1988,12 +2266,18 @@ class PlayerLookup(App):
         self._set_foot(False)
         # 顶部不放「高手榜」：页面底部已经有入口卡，一个动作不占两个位置
         self.tone_bar.height = 0
+        # 右上角这颗按钮以前传的是 right=""，宽度被 set_content 压成 0，
+        # 等于查询页根本没有「网页」入口（长按也就无处可长按）。这里给它文字：
+        # 短按开网页高手榜，长按弹网页口令框。
         self.appbar.set_content(title="", sub="放置江湖 · 多平台自助查询",
-                                right="", back=False, seal=True)
+                                right="网页", back=False, seal=True)
         self.appbar.bind_sub(None)
         # 结果页把右侧按钮改成了「重新查询」，回查询页要还原成高手榜入口，
         # 否则右侧按钮空着、bind_right 仍指着 _on_refresh。
         self.appbar.bind_right(lambda *a: self._open_web())
+        # 短按 = 开网页（上一行），长按 0.6 秒 = 网页口令（影子榜入口）。
+        # 两者同挂一颗按钮：口令只影响网页显示，不占第二个按钮位。
+        self.appbar.bind_right_long(lambda *a: self._web_key_dialog())
         self._apply_metrics()
         self.body.spacing = dp(12)
         self._set_body_card(False)
@@ -2034,6 +2318,9 @@ class PlayerLookup(App):
         # 直接 right_btn.bind() 是在已有绑定上再叠一个，点一下会同时
         # 触发「重新查询」和「打开高手榜」（实测点成了 WebView）。
         self.appbar.bind_right(lambda *a: self._on_refresh())
+        # 这一页的右键是「重新查询」，长按必须摘掉，否则长按会弹出查询页的
+        # 口令框 —— 用户以为在长按刷新，结果冒出一个输入口令的弹窗。
+        self.appbar.bind_right_long(None)
         self.appbar.bind_fallback(lambda *a: self._toggle_board_fallback())
         self.appbar.bind_sub(lambda: self.copy_uid())
         self.prep_open = False

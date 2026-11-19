@@ -305,8 +305,31 @@ def fetch_server(srv, names, args):
             len(hide_fields),
             ", ".join("%s(%s)" % (u, "/".join(sorted(f))) for u, f in hide_fields.items())))
 
+    # 影子玩家（hidden.json 里带 "shadow": true）先从隐藏名单里摘出来：
+    # 公开榜里没有他们（照旧剔除），但影子榜要和他们同口径的经验 / 等级，
+    # 所以档案照抓、不删。公开网页不展示他们，门槛在
+    # 「前端只有带口令才读 data/shadow.json」这一层。
+    shadow_uids = F.shadow_uids_for(F.load_shadow(), srv["key"])
+
     # 隐私名单：跳过这些玩家，并删掉已存在的档案文件
-    hidden_uids = F.hidden_uids_for(F.load_hidden(), srv["key"])
+    hidden_uids = F.hidden_uids_for(F.load_hidden(), srv["key"]) - shadow_uids
+    if shadow_uids:
+        srows = ((F.read_shadow().get("servers") or {}).get(srv["key"]) or {}).get("rows") or []
+        in_board = set(rows)
+        added = 0
+        for r in srows:
+            uid = r.get("userid")
+            if not uid or str(uid) in hidden_uids:
+                continue
+            # 影子玩家掉出真榜后，board 里没有他的行，这里用影子行补
+            # （slim() 只从 board_row 取 menpai/fuyuan/rank，缺了会变空）
+            if uid not in in_board:
+                rows[uid] = r
+                added += 1
+            if "--only" not in args and uid not in targets:
+                targets.append(uid)
+        print("      影子玩家 %d 位：档案照抓（其中 %d 位不在公开榜）" % (len(shadow_uids), added))
+
     if hidden_uids:
         before = len(targets)
         targets = [u for u in targets if str(u) not in hidden_uids]
