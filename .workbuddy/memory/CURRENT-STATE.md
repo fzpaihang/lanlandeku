@@ -1,7 +1,7 @@
 # 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-19 15:50（**热更 v81：APK 收藏功能**——结果页底栏「收藏/已收藏」、查询页「我的收藏」卡（最多 50 人，点行填入、点「移除」删除），只存 uid/name/server/serverName/at 四字段到 `lookup_cache.json` 的 `favorites`，隐私名单拦截；**修经验快照污染**——`scripts/merge_exp.py:129` 的 `prev_map` 原来取 `snaps[-1]`，而 `scripts/fetch.py` 会先写一条 `src="board"` 的本轮榜单快照，导致未刷新者被回填成榜单旧值（taptap_4 11-18 12:50 那条 100 人里 65 人被污染、30 人经验倒退、11-21 当天 61 人增幅合计虚高 +1889 万），改成倒序取第一条 `src` 为 None 或 `profile` 的快照，并把那 65 个值里可从 11-17 快照回填的 61 个修正（另 4 个是 11-18 新进榜者，保留首个榜单值）；顺带清掉 5 个已下线但磁盘残留的墨羽惊鸿孤儿档案。包 = 202,552 B / md5 `f3b38d8fed4c…`，提交 `279e2360735d`。上一条 12:52（网页文案：`lookup.html` 下载按钮包体 22.6→**23.6 MB**，与 release 资产 24,728,132 字节实际一致；提交 `5bed56da9b02`。上一条 11:05：校准：索引人数 955→**956**，与 `data/lookup-index.json` 实际 count 对齐；数据已对齐远端 `8f72d82`，清掉 4 个下榜残留档案。上一条 11-18 18:40，热更 v80：多昵称索引 `aliases`（改名后旧名照样搜得到）、昵称候选上限 8→20、iOS 三区榜单/档案/快照只跑前 50（索引 1104→956）。上一条 v79：榜单等级 `lv` 改为按实时经验反算（原始榜单值存 `lvBoard`），并去掉手动的「等级」排序——等级由经验唯一决定。另有 v78：人物等级反算改用游戏原式 `exp = 0.1×(lv+4)³`，按整数区间回代——11 区 715 条榜单样本 100% 命中、最大偏差 0 级，preflight 第 6 项因此从「99.0%」收紧到「<99% 即 FAIL」）
+> 最后更新：2026-11-19 16:12（**数据链路：索引每轮重建 + 掉榜数据保留**——①`refresh.yml` 在 merge_exp 之后新增「重建昵称索引」step（`if: schedule || inputs.mode == 'full'`），新上榜的人当轮就能按昵称搜到，不再等周一；②`scripts/fetch_profiles.py` 新增 `prune_profiles()`（`KEEP_DAYS = 30`），掉榜档案保留 30 天、超期才删，回归后仍可查；③`scripts/merge_exp.py` 快照 exp_map 追加「继承掉榜」段（`prev_map` 里本轮不在榜、且档案仍在的 uid 原值带入，`carried` 计数），回归后 3 天基准不再缺值；④本地重建索引 956→**957**，并补回墨羽惊鸿 5 个掉榜者档案 + 最新快照 exp。提交 `f6afa3e9aee4`。上一条 15:50（**热更 v81：APK 收藏功能**——结果页底栏「收藏/已收藏」、查询页「我的收藏」卡（最多 50 人，点行填入、点「移除」删除），只存 uid/name/server/serverName/at 四字段到 `lookup_cache.json` 的 `favorites`，隐私名单拦截；**修经验快照污染**——`scripts/merge_exp.py:129` 的 `prev_map` 原来取 `snaps[-1]`，而 `scripts/fetch.py` 会先写一条 `src="board"` 的本轮榜单快照，导致未刷新者被回填成榜单旧值（taptap_4 11-18 12:50 那条 100 人里 65 人被污染、30 人经验倒退、11-21 当天 61 人增幅合计虚高 +1889 万），改成倒序取第一条 `src` 为 None 或 `profile` 的快照，并把那 65 个值里可从 11-17 快照回填的 61 个修正（另 4 个是 11-18 新进榜者，保留首个榜单值）；顺带清掉 5 个已下线但磁盘残留的墨羽惊鸿孤儿档案。包 = 202,552 B / md5 `f3b38d8fed4c…`，提交 `279e2360735d`。上一条 12:52（网页文案：`lookup.html` 下载按钮包体 22.6→**23.6 MB**，与 release 资产 24,728,132 字节实际一致；提交 `5bed56da9b02`。上一条 11:05：校准：索引人数 955→**956**，与 `data/lookup-index.json` 实际 count 对齐；数据已对齐远端 `8f72d82`，清掉 4 个下榜残留档案。上一条 11-18 18:40，热更 v80：多昵称索引 `aliases`（改名后旧名照样搜得到）、昵称候选上限 8→20、iOS 三区榜单/档案/快照只跑前 50（索引 1104→956）。上一条 v79：榜单等级 `lv` 改为按实时经验反算（原始榜单值存 `lvBoard`），并去掉手动的「等级」排序——等级由经验唯一决定。另有 v78：人物等级反算改用游戏原式 `exp = 0.1×(lv+4)³`，按整数区间回代——11 区 715 条榜单样本 100% 命中、最大偏差 0 级，preflight 第 6 项因此从「99.0%」收紧到「<99% 即 FAIL」）
 
 ---
 
@@ -13,7 +13,7 @@
 | 正式站 | `https://fzpaihang.github.io/lanlandeku/`（Pages，源=main 根目录，30–90 秒缓存） |
 | APK 热更版本 | **v81** |
 | 分区数 | **11**（苍松/白鹤/丹凤/墨羽/4399/应用汇/其他服/华为/**老马识途**/**野马分鬃**/**仙人指路**） |
-| 索引人数 | **956**（iOS 三区自 v80 起各 50） |
+| 索引人数 | **957**（iOS 三区自 v80 起各 50；每轮抓取后自动重建） |
 | 本地工作区 | `E:/workbuddy2/fzjh-rank` |
 | 临时文件 | `E:/workbuddy2/_agent_tmp` |
 | token | `E:/workbuddy2/_agent_tmp/gh_token.txt` |
@@ -76,10 +76,13 @@ iOS 与安卓不是同一个域名，靠 **三件套一起配**才能握手，�
 - `concurrency: fzjh-data`，`cancel-in-progress: false`
 - 手动触发：`mode=probe|board|full`，`server=all|<key>`
 
-**昵称索引不在上面这条链路里**（`lookup-index.yml`，每周一 04:00 + 手动 + **归档 push**）：
-`data/lookup-index.json` 是「昵称 → uid」静态表，只有 APK 读，不参与榜单展示与经验计算。
-每天重建只会跟着榜单抖动造提交，所以拆出去了。**加分区、改 `hidden.json`、补 5 转表之后必须手动跑一次**。
-APK 归档新昵称（`data/extra-names.json`）会自动触发重建，不用等周一。
+**昵称索引有三条重建入口**（`data/lookup-index.json` 是「昵称 → uid」静态表，只有 APK 读，不参与榜单展示与经验计算）：
+
+1. **主力路径**：`refresh.yml` 每轮抓完后自动重建（step「重建昵称索引」，`if: schedule || inputs.mode == 'full'`），新上榜的人当轮就能按昵称搜到。
+2. `lookup-index.yml` 事件驱动：APK 归档新昵称（`data/extra-names.json`）push 后自动重建。
+3. `lookup-index.yml` 每周一 04:00 兜底 + 手动触发。
+
+**加分区、改 `hidden.json`、补 5 转表之后仍必须手动跑一次**。
 ---
 
 ## 关键设计（改代码前必看）
@@ -135,6 +138,8 @@ App 查 UID 成功 → `apk/archive_local.py` 用 PAT 写 `data/extra-names.json
 `_search_rows()` 把「当前名 ∪ 历史名」一起搜。改名后旧名照样能搜到同一个 UID。
 首个实例：`22039038872` 原名「无名氏」→ 索引成 **陆云**，`a = ["无名氏", "段潇"]`。
 **改完必须重建索引并发布 `data/lookup-index.json`**，设备端还要删 `files/lookup-index.json` 再重启（6h 缓存）。
+
+索引只收**当前榜 + `index-extra.json` + `extra-names`**，不收掉榜者——掉榜的人从索引里消失是按名次搜不到，但档案和快照仍保留（见 §4.1），改回榜后新一轮重建会重新收进来。
 
 昵称候选上限：`apk/app_ui.py` 两处 `NI.search(..., 20)`（v80 由 8 提高；索引里「无名氏」有 10 个）。
 
@@ -197,6 +202,24 @@ Secret 写成裸数组 → `build-apk.yml` 注入步骤抛 `AttributeError: 'lis
 现在 `fetch.py` 写快照时会显式标 `src: "board"`（以前是不写该字段），再由
 `merge_exp.py` 用档案值覆盖成 `src: "profile"`。这样「第一次抓排行榜的落后值」
 即使因为档案抓失败而残留，也进不了增长基准——基准只会是档案口径的快照。
+
+### 4.1 掉榜的人不再丢数据（2026-11-19 起）
+
+以前掉榜 = 档案被删 + 快照里 exp 消失，之后再上榜时 3 天基准取不到值、经验变化显示「—」。现在三层都改：
+
+| 层 | 位置 | 行为 |
+|---|---|---|
+| 档案 | `scripts/fetch_profiles.py` 的 `prune_profiles()`（`KEEP_DAYS = 30`） | 掉榜但 `updatedTs` 在 30 天内 → 保留；超期没再上榜才删。读不到 `updatedTs` / JSON 坏的一律保留。**`not fail` 保护照旧**（抓取失败整轮不清理） |
+| 快照 | `scripts/merge_exp.py` 的「继承掉榜」段 | `prev_map` 里本轮不在榜、**且档案文件还在**的 uid，原值带进 `exp_map`（`carried` 计数，汇总行打印「继承掉榜 N」）。档案被 prune 掉后就不再继承，快照体积自然收敛 |
+| 索引 | `scripts/build_lookup_index.py` | 仍只收当前榜 + `index-extra` + `extra-names`；掉榜者从索引消失，但回归后下一轮重建会自动收回来 |
+
+`fresh` 字段仍只统计本轮真正用档案值的人数，不带继承者，所以它继续是「本轮刷新率」的口径。
+
+### 4.2 昵称索引每轮重建（2026-11-19 起）
+
+`refresh.yml` 在「合并档案经验」之后、「提交数据」之前加了一步 `python scripts/build_lookup_index.py`，
+条件 `if: (github.event_name == 'schedule') || (inputs.mode == 'full')`。索引 `updatedAt` 每轮都会变，跟着同一批 `git add -A data` 一起提交。
+`lookup-index.yml` 保留事件驱动（`extra-names.json` push）与每周一 04:00 兜底。
 
 ### 5. 武学等级
 `lv = min(1100, ceil(((exp - 1) / 0.015) ** (1/3)))`
@@ -279,6 +302,7 @@ Secret 写成裸数组 → `build-apk.yml` 注入步骤抛 `AttributeError: 'lis
 
 | 版本 | 内容 |
 |---|---|
+| 数据 | **2026-11-19 16:12 索引每轮重建 + 掉榜数据保留**：<br>①`refresh.yml` 在 merge_exp 后新增「重建昵称索引」step（`if: (github.event_name == 'schedule') || (inputs.mode == 'full')`，`run: python scripts/build_lookup_index.py`），原「不在这里重建」注释段删除；`lookup-index.yml` 顶部注释与 `scripts/build_lookup_index.py` docstring 同步改成「三条重建入口」（每轮刷新 / extra-names 事件 / 每周一兜底）。<br>②`scripts/fetch_profiles.py` 新增模块级 `prune_profiles(out_dir, targets, now=None)` + `KEEP_DAYS = 30`：掉榜但 30 天内更新过 → 保留（回归后仍可查），超期才删，`updatedTs` 缺失或 JSON 坏一律保留；原「直接删掉所有不在 targets 的 .json」整块替换，`not fail` 保护保留。<br>③`scripts/merge_exp.py` 快照段在 `exp_map` 循环后追加「继承掉榜」：`have_prof` 取自 profiles 目录现存文件名，`for uid_s, v in prev_map.items(): if uid_s not in exp_map and (not have_prof or uid_s in have_prof)` 则带原值并 `carried += 1`；汇总行加「继承掉榜 %3d」。<br>④`data/lookup-index.json` 本地重建 956→**957 名玩家**（新收 林沫泠 22039035325 / 白剑小白 22039042793 等 6 人，去掉已掉榜 5 人；5 转 7685）。<br>⑤`data/servers/taptap_4/exp-history.json` 最新快照 100→**105 人**（补回 5 个掉榜者 exp，`fresh` 仍 100）；`data/servers/taptap_4/profiles/` 从 git `3752754^` 逐字节还原 5 份掉榜档案（月朔 22039002682 / 混沌毁灭 22039026462 / 秦可卿 22039028414 / 如梦令 22039030225 / 燕归梁 22039061175）。<br>验证：`prunetest`（边界 29 保留 / 30 保留 / 31 删除）、`carrytest`（有掉榜=1 / 无=0）、真数据副本 11 区仅 taptap_4「继承掉榜 5」；`preflight` 10 通过 / 2 警告 / 0 失败。提交 `f6afa3e9aee4` |
 | v81 | **APK 收藏功能 + 修经验快照污染**：<br>`apk/lookup_core.py` 新增 `FAV_MAX = 50` / `favorites()` / `is_favorite()` / `add_favorite()` / `remove_favorite()` / `toggle_favorite()` / `refresh_favorite()`，存 `load_cache()["favorites"]`，每条 `{uid,name,server,serverName,at}`——只存四字段，不存整份 profile（一份带 skills/equips 有几十 KB）；`HIDDEN_UIDS_LOCAL` 内的 uid 加不进也不显示。<br>`apk/app_ui.py`：结果页底栏三控件（收藏/已收藏 · 导出 · 再查一个），新增 `_is_fav()` / `_toggle_fav()` / `_fav_card()` / `_drop_fav()`；`_set_foot(on, exportable=None)` 的默认值从 `True` 改成 `None` 并在函数内按 `p.get("_board")` 现算，因为 `_relayout()` 旋转会重调 `_set_foot(True)`；查询页在最近查询卡与入口卡之间插「我的收藏」卡（为空则整张卡不出现）；`_done()` 里 `L.refresh_favorite(prof)` 让改名后收藏仍显示新昵称。榜单兜底页数据残缺，不给收藏与导出。<br>**快照污染**：`scripts/merge_exp.py:129` 的 `prev_map = (snaps[-1].get("exp") or {}) if snaps else {}` → 倒序取第一条 `src is None or src == "profile"` 的快照。起因是 `scripts/fetch.py:275-325 update_history()` 本轮先写入一条 `src="board"` 的快照，`snaps[-1]` 于是是榜单旧值，`elif uid_s in prev_map` 把未刷新者回填成榜单里的浮点经验。实测污染 `data/servers/taptap_4/exp-history.json` 的 2026-11-18 12:50 那条（`fresh=35` / 100 人，65 个浮点值且 65/65 等于旧榜 `expBoard`、`expSrc` 全为 `board`）；影响时点精确到 **2026-11-21 当天**（`WINDOW_DAYS=3` 基准正好命中该条），届时 61 人增幅失真、合计 +18,890,942；11-22 起窗口滚过自愈。已回填 61 个值并取整，另 4 人（沐白歌 22039060705 / 久恒 22039039979 / 念卿一梦 22039044797 / 心随云往 22039060095）11-17 榜与快照均无记录，是新进榜者，保留首个榜单值。修后：非整数 0 / 经验倒退 0 / 11-21 偏差 0。<br>另删 5 个磁盘残留孤儿档案（`taptap_4/profiles/` 下 22039002682 / 22039026462 / 22039028414 / 22039030225 / 22039061175，HEAD `3752754` 已删但本地未清）。`preflight` 10 通过 / 2 警告 / 0 失败。包 = 202,552 B / md5 `f3b38d8fed4c…`，提交 `279e2360735d` |
 | 文案 | **2026-11-19 网页文案校准**：`lookup.html:65` 下载按钮「下载 App（22.6 MB）」→ **23.6 MB**。实测 release `apk-v1.0` 的 `fzjh-lookup-v1.0.apk` = 24,728,132 字节（GitHub 资产区显示 23.6 MB，MiB 口径），旧文案差了约 1 MB。纯 HTML 文本改动，不涉及 JS/CSS，无需 `stamp_assets.py`；`preflight` 11 通过 / 1 警告 / 0 失败；`publish.py` 提交 `5bed56da9b02`，线上 `lookup.html` 已生效 |
 | v46 | 蓝色水滴残影（Kivy `use_handles=False`） |
