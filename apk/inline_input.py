@@ -214,6 +214,22 @@ def show(rect, text="", on_text=None, on_done=None, style=None):
         edit.setLayoutParams(FrameLayoutLP(max(1, w), max(1, h)))
 
         st = style or {}
+        # inputType 每次 show 都重设：控件是复用同一套 View 的，上一次可能是
+        # 密码框、这一次是普通文本（或反过来），只在 _ensure 里设一次会串味。
+        #
+        # password=True 走 TYPE_TEXT_VARIATION_PASSWORD：输入法自己会把字遮成圆点，
+        # 选词栏/联想也会按密码处理（口令是纯 ASCII，安全键盘足够）。
+        # 之前这里是写死 TYPE_CLASS_TEXT，所以密码框只能用 Kivy 自己的输入链路，
+        # 而那条链路在部分 ROM 上根本不弹键盘（v84 的口令框就栽在这）。
+        try:
+            InputType = autoclass("android.text.InputType")
+            if st.get("password"):
+                edit.setInputType(InputType.TYPE_CLASS_TEXT
+                                  | InputType.TYPE_TEXT_VARIATION_PASSWORD)
+            else:
+                edit.setInputType(InputType.TYPE_CLASS_TEXT)
+        except Exception:
+            pass
         try:
             px = float(st.get("font_px") or 17.0)
             # TypedValue: PX=0 / DIP=1 / SP=2。必须是 0——写成 1 会被当成 dp，

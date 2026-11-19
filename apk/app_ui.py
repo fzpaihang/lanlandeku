@@ -1207,7 +1207,11 @@ class RoundInput(TextInput):
                 "bg": hexc(self._inline_bg),
                 "stroke": hexc(C_ACCENT),
                 "hint": self.hint_text or "",
-                "text": hexc(C_INK)}
+                "text": hexc(C_INK),
+                # password 必须传下去：覆盖层原来写死 TYPE_CLASS_TEXT，套在密码框上
+                # 会把口令明文显示出来（v84 的口令框就是因为怕这个才关掉 use_native，
+                # 结果连键盘都起不来）。现在覆盖层自己按这个标记切 inputType。
+                "password": bool(self.password)}
 
     def _resync_inline(self, delay=0.0):
         """页面重排后（列表重建、键盘弹起、窗口缩放）把覆盖层挪回原位。
@@ -1320,8 +1324,10 @@ class RoundInput(TextInput):
 
     def _open_native(self):
         title = self.native_title or self.hint_text or "输入内容"
+        # 把 password 透下去：口令框双击弹出的系统对话框同样不能明文显示
         ok = NATIVE.ask(title, initial=self.text, hint=self.hint_text,
-                        ok_text=self.native_ok_text, on_ok=self._apply_native)
+                        ok_text=self.native_ok_text, on_ok=self._apply_native,
+                        password=bool(self.password))
         if not ok:                       # 环境不支持就走回老路
             self.focus = True
 
@@ -2046,59 +2052,57 @@ class PlayerLookup(App):
 
     # ---------- 网页口令（影子榜）----------
     def _web_key_dialog(self):
-        """长按顶栏「网页」弹出的口令框。
+        """长按顶栏「网页」弹出的口令框（系统原生 AlertDialog）。
 
         口令只做本机校验：输入 → sha256 → 与 L.SHADOW_HASH 比对，通过就把
         hash 写进本机缓存。之后 _open_web 每次拼 URL 都带上 k=<hash>，
         网页端认这个 hash 才把隐藏名单里的自己放回榜单（影子榜）。
         本机不存明文，也**不改**查询逻辑：隐藏玩家在 APK 里照旧查不到。
-        """
-        from kivy.uix.popup import Popup
 
-        if getattr(self, "_pop", None) is not None:
-            return                  # 已有弹窗开着，不叠第二层
-        # 先放掉页面输入框的焦点，否则软键盘和下面的 TextInput 抢同一个输入法
+        v85：不再用 Kivy Popup + inline 覆盖层。真机实测那套组合会让弹窗里
+        所有按钮的 on_release 全部失活（原生 EditText 的 View 盖在 Popup 上面
+        抢走触摸，点「确定」/「取消」/「清除口令」/点窗外都没反应，甚至
+        dismiss 之后 SDL 不再出图整屏卡死）。改成 NATIVE.ask：整个弹窗由
+        Android 系统绘制，不碰 Kivy 控件树也不碰 SDL Surface，实测从弹到关
+        全程正常。输入框留空 + 确定 = 清除口令，省掉一个按钮。
+        """
+        # 系统对话框不占 Kivy 的 _pop（自助导出那个弹窗才占），这里另设一个标记，
+        # 否则连按两次长按会叠两层系统对话框。
+        if getattr(self, "_web_dlg", False):
+            return
+        # 先放掉页面输入框的焦点，免得它和系统对话框抢输入法
         try:
             if getattr(self, "inp", None) is not None and self.inp.focus:
                 self.inp.focus = False
         except Exception:
             pass
+        # 残留的原生覆盖层必须先收掉，否则它会盖在系统对话框上面
         self._hide_inline()
+        self._web_key_hide_ime()
 
-        box = Card(pad=16, spacing=10, size_hint_y=1)
-        box.add_widget(lab("网页口令", 14, C_INK, bold=True, height=28, shorten=True))
-        tip = lab("输入网页口令后，打开网页会自动进入影子榜（只影响网页显示，"
-                  "不影响查询）", 11.5, C_INK2, height=1, halign="left")
-        tip.bind(texture_size=lambda inst, sz: setattr(inst, "height", sz[1] + dp(4)))
-        box.add_widget(tip)
-        # use_native=False：原生覆盖层（inline_input.py）把 inputType 写死成普通
-        # 文本，套在密码框上就会明文显示。口令短、纯 ASCII，走 Kivy 自带输入足够。
-        pin = RoundInput(
-            text="", hint_text="口令", password=True, font_name=FONT,
-            font_size=sp(16), multiline=False, use_native=False,
-            size_hint_y=None, height=dp(44),
-            foreground_color=C_INK, hint_text_color=C_MUTED, cursor_color=C_ACCENT,
-        )
-        box.add_widget(pin)
-        ok = PrimaryButton(text="确定", font_name=FONT, font_size=sp(15),
-                           size_hint_y=None, height=dp(46))
-        clear = txt_button("清除口令", C_INK2, height=40, size=13.5)
-        cancel = txt_button("取消", C_INK2, height=40, size=14)
-        # 高度留够：标题 28 + 折行的说明约 40 + 输入框 44 + 三个按钮 46/40/40，
-        # 加上内边距和间距接近 320dp。写死 268 会把最下面那个按钮切掉半截。
-        pop = Popup(title="", content=box, size_hint=(None, None),
-                    size=(dp(304), dp(344)), separator_height=0,
-                    title_size=dp(0), background_color=(0, 0, 0, 0),
-                    auto_dismiss=True)
-        self._pop = pop
-        pop.bind(on_dismiss=lambda *a: (setattr(self, "_pop", None),
-                                        self._web_key_hide_ime(pin)))
-        ok.bind(on_release=lambda *a: self._web_key_apply(pin.text, pop))
-        clear.bind(on_release=lambda *a: self._web_key_clear(pop))
-        cancel.bind(on_release=lambda *a: pop.dismiss())
-        for w in (ok, clear, cancel):
-            box.add_widget(w)
-        pop.open()
+        if NATIVE is None:
+            self._web_key_tip("当前环境不支持口令输入", C_ACCENT)
+            return
+        self._web_dlg = True
+        ok = False
+        try:
+            ok = NATIVE.ask("网页口令：打开网页会自动进影子榜",
+                            initial="", hint="口令（留空确定＝清除）",
+                            ok_text="确定", on_ok=self._web_key_apply,
+                            on_dismiss=self._web_key_closed, password=True)
+        except Exception as e:
+            print("[webkey] 原生对话框失败：%r" % (e,))
+        if not ok:                  # 弹不出来：立刻把标记放回去，才能再试
+            self._web_dlg = False
+            self._web_key_tip("口令框打不开，请重试", C_ACCENT)
+
+    def _web_key_closed(self):
+        """原生对话框关闭的回调（确定 / 取消 / 返回键 / 点窗外都会来）。
+
+        只负责放掉「弹窗开着」的标记，好让长按能再次打开；真正的口令处理在
+        _web_key_apply 里，两者互不影响。
+        """
+        self._web_dlg = False
 
     def _web_key_hide_ime(self, pin=None):
         """收掉口令框留下的软键盘。
@@ -2128,8 +2132,16 @@ class PlayerLookup(App):
         else:
             self.set_status(text, color)
 
-    def _web_key_apply(self, pw, pop):
-        """「确定」：只在本机校验口令，通过就把 hash 存进缓存。"""
+    def _web_key_apply(self, pw):
+        """原生对话框「确定」的回调：校验口令并存 hash；留空表示清除。
+
+        对话框由系统负责关闭，这里不再 dismiss —— 也就没有「按钮回调进不去、
+        弹窗关不掉」那类麻烦。
+        """
+        pw = (pw or "").strip()
+        if not pw:                  # 留空确定 = 清除口令（少一个按钮）
+            self._web_key_clear()
+            return
         try:
             good = L.check_web_key(pw)
         except Exception:
@@ -2143,22 +2155,14 @@ class PlayerLookup(App):
             print("[webkey] 保存失败：%r" % (e,))
             self._web_key_tip("口令保存失败，请重试", C_ACCENT)
             return
-        try:
-            pop.dismiss()
-        except Exception:
-            pass
         self._web_key_tip("口令已保存，打开网页即可看到影子榜", C_ACCENT)
 
-    def _web_key_clear(self, pop):
-        """「清除口令」：连键一起删掉，下次开网页就不带 k 了。"""
+    def _web_key_clear(self):
+        """清除口令：连键一起删掉，下次开网页就不带 k 了。"""
         try:
             L.set_web_key("")
         except Exception as e:
             print("[webkey] 清除失败：%r" % (e,))
-        try:
-            pop.dismiss()
-        except Exception:
-            pass
         self._web_key_tip("已清除口令", C_INK2)
 
     def _open_in_app(self, url):

@@ -92,8 +92,16 @@ def _keep(*objs):
         _KEEP.pop(0)
 
 
-def ask(title, initial="", hint="", ok_text="确定", on_ok=None, on_cancel=None):
-    """弹出原生输入框。True 表示已交给系统，False 表示环境不支持。"""
+def ask(title, initial="", hint="", ok_text="确定", on_ok=None, on_cancel=None,
+        password=False, on_dismiss=None):
+    """弹出原生输入框。True 表示已交给系统，False 表示环境不支持。
+
+    password=True 时把 EditText 切成密码输入（输入法自己遮字），供口令框这类
+    不该明文显示的场景使用；其余输入仍走普通文本，中文/联想照旧。
+
+    on_dismiss 在对话框关闭时必定被调用（点确定 / 取消 / 返回键 / 点窗外都算），
+    适合用来清「弹窗开着」这类状态；on_cancel 只在点「取消」时回调。
+    """
     if not available():
         return False
     try:
@@ -117,8 +125,13 @@ def ask(title, initial="", hint="", ok_text="确定", on_ok=None, on_cancel=None
             et.setSingleLine(True)
             et.setTextSize(2, 17.0)
             et.setGravity(Gravity.CENTER_VERTICAL)
-            # TYPE_CLASS_TEXT：同时给中文输入法和数字键，别锁成纯数字——昵称要中文
-            et.setInputType(InputType.TYPE_CLASS_TEXT)
+            # TYPE_CLASS_TEXT：同时给中文输入法和数字键，别锁成纯数字——昵称要中文。
+            # password 时叠上 VARIATION_PASSWORD，遮字交给输入法，别自己掩码。
+            if password:
+                et.setInputType(InputType.TYPE_CLASS_TEXT
+                                | InputType.TYPE_TEXT_VARIATION_PASSWORD)
+            else:
+                et.setInputType(InputType.TYPE_CLASS_TEXT)
             try:
                 et.setSelectAllOnFocus(True)
             except Exception:
@@ -146,6 +159,16 @@ def ask(title, initial="", hint="", ok_text="确定", on_ok=None, on_cancel=None
                 def onClick(self, _dlg, _which):
                     _dispatch(on_cancel)
 
+            class _Dismiss(PythonJavaClass):
+                __javainterfaces__ = ["android/content/DialogInterface$OnDismissListener"]
+                __javacontext__ = "app"
+
+                @java_method("(Landroid/content/DialogInterface;)V")
+                def onDismiss(self, _dlg):
+                    # 三个按钮、返回键、点窗外都会走到这里；取消按钮的回调
+                    # 单独走 _Cancel，这里只通知「关了」，调用方据此清状态。
+                    _dispatch(on_dismiss)
+
             class _Focus(PythonJavaClass):
                 __javainterfaces__ = ["java/lang/Runnable"]
                 __javacontext__ = "app"
@@ -160,7 +183,8 @@ def ask(title, initial="", hint="", ok_text="确定", on_ok=None, on_cancel=None
                     except Exception:
                         pass
 
-            ok_l, cancel_l, focus_l = _Ok(), _Cancel(), _Focus()
+            ok_l, cancel_l = _Ok(), _Cancel()
+            dismiss_l, focus_l = _Dismiss(), _Focus()
 
             builder = Builder(activity)
             builder.setTitle(_jstr(title))
@@ -171,12 +195,13 @@ def ask(title, initial="", hint="", ok_text="确定", on_ok=None, on_cancel=None
                 cast("java/lang/CharSequence", _jstr("取消")), cancel_l)
             dialog = builder.create()
             dialog.setCanceledOnTouchOutside(True)
+            dialog.setOnDismissListener(dismiss_l)
             dialog.show()
             try:
                 activity.runOnUiThread(focus_l)
             except Exception:
                 pass
-            _keep(dialog, ok_l, cancel_l, focus_l)
+            _keep(dialog, ok_l, cancel_l, dismiss_l, focus_l)
         except Exception as e:
             print("[native_input] 弹窗失败：%r" % (e,))
 
