@@ -300,16 +300,40 @@
       }
 
       var latest = snaps[snaps.length - 1] || null;
-      var baseSnap = null, days = 0;
+      var baseSnap = null, days = 0, cutoff = 0;
 
       // 取 3 天前最近的那条快照当基准；不够 3 天就退回最早一条
       if (latest) {
-        var cutoff = latest.ts - WINDOW_DAYS * 86400;
+        cutoff = latest.ts - WINDOW_DAYS * 86400;
         for (var i = snaps.length - 1; i >= 0; i--) {
           if (snaps[i].ts <= cutoff) { baseSnap = snaps[i]; break; }
         }
         if (!baseSnap) baseSnap = snaps[0];
         if (baseSnap.ts === latest.ts) baseSnap = null;
+      }
+
+      // 基准快照偶尔会缺某个 uid：抓取那一轮漏写了一条（2026-11-16 06:30 的苍松
+      // 迎客快照里，榜上的翱翔天际 6479440 就没进 exp 字典），于是这一行永远算不
+      // 出增长，页面上只剩「—」。按 uid 单独回退到「更早一条含这个 uid 的快照」
+      // 兜底；仍然要求 ts <= cutoff，区间不会退化成 4~5 天。
+      var baseCache = {};
+      function baseSnapFor(uid) {
+        if (Object.prototype.hasOwnProperty.call(baseCache, uid)) return baseCache[uid];
+        var got = null;
+        if (baseSnap) {
+          if (baseSnap.exp && baseSnap.exp[uid] !== undefined) {
+            got = baseSnap;
+          } else {
+            for (var j = snaps.length - 1; j >= 0; j--) {
+              var sj = snaps[j];
+              if (sj.ts > cutoff) continue;
+              if (sj.exp && sj.exp[uid] !== undefined) { got = sj; break; }
+            }
+          }
+          if (got === latest) got = null;
+        }
+        baseCache[uid] = got;
+        return got;
       }
 
       if (baseSnap && latest) {
@@ -335,16 +359,20 @@
         // 榜单的 updatedTs 可能比快照新，两边混用会又出现一次口径差。
         var curExp = (latest && latest.exp && latest.exp[uid] !== undefined)
           ? latest.exp[uid] : r.exp;
-        var baseExp = baseSnap && baseSnap.exp ? baseSnap.exp[uid] : undefined;
+        var bSnap = baseSnapFor(uid);
+        var baseExp = (bSnap && bSnap.exp) ? bSnap.exp[uid] : undefined;
         var grow = null, perDay = null, pct = null;
+        var rowDays = days;
 
-        if (baseSnap && curExp != null && baseExp != null) {
+        if (bSnap && latest) rowDays = (latest.ts - bSnap.ts) / 86400;
+
+        if (bSnap && curExp != null && baseExp != null) {
           grow = Math.round(curExp - baseExp);
           // 日均按固定 3 天窗口归一（区间增长 ÷ 3）；不足 3 天不显示，避免短区间线性外推夸大。
-          // 分母取 max(WINDOW_DAYS, days)：正常是 ÷3，但如果恰好 3 天前那条快照缺失
+          // 分母取 max(WINDOW_DAYS, rowDays)：正常是 ÷3，但如果恰好 3 天前那条快照缺失
           // （历史上有过手工重建基准把中间某天删掉的情况），基准会被迫退到更早的一天，
           // 区间可能变成 4~5 天，此时仍除以 3 会把日均系统性高估 30%+。
-          perDay = days >= WINDOW_DAYS ? grow / Math.max(WINDOW_DAYS, days) : null;
+          perDay = rowDays >= WINDOW_DAYS ? grow / Math.max(WINDOW_DAYS, rowDays) : null;
           pct = baseExp > 0 ? (grow / baseExp) * 100 : null;
         }
 
