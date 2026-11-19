@@ -1,8 +1,8 @@
 {
-  "version": 85,
-  "md5": "1192bcd0119b734447b367f42fb758d8",
-  "size": 209960,
-  "notes": "修：网页口令框改用系统原生对话框（v84 的 Kivy 弹窗点不动按钮、整屏卡死）",
-  "builtAt": "2026-11-19 23:35:15",
-  "sig": "c4439dc62c2a3cd5cf949cf40f82d688b34ab6e6c145582c3b31eca86b782febf81a8c3aeb97470cfadfcb1774c70f33feb319c9c5a64943f354805476055e0e"
+  "version": 86,
+  "md5": "334447206af8b139ea74655904c60e7f",
+  "size": 210553,
+  "notes": "修：点底部全服高手榜入口卡不再误弹网页口令框（顶栏长按命中判定收紧到按钮内）；口令框输入法改回普通键盘（不再触发搜狗安全键盘），遮字改 PasswordTransformationMethod",
+  "builtAt": "2026-11-20 01:37:27",
+  "sig": "769bf35ffc45fd777148db73d7954a01e5b35f0b412e14ef0ecfaf6c82f4adbd95f23652d33b5aee4276cc728082d47ff9658456ea0223759d7d3b8a96700408"
 }

@@ -921,8 +921,26 @@ class AppBar(BoxLayout):
             return False
         return self.right_btn.opacity > 0 and self.right_btn.width > 0
 
+    def _right_on_btn(self, touch):
+        """触摸点是否真的落在「网页」按钮上。
+
+        bind(on_touch_down=...) 是事件栈回调：父链 dispatch 下来就触发，
+        不做碰撞过滤，页面任意位置按下都会进到这里，必须用 collide_point 自己判。
+        实测（真机插桩）：事件派发到 AppBar 时 touch.pos 已被 Kivy 换算成和
+        right_btn.pos 同一套坐标，两者可直接比较；页面滚到底时 right_btn.pos
+        会是 (720, 2120) 这种视口外的值，此时底部卡片的 touch.pos=(449.5, 234.8)
+        明确不在按钮内 —— 不判就会误起长按计时器，0.6 秒后弹出本不该出现的
+        口令框（点底部「全服高手榜」卡片弹口令框的根因）。
+        """
+        try:
+            return bool(self.right_btn.collide_point(touch.x, touch.y))
+        except Exception:
+            return False
+
     def _right_down(self, inst, touch):
         if not self._right_hit():
+            return False
+        if not self._right_on_btn(touch):
             return False
         # 只认第一根手指：多指同时按会各自起一个计时器，抬手时互相打架
         if self._right_touch_on:

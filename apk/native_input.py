@@ -125,13 +125,22 @@ def ask(title, initial="", hint="", ok_text="确定", on_ok=None, on_cancel=None
             et.setSingleLine(True)
             et.setTextSize(2, 17.0)
             et.setGravity(Gravity.CENTER_VERTICAL)
-            # TYPE_CLASS_TEXT：同时给中文输入法和数字键，别锁成纯数字——昵称要中文。
-            # password 时叠上 VARIATION_PASSWORD，遮字交给输入法，别自己掩码。
+            # 一律 TYPE_CLASS_TEXT：同时给中文输入法和数字键，别锁成纯数字。
+            # 不能带 VARIATION_PASSWORD —— 搜狗等输入法一看到 password 标志就切
+            # 「安全键盘」，用户要的是平时的普通键盘。遮字改成自己设
+            # PasswordTransformationMethod：输入法只看 inputType，看不到密码标志。
+            et.setInputType(InputType.TYPE_CLASS_TEXT)
             if password:
-                et.setInputType(InputType.TYPE_CLASS_TEXT
-                                | InputType.TYPE_TEXT_VARIATION_PASSWORD)
-            else:
-                et.setInputType(InputType.TYPE_CLASS_TEXT)
+                try:
+                    PTM = autoclass("android.text.method.PasswordTransformationMethod")
+                    et.setTransformationMethod(PTM.getInstance())
+                except Exception:
+                    # 兜底：真拿不到就把遮字交回输入法，至少别把口令明文显示出来
+                    try:
+                        et.setInputType(InputType.TYPE_CLASS_TEXT
+                                        | InputType.TYPE_TEXT_VARIATION_PASSWORD)
+                    except Exception:
+                        pass
             try:
                 et.setSelectAllOnFocus(True)
             except Exception:
