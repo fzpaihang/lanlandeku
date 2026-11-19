@@ -126,7 +126,19 @@ def merge_server(key, verbose=True):
     snaps = hist.get("snapshots") or []
     # 只把「本轮真的刷新过档案」的玩家写进快照；没刷新的沿用上一条快照的值。
     # 否则一个三天没更新的玩家，在第四天更新时会被前端算成「今天的日增 = 三天累积」。
-    prev_map = (snaps[-1].get("exp") or {}) if snaps else {}
+    # 基准必须取「最后一条档案快照（src == "profile"）」，不能直接取 snaps[-1]：
+    # fetch.py 的 update_history() 会先追加一条 src="board" 的本轮榜单快照，
+    # 那条装的是本轮还没刷新到档案的旧榜单值，不是上一轮档案值。拿它当基准回填，
+    # 未刷新的玩家就会拿到过期榜单值（浮点数），前端「经验变化」页随即出现
+    # 经验倒退（榜单值比上一轮档案值低）或虚高（榜单值反而更高）。
+    # 老数据可能没有 src 键：历史快照一律当作基准可用（视为 profile），
+    # 免得老分区因为缺字段突然丢掉基准。
+    prev_map = {}
+    for snap in reversed(snaps):
+        src = snap.get("src")
+        if src is None or src == "profile":
+            prev_map = snap.get("exp") or {}
+            break
     exp_map = {}
     fresh = 0
     for r in rows:

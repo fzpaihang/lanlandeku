@@ -1666,14 +1666,19 @@ class PlayerLookup(App):
         except Exception:
             pass
 
-    def _set_foot(self, on, exportable=True):
+    def _set_foot(self, on, exportable=None):
         """结果态把操作条固定在底部；查询态归零，不占位。
 
-        底栏只放两个动作：「导出」（次要，纯文字）+「再查一个」（主按钮）。
-        之前并排三个按钮，360dp 下主按钮被挤成一坨，所以导出收成图标式文字按钮、
-        宽度写死 84dp，剩下的全给主按钮。
-        exportable=False 时只留「再查一个」——榜单兜底页的档案是残缺的，导出去没意义。
+        底栏放三个动作：「收藏」（次要，纯文字，可切换）、「导出」（次要，纯文字）
+        +「再查一个」（主按钮）。360dp 下一排三个按钮仍然放得下：两个次要按钮各
+        写死宽度，剩下的全给主按钮。
+        exportable=None 时按当前档案自己判断：榜单兜底页的档案是残缺的，
+        既不能导出、也不给收藏（那不是一个真实查询结果）。旋转屏幕会重调本函数，
+        状态必须从 self.prof 现算，不能靠外面传进来的闭包变量。
         """
+        p = self.prof or {}
+        if exportable is None:
+            exportable = not p.get("_board")
         self.foot.clear_widgets()
         if not on:
             self.foot.height = 0
@@ -1684,7 +1689,12 @@ class PlayerLookup(App):
         self.foot.height = dp(62)
 
         if exportable:
-            exp = txt_button("导出", C_ACCENT, width=84, height=46, size=14)
+            fav = txt_button("已收藏" if self._is_fav(p.get("uid")) else "收藏",
+                             C_ACCENT, width=76, height=46, size=13.5)
+            fav.bind(on_release=lambda *a: self._toggle_fav())
+            self.foot.add_widget(fav)
+
+            exp = txt_button("导出", C_ACCENT, width=76, height=46, size=14)
             exp.bind(on_release=lambda *a: self._export_menu())
             self.foot.add_widget(exp)
 
@@ -1693,6 +1703,84 @@ class PlayerLookup(App):
         again.shorten = True
         again.bind(on_release=lambda *a: self.again())
         self.foot.add_widget(again)
+
+    # ---------- 收藏 ----------
+    def _is_fav(self, uid):
+        try:
+            return L.is_favorite(uid)
+        except Exception:
+            return False
+
+    def _toggle_fav(self):
+        """底栏「收藏 / 已收藏」：切换后立刻改按钮文案，不重绘整页。"""
+        p = self.prof or {}
+        if not p.get("uid"):
+            return
+        try:
+            on = L.toggle_favorite(p)
+        except Exception:
+            on = False
+        # 只更新底栏（会重建按钮并按 self.prof 现算文案），不动正文：
+        # 正文重建会把滚动位置丢掉，用户刚滚到武学列表就被拉回顶部。
+        self._set_foot(True)
+        # 这里是结果页，q_status 属于查询页那张表单，写进去用户看不见；
+        # 借顶栏副标题闪一句，2.2 秒后自动恢复成「UID xxx」。
+        self._flash("已收藏，可在查询页「我的收藏」里找到" if on else "已取消收藏")
+
+    def _fav_card(self):
+        """查询页的「我的收藏」。没有收藏时返回 None，整张卡不出现。"""
+        try:
+            items = L.favorites()
+        except Exception:
+            items = []
+        if not items:
+            return None
+        card = Card(radius=16, pad=14, spacing=0)
+        card.bind(minimum_height=card.setter("height"))
+        head = BoxLayout(size_hint_y=None, height=dp(26), spacing=dp(6))
+        head.add_widget(lab("我的收藏", 13, C_INK, bold=True, height=26, shorten=True))
+        cnt = lab("%d 人" % len(items), 10.5, C_MUTED, height=26, halign="right")
+        cnt.size_hint_x = None
+        cnt.width = dp(48)
+        head.add_widget(cnt)
+        card.add_widget(head)
+        card.add_widget(lab("点行填入 UID，点「移除」从收藏里删掉",
+                            10.5, C_MUTED, height=17, shorten=True))
+        card.add_widget(gap(6))
+        for i, r in enumerate(items[:10]):
+            row = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(6))
+            nm = r.get("name") or ""
+            sn = r.get("serverName") or ""
+            txt = ("%s  ·  %s" % (r.get("uid"), nm)) if nm else "%s" % r.get("uid")
+            if sn:
+                txt = "%s  %s" % (txt, sn)
+            b = txt_button(txt, color=C_INK, height=48, size=13)
+            b.halign = "left"
+            b.shorten = True
+            b.bind(width=lambda inst, v: setattr(inst, "text_size", (v, None)))
+            b.bind(on_release=lambda inst, u=r.get("uid"), k=r.get("server"): self._fill(u, k))
+            row.add_widget(b)
+            pill = PillButton("移除", width=46)
+            pill.bind(on_release=lambda inst, u=r.get("uid"): self._drop_fav(u))
+            row.add_widget(_vcenter(pill, 48))
+            card.add_widget(row)
+            if i < min(len(items), 10) - 1:
+                card.add_widget(HLine())
+        if len(items) > 10:
+            card.add_widget(lab("还有 %d 人没显示（最多存 %d 个）"
+                                % (len(items) - 10, L.FAV_MAX),
+                                10.5, C_MUTED, height=17, shorten=True))
+        return card
+
+    def _drop_fav(self, uid):
+        """收藏卡里的「移除」：删掉后重建查询页（收藏卡可能整张消失）。"""
+        try:
+            L.remove_favorite(uid)
+        except Exception:
+            pass
+        if self.mode == "query":
+            self.show_query()
+            self.set_status("已移除 %s" % uid, C_INK2)
 
     # ---------- 导出 / 分享 ----------
     def _export_name(self):
@@ -1913,6 +2001,9 @@ class PlayerLookup(App):
         self.body.add_widget(self.form_card)
         self.body.add_widget(self._index_card())
         self.body.add_widget(self._recent_card())
+        fav = self._fav_card()
+        if fav is not None:
+            self.body.add_widget(fav)
         self.body.add_widget(self._entry_card())
         self.set_status("")
         # 后台加载线程可能比状态条先跑完，也可能后跑完；这里延后补一次，
@@ -2733,6 +2824,12 @@ class PlayerLookup(App):
                 self._fail("该分区未找到，试试「自动识别分区」", "确认分区选对了吗？")
             return
         L.add_recent(prof)
+        # 收藏过的人再查一次：顺手把昵称/分区更新成最新值。
+        # 改名之后收藏列表会一直显示旧名字，点进去才发现人对不上。
+        try:
+            L.refresh_favorite(prof)
+        except Exception:
+            pass
         # 查过的角色立刻进本地昵称索引：远端索引只覆盖榜单 + 苍松 5 转普查，
         # 散人（比如墨羽惊鸿的 22039038872「魔法困」）查完不会进远端索引，
         # 不在这里记一笔，用户下次输昵称就会「没找到」。

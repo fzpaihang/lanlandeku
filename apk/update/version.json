@@ -1,8 +1,8 @@
 {
-  "version": 80,
-  "md5": "f3500651cb096ec5e7f290d683193382",
-  "size": 200547,
-  "notes": "修：昵称候选上限 8→20；新增多昵称索引（改名后旧昵称也能搜到）；iOS 三区只跑前 50 名",
-  "builtAt": "2026-11-18 18:24:33",
-  "sig": "bea6b924763226803f1648f18047004c3f97dc389e2dd69306376e3c31fad3c4bc4f7c80fee3a1c51cadfc997c36d60b31fd693758322b652a0ed9cad69c5802"
+  "version": 81,
+  "md5": "f3b38d8fed4c0ec8aa665815fb8cba9f",
+  "size": 202552,
+  "notes": "App：新增收藏功能（结果页底栏收藏/已收藏，查询页我的收藏卡）",
+  "builtAt": "2026-11-19 15:23:10",
+  "sig": "64f2fc330e2be120c00a08e65e1841553a3fe50be988c86d6781f562452f1511e7be686f1fd8dee41943de5a503d1dcb09a2eebe1a5501a3f6a5a8cf5902190a"
 }

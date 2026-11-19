@@ -404,6 +404,129 @@ def add_recent(prof):
 
 
 # ---------------------------------------------------------------------------
+# 收藏（App 本地）
+#
+# 和「最近查询」刻意分开两个键：最近查询是自动记的 3 条、随时被顶掉；
+# 收藏是用户主动标记的、长期保留。两者共用同一个 lookup_cache.json，
+# 原子写的保障已经在 save_cache 里，不需要再单开文件。
+#
+# 只存 uid/name/server/serverName 四个字段，不存整份档案：
+#   1) 收藏是「想再看这个人」，不是「存一份快照」，档案每次查都是最新的；
+#   2) 整份 profile 带 skills/equips，一条就几十 KB，50 条会把缓存撑到几 MB，
+#      而 load_cache 在每次查询前都要读一次。
+# ---------------------------------------------------------------------------
+FAV_MAX = 50
+
+
+def favorites():
+    """收藏列表（新加的在前）；隐私名单里的人照样隐藏。"""
+    try:
+        items = load_cache().get("favorites") or []
+        out = []
+        for x in items:
+            if not isinstance(x, dict) or not x.get("uid"):
+                continue
+            if str(x.get("uid")).strip() in HIDDEN_UIDS_LOCAL:
+                continue
+            out.append(x)
+            if len(out) >= FAV_MAX:
+                break
+        return out
+    except Exception:
+        return []
+
+
+def is_favorite(uid):
+    k = str(uid or "").strip()
+    if not k:
+        return False
+    try:
+        return any(str(x.get("uid")) == k for x in favorites())
+    except Exception:
+        return False
+
+
+def add_favorite(prof):
+    """收藏一个人；同一 UID 只留一条（重复收藏等于刷新昵称/分区）。"""
+    try:
+        uid = str(prof.get("uid") or "").strip()
+        if not uid or uid in HIDDEN_UIDS_LOCAL:
+            return False
+        c = load_cache()
+        items = [x for x in (c.get("favorites") or []) if isinstance(x, dict)]
+        items = [x for x in items if str(x.get("uid")) != uid]
+        items.insert(0, {
+            "uid": prof.get("uid"),
+            "name": prof.get("name") or "",
+            "server": prof.get("server"),
+            "serverName": prof.get("serverName") or "",
+            "at": time.strftime("%Y-%m-%d %H:%M"),
+        })
+        c["favorites"] = items[:FAV_MAX]
+        save_cache(c)
+        return True
+    except Exception:
+        return False
+
+
+def remove_favorite(uid):
+    try:
+        k = str(uid or "").strip()
+        c = load_cache()
+        items = [x for x in (c.get("favorites") or []) if isinstance(x, dict)]
+        left = [x for x in items if str(x.get("uid")) != k]
+        if len(left) == len(items):
+            return False
+        c["favorites"] = left
+        save_cache(c)
+        return True
+    except Exception:
+        return False
+
+
+def toggle_favorite(prof):
+    """收藏/取消收藏，返回切换后的状态（True = 现在已收藏）。"""
+    uid = (prof or {}).get("uid")
+    if is_favorite(uid):
+        remove_favorite(uid)
+        return False
+    return add_favorite(prof)
+
+
+def refresh_favorite(prof):
+    """已收藏的人再查一次时，把昵称/分区更新成最新值。
+
+    改名、合区之后收藏列表会一直显示旧名字，用户点进去才发现人对不上。
+    这里只改展示用的三个字段，不动 at（那是「什么时候收藏的」）。
+    """
+    try:
+        uid = str((prof or {}).get("uid") or "").strip()
+        if not uid:
+            return False
+        c = load_cache()
+        items = [x for x in (c.get("favorites") or []) if isinstance(x, dict)]
+        hit = False
+        for x in items:
+            if str(x.get("uid")) != uid:
+                continue
+            name = prof.get("name") or ""
+            if name:
+                x["name"] = name
+            if prof.get("server"):
+                x["server"] = prof.get("server")
+            if prof.get("serverName"):
+                x["serverName"] = prof.get("serverName")
+            hit = True
+        if not hit:
+            return False
+        c["favorites"] = items
+        save_cache(c)
+        return True
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
 # uid → 分区 的确定性规则（由用户提供，比按位数猜准得多）
 #
 #   8 位及以下           → taptap     苍松迎客
