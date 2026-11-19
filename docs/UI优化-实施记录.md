@@ -2550,3 +2550,88 @@ live 查 `get_user_info` 得到 `inheritHistory` 4 条，前 3 世的 `parentNam
 | 版本 | 内容 | 包大小 / md5 | 提交 |
 |---|---|---|---|
 | **v80** | **昵称候选上限 8→20；多昵称索引 `aliases`；iOS 三区只跑前 50；陆云改名** | **200,547 B / `f3500651cb096ec5e7f290d683193382`** | **`212c2a4fada6`** |
+
+## 四十四、工具：add_server.py 加区一键脚本 + _env.ps1 环境脚本
+
+这一节记的不是热更版本，而是两个**维护工具**——它们解决的是此前反复踩的两类耗时坑。
+
+### 44.1 起因
+
+此前用户多次问「为什么任务时间越来越长，比如连续配置 iOS 三个区时同一个操作一个比一个慢」。复盘下来除了网络重试，主要是两件事：
+
+- **加区流程没固化**：每加一个区都要手工改 7 处，还得重新确认现状，三次加区重做三遍。
+- **Windows 环境坑反复踩**：git/node 不在 PATH、中文乱码、pwsh 无 heredoc、`.py` 带 BOM、内联 `python -c` 中文假阴性。
+
+对应产出：`scripts/add_server.py`（入库）与 `E:\workbuddy2\_env.ps1`（仓库外，不发布）。
+
+### 44.2 add_server.py（14,358 B）
+
+一条命令改完加区 **7 处**：
+
+| # | 位置 |
+|---|---|
+| 1 | `config.json` 的 servers |
+| 2 | `apk/lookup_core.py`：`UID_PREFIX_SERVER` 与 `order_servers()` 的位数兜底 |
+| 3 | `apk/app_ui.py`：`_servers()` 兜底列表 |
+| 4 | `scripts/plan_refresh.py`：`SCHEDULE_MAP` + `LABELS` |
+| 5 | `.github/workflows/refresh.yml`：cron 注释 + schedule + server 选项 |
+| 6 | `.github/workflows/merge-exp.yml`：server 选项 |
+| 7 | `scripts/build_lookup_index.py`：兜底名字表 |
+
+参数：`--key --name --channel --uuid --account --prefix --uid-len 10|11 --hours <北京点> --maxRank --indexRank --platform --domain --dry-run --apply`。
+
+- 北京时 → UTC cron：`utc_cron(h) = "0 %d * * *" % ((h - 8) % 24)`（例：北京 8 点 → `0 0 * * *`）。
+- 内置保护：cron 时段已被别的区占用就 `die`（如 `--hours 6` 撞 taptap）；非 android 但没给 `--domain` 直接 `die`。
+- `--dry-run` 或漏给 `--apply` 只检查不改；重复执行幂等（全 `[skip]`）。
+- 改完自动跑 8 项 `[PASS]/[FAIL]` 复查，并打印 sync_creds / 抓数 / 索引 / 打包 / 发布 / 清设备缓存的完整后续命令。
+
+⚠️ **实测教训**：脚本内 `subprocess` 调 git 必须传绝对路径 `GIT = r"E:\workbuddy2\_tools\PortableGit\cmd\git.exe"`；直接 `["git", ...]` 不认 PowerShell 注入的 PATH，报 `FileNotFoundError: [WinError 2]`。
+
+测试覆盖：dry-run、正常 apply（8 PASS）、重复 apply（全 skip）、cron 冲突被拒、缺 domain 被拒。测试后统一 `git checkout --` 回滚，工作区只留脚本本身。
+
+### 44.3 _env.ps1（9.4 KB，仓库外）
+
+每个新 pwsh 会话先 `. E:\workbuddy2\_env.ps1`。提供：
+
+| 命令 | 作用 |
+|---|---|
+| `Write-NoBom` | 写 UTF-8 无 BOM 文件，避免 `SyntaxError: invalid character in identifier` |
+| `Py -File` / `Py -Code -PyArgs` | 用项目 Python 运行；`-Code` 先落盘再跑，绕开内联中文失真 |
+| `Get-Raw <仓库路径> -Out <本地>` | `curl --noproxy '*'` 下载并重试 4 次 |
+| `Adb-Pull <远端> <本地>` | 按 stderr「N file(s) pulled」判成败，自动 `adb connect`，未开模拟器给启动命令 |
+| `Set-FzjhRoot` / `Get-GhToken` / `Show-Env` | 切目录 / 读 token（不打印） / 查看环境 |
+
+并把 git、node 目录加进 PATH，设 `PYTHONIOENCODING=utf-8` / `PYTHONUTF8=1`。
+
+自身踩过的三个坑（都写进了脚本注释）：
+
+1. `.ps1` 自身必须是 **UTF-8 with BOM**，否则 PowerShell 5.1 按 GBK 解码中文报 `ParserError: 意外的标记`。
+2. 参数不能叫 `-Args`——撞 PowerShell 自动变量 `$args`，静默丢参，已改 `-PyArgs`。
+3. 循环变量 `$p` 会污染 dot-source 调用方作用域，已改 `$_p`。
+
+验证：`PARSE OK`（AST 解析）、`Write-NoBom` 无 BOM、`Py -Code` 中文判断正确、`Get-Raw apk/update/version.json` 得 395 B、`Adb-Pull` 失败分支提示正确。
+
+### 44.4 文档与发布
+
+| 文件 | 改动 |
+|---|---|
+| `docs/网页维护操作手册.md` | §5.1.0 补 add_server.py 用法与「为什么会有这个脚本」 |
+| `docs/代码流程梳理.md` | 脚本表加 add_server.py 行 |
+| `docs/接手必读.md` | 速览表加 `_env.ps1` 行；§4 开头加 Windows 坑对照表（7 行）；铁律第 5 条加 add_server.py 用法 |
+
+两次发布：
+
+| 提交 | 内容 |
+|---|---|
+| `ca0eff6b5f05` | `scripts/add_server.py` 14,358 B + 网页手册 97,085 B + 代码流程梳理 19,502 B + 接手必读 11,957 B |
+| `30fb1339a67b` | 接手必读 13.1 KB（补 `_env.ps1` 用法与 Windows 坑对照表） |
+
+首次 publish 遇 `HTTP 502 POST /git/blobs` 瞬时失败，等 5 秒重试即成功；线上 4 文件经 Contents API 确认到位。
+
+### 44.5 收尾检查
+
+- `preflight.py`：**11 通过 / 1 警告 / 0 失败**。
+- `check_drift.py` 初报「已修改 53」，逐项核对 `updatedAt` 全是线上更新（4399 榜单 18:50:02、快照 18:54:57 与 36 份 profiles；`extra-names` 339→340；索引 955→956），`git checkout origin/main -- data/` 后归零：已修改 0 / 仅本地有 12（全 `worker/**`）/ 仅远端有 0 / 仅换行差异 1（`assets/servers.js`）。
+- 本地 HEAD 对齐 `30fb133`；`git status` 只剩 `?? worker/`。
+
+另记：`Py -Args` 会撞 PowerShell 自动变量导致 `publish.py` 报「用法」错 exit 1——发布应直接 `& $py scripts\publish.py "说明" 文件...`，不要经 `Py` 转发。
