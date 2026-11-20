@@ -445,6 +445,14 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
 .nm-link:hover{color:var(--accent);border-bottom-color:var(--accent)}
 .c-grow{width:112px}
 .c-day{width:96px}
+/* 排名趋势：两行「↑ N天 / ↓ N天」，列里上下堆叠，不抢横向空间 */
+.c-eta{width:104px;white-space:normal}
+.eta{display:flex;flex-direction:column;gap:1px;line-height:1.35;font-size:12.5px}
+.eta-i{font-variant-numeric:tabular-nums}
+.eta-i.up{color:var(--up)}      /* --up 是暖色：向上（超越别人） */
+.eta-i.dn{color:var(--down)}    /* --down 是冷色：向下（被别人超越） */
+.eta.none{display:block;color:var(--muted)}
+.pc-sub .eta{flex-direction:row;gap:8px;margin-top:2px}
 .c-pct{width:86px}
 
 @media (max-width:560px){

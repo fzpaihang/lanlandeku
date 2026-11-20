@@ -87,16 +87,83 @@
     return (v > 0 ? '+' : '') + fmtBig(v);
   }
 
+  /* 预计天数：只给一个粗略量级，别让人误以为是精确预测 */
+  function etaText(d) {
+    if (d === null || d === undefined) return '—';
+    if (!isFinite(d)) return '—';
+    if (d < 1 / 24) return '不到1小时';
+    if (d < 1) return Math.max(1, Math.round(d * 24)) + '小时';
+    if (d < 30) return d.toFixed(1) + '天';
+    if (d < 365) return Math.round(d) + '天';
+    return '>1年';
+  }
+
   function sorted(list) {
     var k = state.sortKey, dir = state.sortDir === 'asc' ? 1 : -1;
     return list.slice().sort(function (a, b) {
       var x = a[k], y = b[k];
       if (k === 'name' || k === 'menpai') return String(x || '').localeCompare(String(y || ''), 'zh') * dir;
+      // 趋势列按「最近的排名变动还有几天」排，没有预计的一律沉底（不能像数值列那样当 -Infinity）
+      if (k === 'eta') {
+        var ex = (a.etaD === null || a.etaD === undefined) ? Infinity : a.etaD;
+        var ey = (b.etaD === null || b.etaD === undefined) ? Infinity : b.etaD;
+        if (ex === ey) return a.rank - b.rank;
+        return (ex - ey) * dir;
+      }
       if (x === null || x === undefined) x = -Infinity;
       if (y === null || y === undefined) y = -Infinity;
       if (x === y) return a.rank - b.rank;
       return (x - y) * dir;
     });
+  }
+
+  /* 排名趋势：按当前日均线性外推。
+     经验序必须自己排——游戏 rank 是分批刷新的缓存快照（taptap 98 行里 33 对逆序），
+     拿 rank±1 当邻居会算错人。只在上/下一名日均明确更低/更高时才给预计值。 */
+  function computeEta(rows) {
+    var ord = rows.filter(function (r) {
+      return r.expN !== null && r.expN !== undefined;
+    }).sort(function (a, b) {
+      if (b.expN !== a.expN) return b.expN - a.expN;
+      return a.rank - b.rank;
+    });
+    rows.forEach(function (r) { r.etaUp = null; r.etaDn = null; r.etaD = null; });
+    for (var i = 0; i < ord.length; i++) {
+      var me = ord[i];
+      if (me.perDay === null) continue;
+      var up = i > 0 ? ord[i - 1] : null;
+      var dn = i + 1 < ord.length ? ord[i + 1] : null;
+      if (up && up.perDay !== null) {
+        var relUp = me.perDay - up.perDay;           // 我每天比他多练多少
+        if (relUp > 0) me.etaUp = Math.max(0, up.expN - me.expN) / relUp;
+      }
+      if (dn && dn.perDay !== null) {
+        var relDn = dn.perDay - me.perDay;           // 他每天比我多练多少
+        if (relDn > 0) me.etaDn = Math.max(0, me.expN - dn.expN) / relDn;
+      }
+      var a = (me.etaUp === null) ? Infinity : me.etaUp;
+      var b = (me.etaDn === null) ? Infinity : me.etaDn;
+      me.etaD = (a === Infinity && b === Infinity) ? null : Math.min(a, b);
+    }
+  }
+
+  /* 排名趋势：按当前日均线性外推，多久超过上一名 / 多久被下一名超过。
+     两项都算不出来就返回 null（桌面渲染成「—」，移动端整行不出现）。 */
+  function etaSpans(r) {
+    var up = r.etaUp, dn = r.etaDn;
+    if ((up === null || up === undefined) && (dn === null || dn === undefined)) return null;
+    var box = h('div', 'eta');
+    if (up !== null && up !== undefined) {
+      var s1 = h('span', 'eta-i up', '↑ ' + etaText(up));
+      s1.title = '按当前日均，约 ' + etaText(up) + '后超过上一名';
+      box.appendChild(s1);
+    }
+    if (dn !== null && dn !== undefined) {
+      var s2 = h('span', 'eta-i dn', '↓ ' + etaText(dn));
+      s2.title = '按当前日均，约 ' + etaText(dn) + '后被下一名超过';
+      box.appendChild(s2);
+    }
+    return box;
   }
 
   /* 移动端卡片：主行 名次+侠名+门派，次行 经验·日均，右侧 区间增长+增幅 */
@@ -129,6 +196,10 @@
       sub.appendChild(kv('经验', fmtBig(r.expN)));
       if (r.perDay !== null) sub.appendChild(kv('日均', '+' + fmtBig(r.perDay)));
       body.appendChild(sub);
+
+      // 排名趋势：按当前日均线性外推，多久会被上面那位超过 / 多久能超过上面那位
+      var eta = etaSpans(r);
+      if (eta) body.appendChild(eta);
 
       card.appendChild(body);
 
@@ -168,8 +239,8 @@
           state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
         } else {
           state.sortKey = k;
-          // 名次越小越靠前，数值类默认从高到低
-          state.sortDir = (k === 'rank') ? 'asc' : 'desc';
+          // 名次越小越靠前、趋势越快越靠前，数值类默认从高到低
+          state.sortDir = (k === 'rank' || k === 'eta') ? 'asc' : 'desc';
         }
         syncSortButtons();
         render();
@@ -230,6 +301,13 @@
       tr.appendChild(tdG);
 
       tr.appendChild(h('td', 'c-day num', dayText(r.perDay)));
+
+      var tdEta = h('td', 'c-eta');
+      var etaRow = etaSpans(r);
+      if (etaRow) tdEta.appendChild(etaRow);
+      else tdEta.appendChild(h('span', 'eta none', '—'));
+      tr.appendChild(tdEta);
+
       tr.appendChild(h('td', 'c-pct num', pctText(r.pct)));
 
       frag.appendChild(tr);
@@ -384,6 +462,7 @@
         };
       });
 
+      computeEta(state.rows);
       render();
     }).catch(function (e) {
       fail('读取失败：' + e.message);
@@ -407,7 +486,7 @@
         state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         state.sortKey = k;
-        state.sortDir = (k === 'name' || k === 'menpai' || k === 'rank') ? 'asc' : 'desc';
+        state.sortDir = (k === 'name' || k === 'menpai' || k === 'rank' || k === 'eta') ? 'asc' : 'desc';
       }
       render();
     });

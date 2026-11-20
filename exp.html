@@ -14,7 +14,7 @@
 <meta name="twitter:card" content="summary" />
 <link rel="canonical" href="https://fzpaihang.github.io/lanlandeku/exp.html" />
 <title>经验变化 · 放置江湖高手榜</title>
-<link rel="stylesheet" href="./assets/style.css?v=5dda70e9" />
+<link rel="stylesheet" href="./assets/style.css?v=6ba815ea" />
 </head>
 <body>
 
@@ -48,6 +48,7 @@
     <button class="chip" type="button" data-sort="rank">名次</button>
     <button class="chip" type="button" data-sort="expN">当前经验</button>
     <button class="chip" type="button" data-sort="grow">区间增长</button>
+    <button class="chip" type="button" data-sort="eta">排名趋势</button>
   </div>
 
   <section class="tablecard" id="board" tabindex="-1">
@@ -62,6 +63,7 @@
             <th class="c-exp num" data-key="expN" scope="col">当前经验</th>
             <th class="c-grow num" data-key="grow" scope="col">区间增长</th>
             <th class="c-day num" data-key="perDay" scope="col">日均</th>
+            <th class="c-eta" data-key="eta" scope="col">排名趋势</th>
             <th class="c-pct num" data-key="pct" scope="col">增幅</th>
           </tr>
         </thead>
@@ -76,11 +78,12 @@
     每次刷新都会记一次经验快照（5 分钟内重跑则覆盖上一条），保留最近 8 天。<br />
     ⚠️ 排行榜的数据只在玩家本人活跃时才刷新——长期不上线的号，经验/银两/等级会一直停在原处，一上线就整块跳变。<br />
     「区间增长」取 3 天前那次快照做对比，不足 3 天时用最早的一条；「日均」= 区间增长 ÷ 3，累计满 3 天才显示。<br />
-    经验取自<b>角色档案</b>（比排行榜条目更新），名次仍是游戏排行榜原始名次；口径切换当天增长会偏高一次，属正常。
+    经验取自<b>角色档案</b>（比排行榜条目更新），名次仍是游戏排行榜原始名次；口径切换当天增长会偏高一次，属正常。<br />
+    「排名趋势」假设双方按当前日均匀速练级：<b>↑</b> = 大约多久后超过经验比我高的那位，<b>↓</b> = 大约多久后被经验比我低的那位超过；上一名/下一名按<b>真实经验值排序</b>取，不是按游戏名次取（游戏名次是分批刷新的缓存，会短暂倒挂）。任一方日均不足或追不上（对方更快）就不显示对应箭头。
   </p>
 </main>
 
 <script src="./assets/servers.js?v=ea1c2f78"></script>
-<script src="./assets/exp.js?v=e99b3931"></script>
+<script src="./assets/exp.js?v=9072d485"></script>
 </body>
 </html>
