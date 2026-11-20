@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="description" content="放置江湖 名人堂：按江湖阅历排名的全服名人。" />
+<meta name="theme-color" content="#8c2f28" />
+<meta name="robots" content="noindex, nofollow" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="名人堂 · 放置江湖高手榜" />
+<meta property="og:description" content="按江湖阅历排名的全服名人，点开可看角色档案。" />
+<meta property="og:url" content="https://fzpaihang.github.io/lanlandeku/hall.html" />
+<meta property="og:site_name" content="放置江湖 · 高手榜" />
+<meta name="twitter:card" content="summary" />
+<link rel="canonical" href="https://fzpaihang.github.io/lanlandeku/hall.html" />
+<title>名人堂 · 放置江湖高手榜</title>
+<link rel="stylesheet" href="./assets/style.css?v=45e30b5c" />
+</head>
+<body>
+
+<a class="skip" href="#board">跳到榜单内容</a>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">
+      <span class="seal">名<br>人</span>
+      <div class="brand-txt">
+        <h1>名人堂</h1>
+        <p class="sub">放置江湖 · 按江湖阅历排名</p>
+      </div>
+    </div>
+    <div id="server-switch" class="srv-switch" hidden></div>
+    <div class="meta">
+      <span id="updated" class="pill">数据加载中…</span>
+      <span id="count" class="pill ghost">— 人</span>
+      <a class="navbtn" href="./index.html">‹ 返回高手榜</a>
+      <a class="navbtn" href="./exp.html">经验变化 ›</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <p id="notice" class="banner" role="status" hidden></p>
+
+  <div class="sortbar" id="sortbar">
+    <span class="sortbar-lb">排序</span>
+    <button class="chip" type="button" data-sort="rank">名次</button>
+    <button class="chip" type="button" data-sort="yueli">江湖阅历</button>
+    <button class="chip" type="button" data-sort="lv">等级</button>
+  </div>
+
+  <section class="tablecard" id="board" tabindex="-1">
+    <div class="scroll">
+      <table id="tbl">
+        <caption class="sr-only">放置江湖名人堂（按江湖阅历排名）</caption>
+        <thead>
+          <tr>
+            <th class="c-rank" data-key="rank" scope="col">名次</th>
+            <th class="c-name" data-key="name" scope="col">昵称</th>
+            <th class="c-school" data-key="menpai" scope="col">门派</th>
+            <th class="c-lv num" data-key="lv" scope="col">等级</th>
+            <th class="c-yueli num" data-key="yueli" scope="col">江湖阅历</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="cards" id="cards"></div>
+    <p id="empty" class="empty" hidden>暂无名人堂数据。</p>
+  </section>
+
+  <p class="foot">
+    数据取自游戏内公开排行榜（名人堂按<b>江湖阅历</b>排），每个分区每天自动刷新一次 · 仅供参考，不作为任何交易依据。<br />
+    名次是<b>游戏排行榜原始名次</b>，前端不会按阅历自行重排；想按阅历看，点上面的「江湖阅历」或表头。<br />
+    名人堂里的人大多不在前百高手榜上，点任意一行可看该玩家档案（没抓到的详情会显示读取失败）。<br />
+    阅历在游戏里是小数，这里四舍五入取整显示。
+  </p>
+</main>
+
+<dialog id="pf" class="pf" aria-labelledby="pf-name">
+  <div class="pf-head">
+    <div class="pf-title">
+      <h2 id="pf-name">—</h2>
+      <p class="pf-sub" id="pf-sub"></p>
+    </div>
+    <button id="pf-close" class="pf-x" type="button" aria-label="关闭详情">×</button>
+  </div>
+  <div class="pf-body" id="pf-body"></div>
+</dialog>
+
+<script src="./assets/servers.js?v=ea1c2f78"></script>
+<script src="./assets/profile.js?v=2ea3b112"></script>
+<script src="./assets/hall.js?v=71ad300c"></script>
+</body>
+</html>

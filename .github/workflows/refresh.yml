@@ -10,6 +10,7 @@ name: 刷新高手榜
 #   0 18 * * *  → 次日 02:00  华为（huawei）
 #   0 0 * * *   → 当日 08:00  野马分鬃（ios2）
 #   0 2 * * *   → 当日 10:00  仙人指路（ios3）
+#   0 12 * * *  → 当日 20:00  名人堂（11 区一次抓全，游戏 boardType=4，指标=江湖阅历）
 # 单区全量约 5–8 分钟，各任务互不重叠，也避免连续请求触发限流。
 # 每轮抓完就重建昵称索引（data/lookup-index.json），保证刚上榜的人立刻能按昵称搜到。
 on:
@@ -23,6 +24,7 @@ on:
     - cron: '0 18 * * *'   # 次日 02:00 华为
     - cron: '0 0 * * *'    # 08:00 野马分鬃
     - cron: '0 2 * * *'    # 10:00 仙人指路
+    - cron: '0 12 * * *'   # 20:00 名人堂（11 区）
   workflow_dispatch:
     inputs:
       mode:
@@ -52,6 +54,7 @@ on:
           - ios1
           - ios2
           - ios3
+          - hall11       # 名人堂（11 区一次抓全，抓 board 4，产出 hall.json）
 
 permissions:
   contents: write
@@ -91,6 +94,8 @@ jobs:
           PICK: ${{ inputs.server }}
           MODE: ${{ inputs.mode }}
         run: |
+          # target 是「任务标记」（hall11 之类不能当分区名），servers 才是喂给 --server 的分区串，
+          # board 是游戏榜单编号（1=高手榜，4=名人堂）。非名人堂任务时 servers 就等于 target。
           python scripts/plan_refresh.py --schedule "$SCHED" --mode "$MODE" --pick "$PICK" >> "$GITHUB_OUTPUT"
 
       - name: 写入任务摘要
@@ -112,8 +117,9 @@ jobs:
         env:
           FZJH_SERVERS: ${{ secrets.FZJH_SERVERS }}
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
-          T: ${{ steps.t.outputs.target }}
+          T: ${{ steps.t.outputs.servers }}
         run: |
+          # 探测用高手榜（board 1）：能同时验出握手/版本/数值，名人堂本轮稍后正式抓，不必探两遍。
           if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch.py --probe
           else python scripts/fetch.py --probe --server "$T"; fi
 
@@ -122,18 +128,24 @@ jobs:
         env:
           FZJH_SERVERS: ${{ secrets.FZJH_SERVERS }}
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
-          T: ${{ steps.t.outputs.target }}
+          T: ${{ steps.t.outputs.servers }}
+          B: ${{ steps.t.outputs.board }}
         run: |
-          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch.py
-          else python scripts/fetch.py --server "$T"; fi
+          # B=4（名人堂）时加 --board 4 --max-pages 1：该榜每区只有 10 人，翻页返回的还是同样 10 人。
+          BOARD_ARG=""
+          if [ -n "$B" ] && [ "$B" != "1" ]; then BOARD_ARG="--board $B --max-pages 1"; fi
+          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch.py $BOARD_ARG
+          else python scripts/fetch.py --server "$T" $BOARD_ARG; fi
 
       - name: 抓玩家档案
-        # 每个区的定时任务都是一次全量，所以只要不是 probe/board 就抓档案
+        # 每个区的定时任务都是一次全量，所以只要不是 probe/board 就抓档案。
+        # 名人堂任务也抓：网页上点名人堂的人要能页内看详情，而这些玩家可能不在前百高手榜里，
+        # fetch_profiles.py 会额外把同目录 hall.json 的行并进目标（顺带也会刷新本区前百的档案）。
         if: (github.event_name == 'schedule') || (inputs.mode == 'full')
         env:
           FZJH_SERVERS: ${{ secrets.FZJH_SERVERS }}
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
-          T: ${{ steps.t.outputs.target }}
+          T: ${{ steps.t.outputs.servers }}
         run: |
           if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch_profiles.py
           else python scripts/fetch_profiles.py --server "$T"; fi
@@ -141,9 +153,12 @@ jobs:
       - name: 合并档案经验
         # 档案抓完再合并：get_board 对不活跃玩家会返回旧经验，用 get_user_info 的值覆盖，
         # 让表格、详情、增长曲线统一口径。名次仍是游戏原始名次，不重排。
+        # 名人堂任务照跑：它只认 gaoshoubang.json，绝不碰 hall.json；
+        # 而名人堂任务确实重抓了十一区前百档案，跳过反而会让「档案 exp 比榜单新」的不一致
+        # 一直挂到各区自己的定时任务，正是这一步要消除的。
         if: (github.event_name == 'schedule') || (inputs.mode == 'full')
         env:
-          T: ${{ steps.t.outputs.target }}
+          T: ${{ steps.t.outputs.servers }}
         run: |
           if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/merge_exp.py
           else python scripts/merge_exp.py --server "$T"; fi
@@ -190,8 +205,9 @@ jobs:
       - name: 结果摘要
         if: always()
         env:
-          T: ${{ steps.t.outputs.target }}
+          T: ${{ steps.t.outputs.servers }}
         run: |
+          # summary.py 读的是各区 gaoshoubang.json；名人堂任务没抓高手榜，摘要显示上一版快照属正常。
           if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/summary.py >> $GITHUB_STEP_SUMMARY
           else python scripts/summary.py --server "$T" >> $GITHUB_STEP_SUMMARY; fi
 

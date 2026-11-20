@@ -273,6 +273,21 @@ def fetch_server(srv, names, args):
     for r in extra:
         rows.setdefault(r["userid"], r)
 
+    # 名人堂（boardType=4，fetch.py --board 4 产出同目录 hall.json）：每区最多 10 人，
+    # 里面可能有前百高手榜里没有的人。这些人的档案也必须抓，否则页面上点开没有详情。
+    # 同名次口径：同一 uid 同时在高手榜和名人堂时，setdefault 保证高手榜那行优先
+    # （档案里的名次/门派按高手榜算，和以前完全一致）。
+    hall = []
+    hp = os.path.join(out_dir0, "hall.json")
+    if os.path.exists(hp):
+        try:
+            with io.open(hp, encoding="utf-8") as f:
+                hall = [r for r in (json.load(f).get("rows") or []) if r.get("userid")]
+        except Exception:
+            hall = []
+    for r in hall:
+        rows.setdefault(r["userid"], r)
+
     if "--only" in args:
         i = args.index("--only")
         targets = [int(x) for x in args[i + 1:] if x.isdigit()]
@@ -297,6 +312,14 @@ def fetch_server(srv, names, args):
             if cap and len(targets) > cap:
                 print("      目标 %d 人超过抓取上限 %d，按上限截断" % (len(targets), cap))
                 targets = targets[:cap]
+
+        # 名人堂的行排在上面的上限截断之后追加：maxRank/--limit 是「高手榜前 N 名」的口径，
+        # 名人堂每区最多 10 人且页内详情依赖档案，不能被截掉。
+        if hall:
+            seen_t = set(targets)
+            add = [r["userid"] for r in hall if r["userid"] not in seen_t]
+            targets += add
+            print("      名人堂玩家 %d 位也抓档案（其中 %d 位不在高手榜）" % (len(hall), len(add)))
 
     # 字段级隐藏：这些人照常抓、照常出现在榜单和档案里，只清空指定字段
     hide_fields = F.hidden_fields_for(F.load_hidden_fields(), srv["key"])

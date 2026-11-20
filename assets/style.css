@@ -168,6 +168,8 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
 .c-luck{width:72px}
 .c-looks{width:72px}
 .c-age{width:78px}
+/* 名人堂：江湖阅历是 7 位整数（如 2,639,341），比经验窄一档 */
+.c-yueli{width:118px}
 
 .rank{
   display:inline-flex;align-items:center;justify-content:center;
@@ -259,6 +261,7 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
   .c-looks,.c-age{display:none}
   .c-exp{width:118px}
   .c-school{width:92px}
+  .c-yueli{width:104px}
 }
 @media (max-width:720px){
   h1{font-size:20px;letter-spacing:1.5px}

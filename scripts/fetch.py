@@ -7,8 +7,9 @@
   3) 响应尾部填充字符是 '0'，需剥掉才能当 JSON 解析
 
 用法:
-  python fetch.py                # 抓高手榜全部页 -> data/gaoshoubang.json
-  python fetch.py --board 1      # 指定榜单类型（1=高手榜）
+  python fetch.py                # 抓高手榜全部页 -> data/servers/<key>/gaoshoubang.json
+  python fetch.py --board 1      # 指定榜单类型（1=高手榜，写入 gaoshoubang.json）
+  python fetch.py --board 4      # 名人堂（指标=江湖阅历，写入 hall.json；每区仅 10 人）
   python fetch.py --max-pages 3  # 只抓前 3 页（调试用）
 """
 import io
@@ -50,7 +51,11 @@ def bj_date(ts):
     return bj_time(ts, "%Y-%m-%d")
 RETRY = 3
 
-BOARD_CN = {1: "高手榜"}
+BOARD_CN = {1: "高手榜", 4: "名人堂"}
+
+# 每个榜写哪个文件名。高手榜沿用历史文件名 gaoshoubang.json（下游脚本按它取数据），
+# 名人堂单独存 hall.json，两者互不覆盖。
+BOARD_FILE = {1: "gaoshoubang.json", 4: "hall.json"}
 
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
@@ -670,7 +675,14 @@ def fetch_server(srv, board, max_pages):
     max_rank = srv.get("maxRank")
     # 只进索引、不进榜单的名次上限：需要多抓几页，抓完再把 50 之后的部分单独存
     idx_rank = srv.get("indexRank")
-    limit = max(int(max_rank or 0), int(idx_rank or 0))
+    if board != 1:
+        # maxRank / indexRank 是「高手榜 + 昵称索引」的口径，只对 board=1 有意义。
+        # 名人堂每区固定 10 行，套用 maxRank 会把它截成更少的人，
+        # 而 index-extra.json 是高手榜专属，也不该由别的榜来写/删。
+        max_rank, idx_rank = None, None
+        limit = 0
+    else:
+        limit = max(int(max_rank or 0), int(idx_rank or 0))
     rows, seen = [], set()
     stale = 0
     err_page = None
@@ -740,6 +752,8 @@ def fetch_server(srv, board, max_pages):
         })
 
     # 隐私名单：整条从榜单剔除（不是只遮数值）
+    # 注意这里是 hidden.json 里的「全部」该区玩家（含 shadow:true 的影子玩家），
+    # 名人堂（board=4）也按这个全集剔除，不做影子豁免。
     hidden = load_hidden()
     drop = hidden_uids_for(hidden, srv["key"])
     # 影子玩家（hidden.json 里带 "shadow": true）要在剔除之前抄一份原始行：
@@ -764,8 +778,8 @@ def fetch_server(srv, board, max_pages):
     for i, x in enumerate(board_rows, 1):
         x["rank"] = i
 
-    # 排名变化：与上一版对比
-    cur_path = os.path.join(out_dir, "gaoshoubang.json")
+    # 排名变化：与上一版对比（按榜取各自的文件，名人堂读的是上一版 hall.json）
+    cur_path = os.path.join(out_dir, BOARD_FILE.get(board, "board%d.json" % board))
     prev_rank = {}
     has_prev = os.path.exists(cur_path)
     if has_prev:
@@ -795,8 +809,12 @@ def fetch_server(srv, board, max_pages):
     os.replace(tmp, cur_path)
 
     # 索引专用名单：字段精简，只留搜索/展示要用的
+    # 这是高手榜专属文件（build_lookup_index.py 按 maxRank 之后的名次建索引），
+    # 别的榜既不写也不删，否则会把高手榜那份索引清空。
     ip = os.path.join(out_dir, "index-extra.json")
-    if idx_rank:
+    if board != 1:
+        pass
+    elif idx_rank:
         # 本轮没抓满 indexRank（限流/中途断页）时不要写空表：
         # 那会把索引从 100 名直接砍到 maxRank，而且没有任何报错。
         # 宁可用上一版（最多多出几个已下榜的人），也不能莫名少一半。
@@ -832,15 +850,23 @@ def fetch_server(srv, board, max_pages):
     # 快照里保留影子玩家（drop 减去影子）：
     # 他们本来就在公开榜时代进过快照，用户要求别把历史抹掉；
     # 他们的档案现在也照抓，merge_exp 会继续沿用上一轮的值，不会断档。
-    n_hist = update_history(board_rows, t, out_dir, drop - shadow_uids)
+    # exp-history.json 记的是「高手榜名次的经验趋势」，名人堂（阅历榜）不参与，
+    # 否则会把同一批人的经验快照按名人堂名次重写一遍。
+    n_hist = None
+    if board == 1:
+        n_hist = update_history(board_rows, t, out_dir, drop - shadow_uids)
 
     # 影子榜：给被剔除的隐藏玩家单独留一份「原始名次」的行，本人带口令打开
     # 网页时才由前端把这些行插回榜单（别人不带口令看不到）。
     # 用的是剔除前抄下来的 shadow_rows，rank 才是游戏真实名次。
-    if shadow_uids:
+    if board != 1:
+        import_shadow = False   # 影子榜（data/shadow.json）只属于高手榜
+    else:
+        import_shadow = True
+    if import_shadow and shadow_uids:
         n_sh = write_shadow_server(srv["key"], shadow_rows, board_total_all, t)
         print("      影子榜 %d 人（原始榜共 %d 人，含未公开的）" % (n_sh, board_total_all))
-    elif drop_shadow_server(srv["key"]):
+    elif import_shadow and drop_shadow_server(srv["key"]):
         print("      影子榜：本分区已无影子玩家，清掉旧记录")
 
     print("[3/3] 已写入 %s" % cur_path)
@@ -848,9 +874,13 @@ def fetch_server(srv, board, max_pages):
     if idx_rank:
         print("      索引名单 %d 人（第 %d–%d 名）" % (
             len(extra_rows), len(board_rows) + 1, len(board_rows) + len(extra_rows)))
-    print("      经验快照：%d 条在库（保留最近 8 天）" % n_hist)
+    if n_hist is not None:
+        print("      经验快照：%d 条在库（保留最近 8 天）" % n_hist)
+    # 高手榜的第三列数值是武学；名人堂是江湖阅历（yueli），别在日志里叫错名字。
+    metric = "阅历" if board == 4 else "武学"
     for x in board_rows[:3]:
-        print("      #%d %s（%s）武学 %s" % (x["rank"], x["name"], x["menpai"], x["kongfu"]))
+        val = x["yueli"] if board == 4 else x["kongfu"]
+        print("      #%d %s（%s）%s %s" % (x["rank"], x["name"], x["menpai"], metric, val))
     return 0
 
 
