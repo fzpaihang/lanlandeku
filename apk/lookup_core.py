@@ -53,7 +53,7 @@ HIDDEN_UIDS_LOCAL = set((
     "19035702184",
 ))
 
-# 网页「影子榜」口令的 sha256：明文只在用户手里，仓库和 APK 里都只留摘要。
+# 网页「隐藏榜」口令的 sha256：明文只在用户手里，仓库和 APK 里都只留摘要。
 # 网页端凭 k=<这个 hash> 判断是否放出名单里那两个人的真实名次；必须与
 # assets/servers.js 的 SHADOW_HASH 一致，改一处就要同步改另一处
 # （scripts/preflight.py 的 check_shadow() 会校验这两处相等）。
@@ -418,7 +418,7 @@ def check_web_key(pw):
 
 
 def has_web_key():
-    """是否已经存过口令（网页会自动进影子榜）。"""
+    """是否已经存过口令（网页会自动进隐藏榜）。"""
     try:
         return bool(web_key())
     except Exception:

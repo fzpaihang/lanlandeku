@@ -1,8 +1,8 @@
 {
-  "version": 86,
-  "md5": "334447206af8b139ea74655904c60e7f",
-  "size": 210553,
-  "notes": "修：点底部全服高手榜入口卡不再误弹网页口令框（顶栏长按命中判定收紧到按钮内）；口令框输入法改回普通键盘（不再触发搜狗安全键盘），遮字改 PasswordTransformationMethod",
-  "builtAt": "2026-11-20 01:37:27",
-  "sig": "769bf35ffc45fd777148db73d7954a01e5b35f0b412e14ef0ecfaf6c82f4adbd95f23652d33b5aee4276cc728082d47ff9658456ea0223759d7d3b8a96700408"
+  "version": 87,
+  "md5": "bbd1e27deb3db6a4ef7bf86144e5bd6d",
+  "size": 210550,
+  "notes": "文案：APK 口令框「影子榜」统一改「隐藏榜」（与网页端一致）",
+  "builtAt": "2026-11-20 08:01:02",
+  "sig": "e9c9930148149ac29cae217792408c16dc845cfb3be54b0c8158fcb8959b36a24b40ebcfd55a94f2d94e383e9efcc8dfb0e30dbc74507b49fcb84e226d6fba03"
 }

@@ -2048,7 +2048,7 @@ class PlayerLookup(App):
             q.append("s=" + key)
         if uid:
             q.append("me=" + str(uid))
-        # k = 网页口令的 sha256（影子榜）。和 me 是两件事，互不替代：
+        # k = 网页口令的 sha256（隐藏榜）。和 me 是两件事，互不替代：
         #   me = 要高亮的那个人的 uid（谁都能带，只影响高亮）
         #   k  = 口令凭据（只有本机存过口令才带，带了网页才把自己放回榜单）
         # 口令不落明文，缓存的也是 hash，网页端拿 hash 直接比对。
@@ -2068,13 +2068,13 @@ class PlayerLookup(App):
         if self.mode == "result":
             self._flash(msg)
 
-    # ---------- 网页口令（影子榜）----------
+    # ---------- 网页口令（隐藏榜）----------
     def _web_key_dialog(self):
         """长按顶栏「网页」弹出的口令框（系统原生 AlertDialog）。
 
         口令只做本机校验：输入 → sha256 → 与 L.SHADOW_HASH 比对，通过就把
         hash 写进本机缓存。之后 _open_web 每次拼 URL 都带上 k=<hash>，
-        网页端认这个 hash 才把隐藏名单里的自己放回榜单（影子榜）。
+        网页端认这个 hash 才把隐藏名单里的自己放回榜单（隐藏榜）。
         本机不存明文，也**不改**查询逻辑：隐藏玩家在 APK 里照旧查不到。
 
         v85：不再用 Kivy Popup + inline 覆盖层。真机实测那套组合会让弹窗里
@@ -2104,7 +2104,7 @@ class PlayerLookup(App):
         self._web_dlg = True
         ok = False
         try:
-            ok = NATIVE.ask("网页口令：打开网页会自动进影子榜",
+            ok = NATIVE.ask("网页口令：打开网页会自动进隐藏榜",
                             initial="", hint="口令（留空确定＝清除）",
                             ok_text="确定", on_ok=self._web_key_apply,
                             on_dismiss=self._web_key_closed, password=True)
@@ -2173,7 +2173,7 @@ class PlayerLookup(App):
             print("[webkey] 保存失败：%r" % (e,))
             self._web_key_tip("口令保存失败，请重试", C_ACCENT)
             return
-        self._web_key_tip("口令已保存，打开网页即可看到影子榜", C_ACCENT)
+        self._web_key_tip("口令已保存，打开网页即可看到隐藏榜", C_ACCENT)
 
     def _web_key_clear(self):
         """清除口令：连键一起删掉，下次开网页就不带 k 了。"""
@@ -2297,7 +2297,7 @@ class PlayerLookup(App):
         # 结果页把右侧按钮改成了「重新查询」，回查询页要还原成高手榜入口，
         # 否则右侧按钮空着、bind_right 仍指着 _on_refresh。
         self.appbar.bind_right(lambda *a: self._open_web())
-        # 短按 = 开网页（上一行），长按 0.6 秒 = 网页口令（影子榜入口）。
+        # 短按 = 开网页（上一行），长按 0.6 秒 = 网页口令（隐藏榜入口）。
         # 两者同挂一颗按钮：口令只影响网页显示，不占第二个按钮位。
         self.appbar.bind_right_long(lambda *a: self._web_key_dialog())
         self._apply_metrics()
