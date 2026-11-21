@@ -1,0 +1,118 @@
+name: 数据看门狗
+
+# 兜底刷新链路的最后一道保险。
+#
+# 为什么要它：游戏接口会对翻页做限流（errcode 20616，实测能连续十几分钟不放行）。
+# fetch.py 里有单页冷却重试（15s/45s/90s），refresh.yml 里有整轮 3 次重试（冷却 240s/480s），
+# 但两次真实事故正是「三重退避全部撞在同一个限流窗口里」：
+#   2026-11-20 12:49 墨羽惊鸿失败 → 20 号整轮空缺，网页 19 号的数据直接跳到 21 号
+#   2026-11-21 06:39 苍松迎客失败 → 停在 11-20 06:43 的数据上，36 小时没更新
+# 这里每隔几小时查一次「今天该更新却没更新」的分区，直接派发 refresh.yml 补跑。
+# 补跑成功后数据变新，下一轮自然就不再派发；一直失败就一直重试，直到游戏接口放行。
+
+# 每 3 小时一次，错开整点（整点是各区自己的定时任务在跑）。
+on:
+  schedule:
+    - cron: '30 1,4,7,10,13,16,19,22 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write   # 派发 refresh.yml 必需
+
+# 与 refresh.yml 共用同一个队列，避免看门狗自己和自己抢
+concurrency:
+  group: fzjh-watchdog
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # check_stale.py 只读本地 data/（checkout 到的就是最新 main），不联网、不改文件。
+      # stdout 是给 $GITHUB_OUTPUT 的两行 key=value，诊断信息走 stderr 只进日志。
+      - name: 找出过期分区
+        id: s
+        run: python scripts/check_stale.py >> "$GITHUB_OUTPUT"
+
+      - name: 派发补跑
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVERS: ${{ steps.s.outputs.servers }}
+          HALL: ${{ steps.s.outputs.hall }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/$REPO/actions/workflows/refresh.yml"
+          AUTH="Authorization: Bearer $GH_TOKEN"
+          ACCEPT="Accept: application/vnd.github+json"
+
+          if [ -z "${SERVERS:-}" ] && [ "${HALL:-0}" != "1" ]; then
+            echo "所有分区都新鲜，无需补跑"
+            echo "- 结论：所有分区都在时效内，未派发补跑" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # refresh.yml 的 server 是 choice 型输入（只能取单个分区名），所以有过期分区时
+          # 只能一个区派发一次。好在 refresh.yml 的 concurrency（group=fzjh-data，
+          # cancel-in-progress=false）会让这些任务排队串行执行 —— 串行正好，
+          # 同时并发几个区抢限流额度才是之前失败的原因。
+          #
+          # 已有 refresh.yml 在排队/运行时整轮跳过：那个任务很可能就是在刷这个区，
+          # 现在再派发只会白跑一遍、多消耗限流额度。等下一轮看门狗自然会复查。
+          # 任何一步都不许把看门狗自己搞红：查不到就当「没人跑」，宁可白派发也不误报失败。
+          active() {
+            curl -sS --max-time 20 -H "$AUTH" -H "$ACCEPT" "$API/runs?status=$1&per_page=1" 2>/dev/null \
+              | python -c "import sys,json;print(int(json.load(sys.stdin).get('total_count') or 0))" 2>/dev/null || echo 0
+          }
+          busy=$(( $(active in_progress) + $(active queued) ))
+          if [ "$busy" -gt 0 ]; then
+            echo "已有 $busy 个 refresh.yml 任务在跑或在排队，本轮不派发"
+            echo "- 跳过：已有 refresh.yml 任务在运行或排队，本轮不派发" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          dispatch() {
+            local target="$1"
+            echo "派发补跑：$target"
+            curl -sS -X POST -H "$AUTH" -H "$ACCEPT" \
+              "$API/dispatches" \
+              -d "{\"ref\":\"main\",\"inputs\":{\"mode\":\"full\",\"server\":\"$target\"}}" \
+              -w 'HTTP %{http_code}\n'
+          }
+
+          echo "- 过期分区：${SERVERS:-无}" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${SERVERS:-}" ]; then
+            IFS=',' read -ra LIST <<< "$SERVERS"
+            for k in "${LIST[@]}"; do
+              [ -z "$k" ] && continue
+              dispatch "$k"
+            done
+          fi
+          if [ "${HALL:-0}" = "1" ]; then
+            dispatch hall11
+            echo "- 名人堂：已派发补跑" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: 结果摘要
+        if: always()
+        env:
+          SERVERS: ${{ steps.s.outputs.servers }}
+          HALL: ${{ steps.s.outputs.hall }}
+        run: |
+          {
+            echo "### 数据看门狗"
+            echo ""
+            echo "- UTC 时间：$(date -u '+%Y-%m-%d %H:%M:%S')"
+            echo "- 过期高手榜：${SERVERS:-无}"
+            echo "- 名人堂过期：${HALL:-?}（1=过期）"
+          } >> "$GITHUB_STEP_SUMMARY"

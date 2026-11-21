@@ -58,6 +58,8 @@ on:
 
 permissions:
   contents: write
+  # 「失败自动补跑」步骤要用 REST 派发本工作流，需要 actions:write
+  actions: write
 
 concurrency:
   group: fzjh-data
@@ -134,8 +136,34 @@ jobs:
           # B=4（名人堂）时加 --board 4 --max-pages 1：该榜每区只有 10 人，翻页返回的还是同样 10 人。
           BOARD_ARG=""
           if [ -n "$B" ] && [ "$B" != "1" ]; then BOARD_ARG="--board $B --max-pages 1"; fi
-          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch.py $BOARD_ARG
-          else python scripts/fetch.py --server "$T" $BOARD_ARG; fi
+
+          # 整轮重试：fetch.py 内部已对 20616 做 15s/45s/90s 冷却，但限流窗口有时长达十几分钟，
+          # 内层退避耗尽后整轮作废（fetch.py 故意不写残缺榜单），该区当天就没数据了。
+          # 2026-11-20 12:49 墨羽惊鸿、2026-11-21 06:39 苍松迎客 两次事故都是这个链路，
+          # 网页上表现为「19 号的数据直接跳到 21 号」。这里再给整轮 3 次机会。
+          # 注意：重试必须写在同一步骤内，用单独的「失败后重试」步骤没用——
+          # 上面已经失败过，后面所有步骤都会被跳过，数据照样不提交。
+          # 用法注意：GitHub Actions 的 run 默认是 bash -e，所以「失败不算错」的命令
+          # 必须放进 if 条件里（if cmd; then），不能写成 cmd && x —— 后者在 -e 下会直接退出。
+          ok=0
+          for i in 1 2 3; do
+            echo "===== 第 $i 轮抓取 ====="
+            if [ -z "$T" ] || [ "$T" = "all" ]; then
+              if python scripts/fetch.py $BOARD_ARG; then ok=1; fi
+            else
+              if python scripts/fetch.py --server "$T" $BOARD_ARG; then ok=1; fi
+            fi
+            if [ "$ok" = "1" ]; then break; fi
+            if [ "$i" -lt 3 ]; then
+              cool=$((i * 240))
+              echo "第 $i 轮失败（多为接口限流），冷却 ${cool}s 后整轮重试"
+              sleep "$cool"
+            fi
+          done
+          if [ "$ok" != "1" ]; then
+            echo "三轮都失败：保留上一版数据不动，等下一轮定时任务"
+            exit 1
+          fi
 
       - name: 抓玩家档案
         # 每个区的定时任务都是一次全量，所以只要不是 probe/board 就抓档案。
@@ -171,6 +199,10 @@ jobs:
         run: python scripts/build_lookup_index.py
 
       - name: 提交数据
+        # always()：榜单文件在「抓榜单」步就已经写盘了，后面「抓玩家档案」因限流失败
+        # 不该把这份已经完整的榜单一起丢掉（那正是 11-20 / 11-21 两次事故的后果）。
+        # 整轮彻底失败时 data/ 没有变化，下面的 git diff --staged --quiet 会直接跳过，安全。
+        if: always()
         env:
           LABEL: ${{ steps.t.outputs.label }}
         run: |

@@ -50,6 +50,14 @@ def bj_time(ts, fmt="%Y-%m-%d %H:%M"):
 def bj_date(ts):
     return bj_time(ts, "%Y-%m-%d")
 RETRY = 3
+# 限流（errcode=20616「请求错误」）专用退避阶梯，单位秒。
+# 普通错误的 3s/6s 对限流毫无意义：一轮 8 页总共只花 5 秒，
+# 冷却 3 秒等于立刻再撞一次。实测 11-20 12:49（墨羽惊鸿第 2 页）与
+# 11-21 06:39（苍松迎客第 8 页）都是翻页中途被限流打断，整轮作废后
+# 该区当天就没有数据，网页上表现为「11-19 直接跳到 11-21」。
+RATE_BACKOFF = (15, 45, 90)
+# 本轮撞限流的次数；>0 时后续翻页间隔自动翻倍，避免刚恢复就把限额又打满。
+RATE_HITS = 0
 
 BOARD_CN = {1: "高手榜", 4: "名人堂"}
 
@@ -212,13 +220,27 @@ def rows_of(d):
     return cur if isinstance(cur, list) else []
 
 
-def post_with_retry(cfg, path, body, keys, t):
-    """请求失败（含空响应导致解析失败）自动重试，退避 3s / 6s。
+def is_rate_limited(d):
+    """是不是限流（20616「请求错误」）。这既不是成功也不是版本问题，冷却后必须重试。"""
+    return (d or {}).get("errcode") == 20616
 
+
+def post_with_retry(cfg, path, body, keys, t, tries=None):
+    """请求失败（含空响应导致解析失败）自动重试。
+
+    退避分两条线：
+      - 限流 20616：按 RATE_BACKOFF（15s/45s/90s）冷却，且多给两次机会。
+        这类失败是「请求太密」而不是「请求不可能成功」，等一等基本都能过。
+        冷却期间还顺带换一次会话密钥：连续被限流时旧密钥也可能被判可疑。
+      - 其它错误：按老规矩 3s/6s。
     限流时服务端会返回空包，api_post 会抛 JSON 解析异常，这里一并兜住。
     """
+    global RATE_HITS
     last = {"errcode": -1, "errmsg": "未发起请求"}
-    for i in range(RETRY):
+    n = tries or RETRY
+    i = 0        # 常规重试计数
+    j = 0        # 限流冷却计数（独立额度，不吃掉常规重试）
+    while i < n:
         try:
             d = api_post(cfg, path, body, keys, t)
             if d.get("errcode") == 0:
@@ -226,8 +248,25 @@ def post_with_retry(cfg, path, body, keys, t):
             last = d
         except Exception as e:
             last = {"errcode": -1, "errmsg": "%s: %s" % (type(e).__name__, e)}
-        if i < RETRY - 1:
+        rate = is_rate_limited(last)
+        if rate:
+            RATE_HITS += 1
+            # 限流不消耗常规重试额度：最多再给 len(RATE_BACKOFF) 次冷却机会。
+            if j < len(RATE_BACKOFF):
+                wait = RATE_BACKOFF[min(j, len(RATE_BACKOFF) - 1)]
+                print("      ~ 限流 20616，冷却 %ds 后重试 %s（第 %d 次）" % (
+                    wait, path, j + 1))
+                time.sleep(wait)
+                try:
+                    keys = handshake(cfg, time.time())
+                except Exception:
+                    pass
+                j += 1
+                continue
+            break
+        if i < n - 1:
             time.sleep(3 + i * 3)
+        i += 1
     return last
 
 
@@ -717,7 +756,8 @@ def fetch_server(srv, board, max_pages):
         if stale >= 2:
             print("      连续无新增，停止")
             break
-        time.sleep(SLEEP)
+        # 本轮撞过限流就把页间隔翻倍：刚恢复时最容易第二次超限。
+        time.sleep(SLEEP * (2 if RATE_HITS else 1))
 
     if err_page:
         # 抓到一半报错：宁可整轮作废，也不要写一份残缺榜单。
