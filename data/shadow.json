@@ -2,8 +2,8 @@
  "servers": {
   "taptap": {
    "server": "taptap",
-   "updatedAt": "2026-11-22 01:15:25",
-   "updatedTs": 1795281325,
+   "updatedAt": "2026-11-22 06:32:41",
+   "updatedTs": 1795300361,
    "boardTotal": 100,
    "rows": [
     {
@@ -12,12 +12,12 @@
      "name": "微生念",
      "menpai": "问情宫",
      "lv": 3733,
-     "kongfu": 1976.33,
+     "kongfu": 1977.67,
      "exp": 5219089623.0,
-     "money": 368566431,
-     "yueli": 861612,
-     "xiayi": 581130.5,
-     "looks": 4880,
+     "money": 371814751,
+     "yueli": 863951,
+     "xiayi": 581730.5,
+     "looks": 4884,
      "fuyuan": 269,
      "age": 424,
      "sex": "女",
@@ -25,8 +25,8 @@
      "inheritCount": 5,
      "prevRank": 15,
      "delta": 0,
-     "expBoard": 5204684093.9404,
-     "lvBoard": 3729,
+     "expBoard": 5219089623.365,
+     "lvBoard": 3733,
      "expSrc": "profile"
     },
     {
@@ -46,16 +46,16 @@
      "sex": "女",
      "wuxing": 175,
      "inheritCount": 5,
-     "prevRank": 41,
-     "delta": 1,
+     "prevRank": 40,
+     "delta": 0,
      "expBoard": 4140009151.7014,
      "lvBoard": 3455,
      "expSrc": "profile"
     }
    ],
-   "mergedAt": "2026-11-22 01:33:40"
+   "mergedAt": "2026-11-22 06:54:11"
   }
  },
- "updatedAt": "2026-11-22 01:15:25",
- "updatedTs": 1795281325
+ "updatedAt": "2026-11-22 06:32:41",
+ "updatedTs": 1795300361
 }
