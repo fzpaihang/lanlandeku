@@ -36,7 +36,22 @@ SALT = b"ed24bd36b1a87f60bebaca65538a590c"
 K02 = b"cbIhHHuYQIJ1JkwlLupIvNIvdQDfNxSF"   # JHHU02，握手响应用
 IV02 = b"PcIQIZifRalhZ88n"
 TAG = b"0"
-SLEEP = 0.6          # 页间隔：太快会触发 20616 请求错误（限速）
+# 请求节奏（秒）+ 撞限流就换会话密钥，所有请求都从 post_with_retry 走一次。
+#
+# 2026-11-21 连抓 taptap 13 页的实测结论（这组数是这套策略的全部依据）：
+#   固定间隔完全不靠：0.6s→3 次 20616 / 1.2s→4 次 / 3.0s→6 次 / 5.0s→0 次，
+#   同参数复跑结论还会翻；同一个新密钥 0 间隔连打 14 页，三轮只成功 7/2/8 页。
+#   ⇒ 限额是「和别的客户端共享的滑动窗口」，没有固定间隔是安全的。
+#   但**换会话密钥能立刻绕过**：每页重新 handshake + 撞了就换钥匙重试，
+#   13 页 15.6s / 19.1s / 27.8s 三次全过（重试 3~4 次），
+#   而同一时段固定 5s 间隔要 472.9s、AIMD 慢放要 551.1s（还每页都撞）。
+# 所以策略不是「慢慢等」，而是：
+#   撞到 20616 → 停 RATE_PAUSE 秒 → 换一把新密钥立刻重来   （RATE_RETRY 次额度）
+#   换钥匙压不住 → 才按 RATE_BACKOFF 长冷却（几十秒级，防止把窗口彻底打死）
+#   成功       → PACE 缓慢回落；撞限流 → PACE 抬一点（仍保留自适应成分）
+PACE_MIN = 0.4       # 节奏下限
+PACE_MAX = 4.0       # 节奏上限（换钥匙策略下不需要放很慢）
+PACE = 0.6           # 当前节奏，进程内自适应
 
 # 展示用的时间一律按北京时间（UTC+8）格式化。
 # GitHub Actions 的 runner 是 UTC，直接用 time.localtime 会写成 UTC，导致页面显示差 8 小时。
@@ -55,8 +70,45 @@ RETRY = 3
 # 冷却 3 秒等于立刻再撞一次。实测 11-20 12:49（墨羽惊鸿第 2 页）与
 # 11-21 06:39（苍松迎客第 8 页）都是翻页中途被限流打断，整轮作废后
 # 该区当天就没有数据，网页上表现为「11-19 直接跳到 11-21」。
-RATE_BACKOFF = (15, 45, 90)
-# 本轮撞限流的次数；>0 时后续翻页间隔自动翻倍，避免刚恢复就把限额又打满。
+# 撞限流的处理顺序：先换密钥立刻重试（实测几乎每次都过），
+# 连续 RATE_RETRY 次都换钥匙失败才进长冷却阶梯。
+RATE_PAUSE = 1.2         # 换钥匙前停一下，别让服务端把连打当成攻击
+RATE_RETRY = 10          # 换密钥重试的次数额度（不吃常规重试额度）
+RATE_BACKOFF = (30, 60)  # 换钥匙也压不住时的长冷却阶梯
+# 节奏状态：上次请求完的时刻（time.time()），用于 _pace_wait 补差值。
+_LAST_REQ = [0.0]
+
+
+def pace_hit():
+    """撞到限流：节奏抬 25%（换钥匙才是主力手段，这里只做一点保险）。
+
+    实测档案接口几乎「每份都先撞一次限流」——那是接口自己的额度，跟我们多快无关。
+    所以抬升要克制、回落要快，否则 PACE 会一路爬到上限，把每份档案拖成 4 秒。
+    """
+    global PACE, RATE_HITS
+    RATE_HITS += 1
+    PACE = min(PACE_MAX, max(PACE_MIN, PACE * 1.25))
+
+
+# 成功一次的回落系数，与 pace_hit 的 ×1.25 严格互逆（0.8 × 1.25 = 1.0）：
+# 撞一次抬 25%、成功一次降 20%，于是在「一半请求要撞限流」的档案接口上，
+# PACE 稳定在略高于下限的位置（实测 0.5~1.2s），不会被单向推满到 4 秒。
+PACE_DOWN = 0.8
+
+
+def pace_ok():
+    """请求成功：节奏回落 25%（撞一次抬多少、成功一次就降多少），下限 PACE_MIN。"""
+    global PACE
+    PACE = max(PACE_MIN, PACE * PACE_DOWN)
+
+
+def _pace_wait():
+    """按当前 PACE 补足与上一次请求的间隔。放在 post_with_retry 入口，
+    这样榜单翻页、档案抓取、甚至补抓全都自动受同一个限速器管。"""
+    gap = PACE - (time.time() - _LAST_REQ[0])
+    if gap > 0:
+        time.sleep(gap)
+# 本轮撞限流的次数（只用于日志/收尾统计；限流处理不靠它，靠换密钥）。
 RATE_HITS = 0
 
 BOARD_CN = {1: "高手榜", 4: "名人堂"}
@@ -228,10 +280,11 @@ def is_rate_limited(d):
 def post_with_retry(cfg, path, body, keys, t, tries=None):
     """请求失败（含空响应导致解析失败）自动重试。
 
-    退避分两条线：
-      - 限流 20616：按 RATE_BACKOFF（15s/45s/90s）冷却，且多给两次机会。
-        这类失败是「请求太密」而不是「请求不可能成功」，等一等基本都能过。
-        冷却期间还顺带换一次会话密钥：连续被限流时旧密钥也可能被判可疑。
+    限流（20616 或空包解析失败）与普通错误分两条线：
+      - 限流：**换会话密钥立刻重试**（停 RATE_PAUSE 秒 → handshake → 同页重发），
+        这是唯一实测有效的手段：每页都重新握手时 13 页只要 15.6~27.8 秒，
+        而固定 5 秒间隔要 472.9 秒、AIMD 慢放要 551.1 秒，还都每页先撞一次。
+        换钥匙给 RATE_RETRY 次独立额度，用满才进 RATE_BACKOFF 长冷却（并重置额度）。
       - 其它错误：按老规矩 3s/6s。
     限流时服务端会返回空包，api_post 会抛 JSON 解析异常，这里一并兜住。
     """
@@ -239,34 +292,55 @@ def post_with_retry(cfg, path, body, keys, t, tries=None):
     last = {"errcode": -1, "errmsg": "未发起请求"}
     n = tries or RETRY
     i = 0        # 常规重试计数
-    j = 0        # 限流冷却计数（独立额度，不吃掉常规重试）
-    while i < n:
+    j = 0        # 换密钥重试计数（独立额度，不吃掉常规重试）
+    k = 0        # 长冷却计数（换钥匙也压不住时才用）
+    while True:
+        _pace_wait()
         try:
             d = api_post(cfg, path, body, keys, t)
+            _LAST_REQ[0] = time.time()
             if d.get("errcode") == 0:
+                pace_ok()
                 return d
             last = d
         except Exception as e:
+            _LAST_REQ[0] = time.time()
             last = {"errcode": -1, "errmsg": "%s: %s" % (type(e).__name__, e)}
-        rate = is_rate_limited(last)
-        if rate:
-            RATE_HITS += 1
-            # 限流不消耗常规重试额度：最多再给 len(RATE_BACKOFF) 次冷却机会。
-            if j < len(RATE_BACKOFF):
-                wait = RATE_BACKOFF[min(j, len(RATE_BACKOFF) - 1)]
-                print("      ~ 限流 20616，冷却 %ds 后重试 %s（第 %d 次）" % (
-                    wait, path, j + 1))
-                time.sleep(wait)
-                try:
-                    keys = handshake(cfg, time.time())
-                except Exception:
-                    pass
-                j += 1
-                continue
-            break
-        if i < n - 1:
-            time.sleep(3 + i * 3)
-        i += 1
+        # errcode=-1 是 api_post 抛异常兜出来的：限流时服务端返回空包，
+        # 解密出来是空的、json.loads 直接炸，所以「翻页中途 -1」通常也是限流，
+        # 而不是真的请求坏了。这类一并按限流处理，否则立刻再撞一次墙。
+        if not (is_rate_limited(last) or last.get("errcode") == -1):
+            i += 1
+            if i >= n:
+                break
+            time.sleep(min(max(PACE, 1.0), 10.0))
+            continue
+        # ---- 限流：先换密钥立刻重试（实测这才是有效手段），换不动才长冷却 ----
+        pace_hit()
+        if j < RATE_RETRY:
+            j += 1
+            time.sleep(RATE_PAUSE)
+            try:
+                keys = handshake(cfg, time.time())
+                print("      ~ 限流 20616，换会话密钥重试 %s（第 %d 次）" % (path, j))
+            except Exception as e:
+                print("      ~ 限流 20616，重新握手失败（%s），稍后重试 %s（第 %d 次）" % (
+                    type(e).__name__, path, j))
+            continue
+        if k < len(RATE_BACKOFF):
+            wait = RATE_BACKOFF[k]
+            k += 1
+            print("      ~ 连续 %d 次限流，换密钥无效，冷却 %ds 后整轮重来 %s" % (
+                RATE_RETRY, wait, path))
+            time.sleep(wait)
+            try:
+                keys = handshake(cfg, time.time())
+            except Exception:
+                pass
+            j = 0        # 长冷却后重新给一轮换钥匙额度
+            continue
+        print("      ✗ 限流压不住，放弃 %s" % path)
+        break
     return last
 
 
@@ -289,30 +363,34 @@ def detect_hotver(cfg, keys, t, span=80):
     for hv in range(base, base + span):
         c = dict(cfg)
         c["hotver"] = hv
-        for attempt in range(2):
+        for attempt in range(RATE_RETRY):
             try:
+                _pace_wait()
                 d = api_post(c, "get_board/1", {"page": 1}, keys, t)
+                _LAST_REQ[0] = time.time()
             except Exception as e:
+                _LAST_REQ[0] = time.time()
                 d = {"errcode": -1, "errmsg": "%s" % type(e).__name__}
             code = d.get("errcode")
-            msg = d.get("errmsg") or ""
             last = d
             if code == 0:
                 return hv, d
-            if code == 20616:      # 限流：冷却后重试同一版本
-                if attempt == 0:
-                    time.sleep(1.8)
-                    continue
-                break              # 仍限流，换下一个试试
-            break                  # 其他错误，跳出内层判断
+            if is_rate_limited(d) or code == -1:
+                # 限流跟版本号无关：在同一把钥匙上换密钥重试，试满就整轮放弃。
+                # 千万不能往上加 hotver —— 那不是版本问题，既会把版本号带跑偏，
+                # 又会白试满 span 次（一次能拖半小时）。
+                pace_hit()
+                time.sleep(RATE_PAUSE)
+                try:
+                    keys = handshake(cfg, time.time())
+                except Exception:
+                    pass
+                continue
+            break                  # 其它错误：不往上加版本号
         # 只有「版本过低」才能说明是版本号不对，其它错误都不该盲目往上加
         msg = (last or {}).get("errmsg") or ""
         if not any(hint in msg for hint in VERSION_ERR_HINTS):
-            if (last or {}).get("errcode") == 20616:
-                time.sleep(0.8)
-                continue           # 一直是限流，继续试下一个版本
             return None, last
-        time.sleep(0.4)
     return None, last
 
 
@@ -710,7 +788,8 @@ def fetch_server(srv, board, max_pages):
         keys = handshake(cfg, t)      # 换版本号后重新握手，保证会话一致
     print("      会话密钥 FZJH03 = %s" % keys["FZJH03"][0])
 
-    print("[2/3] 抓取 %s（每页 10 条，间隔 %.1fs）…" % (BOARD_CN.get(board, board), SLEEP))
+    print("[2/3] 抓取 %s（每页 10 条，自适应节奏，起始 %.1fs/页）…" % (
+        BOARD_CN.get(board, board), PACE))
     max_rank = srv.get("maxRank")
     # 只进索引、不进榜单的名次上限：需要多抓几页，抓完再把 50 之后的部分单独存
     idx_rank = srv.get("indexRank")
@@ -756,8 +835,8 @@ def fetch_server(srv, board, max_pages):
         if stale >= 2:
             print("      连续无新增，停止")
             break
-        # 本轮撞过限流就把页间隔翻倍：刚恢复时最容易第二次超限。
-        time.sleep(SLEEP * (2 if RATE_HITS else 1))
+        # 页间隔不在这里 sleep：post_with_retry 入口的 _pace_wait() 已经
+        # 按 PACE 补足间隔，两边都睡会叠加成双倍慢。
 
     if err_page:
         # 抓到一半报错：宁可整轮作废，也不要写一份残缺榜单。

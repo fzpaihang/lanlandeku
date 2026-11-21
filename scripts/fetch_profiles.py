@@ -25,7 +25,10 @@ sys.path.insert(0, os.path.join(BASE, "scripts"))
 import fetch as F  # noqa: E402  复用握手 / 加密 / 请求
 from lv_formula import lv_from_exp  # noqa: E402  人物等级反算（纯计算，无第三方依赖）
 
-SLEEP = 0.7
+# 档案抓取不再自己 sleep：所有请求都走 F.post_with_retry，
+# 那里的 _pace_wait() 按 fetch.PACE 统一限速（撞限流抬 25%、成功回落 20%），
+# 撞上限流由那里的「换会话密钥重试」兜住。榜单翻页和档案抓取共用同一个节奏，
+# 才不会两边各撞各的；档案接口几乎每份都先撞一次限流（2026-11-21 实测）。
 NEW_DAYS = 30          # 「近期新增」保留天数
 KEEP_DAYS = 30         # 掉榜档案保留天数：超期没再上榜才删（回归后仍可查）
 
@@ -381,7 +384,7 @@ def fetch_server(srv, names, args):
         cfg["hotver"] = hv
         keys = F.handshake(cfg, t)
 
-    print("[2/3] 抓取 %d 份档案（间隔 %.2fs）…" % (len(targets), SLEEP))
+    print("[2/3] 抓取 %d 份档案（自适应节奏，起始 %.1fs/份）…" % (len(targets), F.PACE))
     players, fail = {}, []
     olds = {}
     prof_dir = os.path.join(out_dir0, "profiles")
@@ -414,7 +417,6 @@ def fetch_server(srv, names, args):
         except Exception as e:
             fail.append({"userid": uid, "error": str(e)})
             print("      %d/%d  uid=%s 异常 %s" % (i, len(targets), uid, e))
-        time.sleep(SLEEP)
 
     if fail and "--only" not in args:
         retry_ids = [f["userid"] for f in fail]
@@ -437,7 +439,6 @@ def fetch_server(srv, names, args):
             except Exception as e:
                 still.append(uid)
                 print("      补抓异常 uid=%s %s" % (uid, e))
-            time.sleep(1.2)
         fail = [f for f in fail if f["userid"] in still]
 
     if not players:
