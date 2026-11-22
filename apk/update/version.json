@@ -1,8 +1,8 @@
 {
-  "version": 87,
-  "md5": "bbd1e27deb3db6a4ef7bf86144e5bd6d",
-  "size": 210550,
-  "notes": "文案：APK 口令框「影子榜」统一改「隐藏榜」（与网页端一致）",
-  "builtAt": "2026-11-20 08:01:02",
-  "sig": "e9c9930148149ac29cae217792408c16dc845cfb3be54b0c8158fcb8959b36a24b40ebcfd55a94f2d94e383e9efcc8dfb0e30dbc74507b49fcb84e226d6fba03"
+  "version": 89,
+  "md5": "dab81ee90bdb91c5557296583bf15735",
+  "size": 211662,
+  "notes": "修：收藏卡超过 10 人时无法查看（改为「显示全部 N 人」就地展开，最多 50 个全部可见；移除单人不再整页重建）",
+  "builtAt": "2026-11-22 14:21:47",
+  "sig": "f9341eda50ad9453a58e377f176562744fefb422f5dff45a340ae3cd61e6135cde0df3da1f33dd4e9959a94a76909df438bfcbdf7b89afc39a694e0d59a97504"
 }

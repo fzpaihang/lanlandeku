@@ -1616,6 +1616,9 @@ class PlayerLookup(App):
     # 现在自动探测会先按 UID 前缀规则定位分区，常规情况只发 1 次请求，
     # 不再「逐区试」到超时，所以去掉了「不推荐」的措辞。
     AUTO_LABEL = "自动识别分区"
+    # 收藏卡收起时显示几行。FAV_MAX 是 50（lookup_core），超出的部分靠
+    # 「显示全部 N 人」展开 —— 之前是硬截断 items[:10]，第 11 个起根本看不到。
+    FAV_PREVIEW = 10
     EXAMPLES = [
         {"uid": 21079729670, "name": "刘小年", "server": "taptap_3", "serverName": "丹凤朝阳"},
         {"uid": 21079747122, "name": "观云者", "server": "taptap_3", "serverName": "丹凤朝阳"},
@@ -1626,6 +1629,8 @@ class PlayerLookup(App):
         self.prof = None
         self.busy = False
         self.hint_open = False
+        self.fav_open = False        # 收藏卡是否已展开全部
+        self._fav_holder = None      # 收藏卡列表区容器（就地展开用）
         self.prep_open = False
         self.skill_open = False
         self.skill_query = ""
@@ -1918,7 +1923,26 @@ class PlayerLookup(App):
         card.add_widget(lab("点行填入 UID，点「移除」从收藏里删掉",
                             10.5, C_MUTED, height=17, shorten=True))
         card.add_widget(gap(6))
-        for i, r in enumerate(items[:10]):
+        # 列表区单独一个容器：展开/收起只重建它，不重建整页
+        # （同 _hint_row 的做法，整页 show_query() 会把页面滚回顶部）。
+        holder = BoxLayout(orientation="vertical", size_hint_y=None, spacing=0)
+        holder.bind(minimum_height=holder.setter("height"))
+        self._fav_holder = holder
+        for w in self._build_fav_children(items):
+            holder.add_widget(w)
+        card.add_widget(holder)
+        return card
+
+    def _build_fav_children(self, items):
+        """收藏卡的列表区：收起只出前 FAV_PREVIEW 行，展开出全部。
+
+        原来直接 items[:10] 硬截断，第 11 个以后的收藏在界面上根本看不到，
+        而 FAV_MAX 是 50 —— 等于存了 40 个「隐形」收藏。
+        """
+        out = []
+        total = len(items)
+        limit = total if self.fav_open else min(total, self.FAV_PREVIEW)
+        for i, r in enumerate(items[:limit]):
             row = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(6))
             nm = r.get("name") or ""
             sn = r.get("serverName") or ""
@@ -1934,24 +1958,79 @@ class PlayerLookup(App):
             pill = PillButton("移除", width=46)
             pill.bind(on_release=lambda inst, u=r.get("uid"): self._drop_fav(u))
             row.add_widget(_vcenter(pill, 48))
-            card.add_widget(row)
-            if i < min(len(items), 10) - 1:
-                card.add_widget(HLine())
-        if len(items) > 10:
-            card.add_widget(lab("还有 %d 人没显示（最多存 %d 个）"
-                                % (len(items) - 10, L.FAV_MAX),
-                                10.5, C_MUTED, height=17, shorten=True))
-        return card
+            out.append(row)
+            if i < limit - 1:
+                out.append(HLine())
+        if total > self.FAV_PREVIEW:
+            out.append(gap(2))   # 别让按钮紧贴最后一行分隔线
+            btn = txt_button("收起" if self.fav_open else "显示全部 %d 人" % total,
+                             color=C_ACCENT, height=38, size=12)
+            btn.bind(on_release=lambda inst: self._fav_toggle())
+            out.append(btn)
+        return out
+
+    def _fav_toggle(self):
+        """收藏卡的「显示全部 / 收起」：只重建列表区，页面不重建。"""
+        holder = getattr(self, "_fav_holder", None)
+        if holder is None or holder.parent is None or self.mode != "query":
+            return
+        self.fav_open = not self.fav_open
+        # 记下「视口顶部离内容顶部多远」：列表高度突变时 ScrollView 按 scroll_y
+        # 保持比例，内容会整体跳一大截（展开 20 行能跳掉半屏）。重建后按像素还原。
+        from_top = self._scroll_from_top()
+        try:
+            holder.clear_widgets()
+            for w in self._build_fav_children(L.favorites()):
+                holder.add_widget(w)
+        except Exception:
+            self.show_query()
+            return
+        Clock.schedule_once(lambda dt: self._scroll_keep(from_top), 0.06)
+
+    def _scroll_from_top(self):
+        """当前视口顶部离内容顶部的距离（像素）。取不到就按 0 算（视同在最顶部）。"""
+        try:
+            return max(0.0, (1.0 - self.sv.scroll_y) * (self.inner.height - self.sv.height))
+        except Exception:
+            return 0.0
+
+    def _scroll_keep(self, from_top):
+        """把视口回滚到重建前的位置（按像素算，不是按比例）。"""
+        try:
+            room = max(1.0, self.inner.height - self.sv.height)
+            self.sv.scroll_y = max(0.0, min(1.0, 1.0 - from_top / room))
+        except Exception:
+            pass
 
     def _drop_fav(self, uid):
-        """收藏卡里的「移除」：删掉后重建查询页（收藏卡可能整张消失）。"""
+        """收藏卡里的「移除」：还有剩下的人就地重画（保住展开状态和滚动位置），
+        删空了才整页重建（这时整张卡要消失）。"""
         try:
             L.remove_favorite(uid)
         except Exception:
             pass
-        if self.mode == "query":
-            self.show_query()
+        if self.mode != "query":
+            return
+        try:
+            items = L.favorites()
+        except Exception:
+            items = []
+        holder = getattr(self, "_fav_holder", None)
+        if items and holder is not None and holder.parent is not None:
+            from_top = self._scroll_from_top()
+            try:
+                holder.clear_widgets()
+                for w in self._build_fav_children(items):
+                    holder.add_widget(w)
+            except Exception:
+                self.show_query()
+                self.set_status("已移除 %s" % uid, C_INK2)
+                return
+            Clock.schedule_once(lambda dt: self._scroll_keep(from_top), 0.06)
             self.set_status("已移除 %s" % uid, C_INK2)
+            return
+        self.show_query()
+        self.set_status("已移除 %s" % uid, C_INK2)
 
     # ---------- 导出 / 分享 ----------
     def _export_name(self):
@@ -2307,6 +2386,7 @@ class PlayerLookup(App):
         self.body.add_widget(self.form_card)
         self.body.add_widget(self._index_card())
         self.body.add_widget(self._recent_card())
+        self._fav_holder = None   # 上一页的容器已随 clear_widgets 失效，别留着
         fav = self._fav_card()
         if fav is not None:
             self.body.add_widget(fav)

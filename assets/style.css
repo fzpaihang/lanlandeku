@@ -326,6 +326,10 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
   max-height:min(86vh,880px);
   background:var(--card);color:var(--ink);
   box-shadow:0 16px 48px rgba(31,35,40,.24);
+  /* 弹窗开着时不许拖动它去滚背景：触点是 dialog 本身（遮罩区点击的 target
+     也是 dialog），touch-action:none 让浏览器不把这一拖当成滚动手势。
+     内层 .pf-body 自己声明 pan-y，所以框内照样能滚（见下方注释）。 */
+  touch-action:none;
 }
 .pf::backdrop{background:rgba(31,35,40,.36);backdrop-filter:blur(2px)}
 .pf[open]{display:flex;flex-direction:column}
@@ -341,7 +345,15 @@ tbody tr.rk3 td:first-child{box-shadow:inset 2px 0 0 var(--bronze)}
   display:flex;align-items:center;justify-content:center;flex:0 0 30px;
 }
 .pf-x:hover{background:#e4ddd0}
-.pf-body{padding:16px 18px 20px;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;-webkit-overflow-scrolling:touch}
+/* overscroll-behavior:contain —— 框内滚到底时别把剩下的手势传给背后的榜单
+   （原来能一路把整页滚走，用户反馈「点开详细界面后可以一直往下滑」）。
+   touch-action:pan-y —— 父级 .pf 声明了 none，这里必须重新放开纵向平移，
+   否则框内内容无法滚动；同时不含 pinch/双击缩放，弹窗里也不会误触缩放。 */
+.pf-body{
+  padding:16px 18px 20px;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;overscroll-behavior:contain;
+}
 
 .pf-grid{
   display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
