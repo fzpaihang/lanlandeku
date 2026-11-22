@@ -1,9 +1,9 @@
 {
  "board": "名人堂",
  "boardType": 4,
- "updatedAt": "2026-11-20 22:35:21",
- "updatedTs": 1795185321,
- "hasPrev": false,
+ "updatedAt": "2026-11-22 07:41:20",
+ "updatedTs": 1795304480,
+ "hasPrev": true,
  "total": 10,
  "rows": [
   {
@@ -11,60 +11,60 @@
    "userid": 19035477377,
    "name": "西索",
    "menpai": "虚渺宫",
-   "lv": 3463,
-   "kongfu": 1887.67,
-   "exp": 4169602193.9883,
-   "money": 359237865,
-   "yueli": 1559311,
-   "xiayi": 10104429.3,
-   "looks": 11825,
+   "lv": 3465,
+   "kongfu": 1888.33,
+   "exp": 4174626124.2473,
+   "money": 360530336,
+   "yueli": 1560601,
+   "xiayi": 10104432.3,
+   "looks": 11827,
    "fuyuan": 201,
    "age": 307,
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 1,
+   "delta": 0
   },
   {
    "rank": 2,
    "userid": 19035520801,
    "name": "神秘巨星",
    "menpai": "明教",
-   "lv": 3096,
-   "kongfu": 1765.33,
-   "exp": 2980118414.912,
-   "money": 359151903,
-   "yueli": 1191866,
+   "lv": 3097,
+   "kongfu": 1765.67,
+   "exp": 2982488892.1395,
+   "money": 360052611.74804,
+   "yueli": 1192603,
    "xiayi": 34749.5,
    "looks": 7554,
    "fuyuan": 189,
-   "age": 242,
+   "age": 243,
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 2,
+   "delta": 0
   },
   {
    "rank": 3,
    "userid": 19035491643,
    "name": "阿七",
    "menpai": "鸩羽山",
-   "lv": 3268,
-   "kongfu": 1822.67,
-   "exp": 3506076352.5439,
-   "money": 2925991.2246955,
-   "yueli": 840031,
+   "lv": 3270,
+   "kongfu": 1823.33,
+   "exp": 3510285374.2762,
+   "money": 3645194.0346592,
+   "yueli": 841449,
    "xiayi": -3695,
    "looks": 3213,
    "fuyuan": 156,
-   "age": 292,
+   "age": 293,
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 3,
+   "delta": 0
   },
   {
    "rank": 4,
@@ -83,8 +83,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 4,
+   "delta": 0
   },
   {
    "rank": 5,
@@ -103,8 +103,8 @@
    "sex": "男",
    "wuxing": 260,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 5,
+   "delta": 0
   },
   {
    "rank": 6,
@@ -123,8 +123,8 @@
    "sex": "男",
    "wuxing": 210,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 6,
+   "delta": 0
   },
   {
    "rank": 7,
@@ -143,8 +143,8 @@
    "sex": "男",
    "wuxing": 200,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 7,
+   "delta": 0
   },
   {
    "rank": 8,
@@ -163,8 +163,8 @@
    "sex": "男",
    "wuxing": 40,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 8,
+   "delta": 0
   },
   {
    "rank": 9,
@@ -183,8 +183,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 9,
+   "delta": 0
   },
   {
    "rank": 10,
@@ -203,8 +203,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 10,
+   "delta": 0
   }
  ]
 }

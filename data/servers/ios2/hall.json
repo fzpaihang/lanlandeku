@@ -1,9 +1,9 @@
 {
  "board": "名人堂",
  "boardType": 4,
- "updatedAt": "2026-11-20 22:35:16",
- "updatedTs": 1795185316,
- "hasPrev": false,
+ "updatedAt": "2026-11-22 07:40:22",
+ "updatedTs": 1795304422,
+ "hasPrev": true,
  "total": 10,
  "rows": [
   {
@@ -23,28 +23,28 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 1,
+   "delta": 0
   },
   {
    "rank": 2,
    "userid": 8047181080,
    "name": "浅笑",
    "menpai": "天竞门",
-   "lv": 3795,
-   "kongfu": 1998.33,
-   "exp": 5484668344.7029,
-   "money": 760668674.99894,
-   "yueli": 1947163,
-   "xiayi": 407615.6,
-   "looks": 14749,
+   "lv": 3796,
+   "kongfu": 1998.67,
+   "exp": 5487353169.0914,
+   "money": 761728156.82909,
+   "yueli": 1947497,
+   "xiayi": 408625.6,
+   "looks": 14748,
    "fuyuan": 238,
    "age": 404,
    "sex": "女",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 2,
+   "delta": 0
   },
   {
    "rank": 3,
@@ -63,8 +63,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 3,
+   "delta": 0
   },
   {
    "rank": 4,
@@ -83,8 +83,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 4,
+   "delta": 0
   },
   {
    "rank": 5,
@@ -103,8 +103,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 5,
+   "delta": 0
   },
   {
    "rank": 6,
@@ -123,28 +123,28 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 6,
+   "delta": 0
   },
   {
    "rank": 7,
    "userid": 8046996840,
    "name": "无敌洛克",
    "menpai": "雪山寺",
-   "lv": 3869,
-   "kongfu": 2023,
-   "exp": 5813251134.9545,
-   "money": 958457909.23953,
-   "yueli": 1157034,
-   "xiayi": -42064,
-   "looks": 6243,
+   "lv": 3873,
+   "kongfu": 2024.33,
+   "exp": 5829032671.1832,
+   "money": 964686165,
+   "yueli": 1159866,
+   "xiayi": -42264,
+   "looks": 6242,
    "fuyuan": 200,
    "age": 424,
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 7,
+   "delta": 0
   },
   {
    "rank": 8,
@@ -163,8 +163,8 @@
    "sex": "女",
    "wuxing": 20,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 8,
+   "delta": 0
   },
   {
    "rank": 9,
@@ -183,8 +183,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 9,
+   "delta": 0
   },
   {
    "rank": 10,
@@ -203,8 +203,8 @@
    "sex": "男",
    "wuxing": 11,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 10,
+   "delta": 0
   }
  ]
 }

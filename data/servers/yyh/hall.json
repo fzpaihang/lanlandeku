@@ -1,9 +1,9 @@
 {
  "board": "名人堂",
  "boardType": 4,
- "updatedAt": "2026-11-20 22:34:57",
- "updatedTs": 1795185297,
- "hasPrev": false,
+ "updatedAt": "2026-11-22 07:34:29",
+ "updatedTs": 1795304069,
+ "hasPrev": true,
  "total": 10,
  "rows": [
   {
@@ -23,8 +23,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 1,
+   "delta": 0
   },
   {
    "rank": 2,
@@ -43,8 +43,8 @@
    "sex": "女",
    "wuxing": 28,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 2,
+   "delta": 0
   },
   {
    "rank": 3,
@@ -63,8 +63,8 @@
    "sex": "女",
    "wuxing": 240,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 3,
+   "delta": 0
   },
   {
    "rank": 4,
@@ -83,8 +83,8 @@
    "sex": "女",
    "wuxing": 88,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 4,
+   "delta": 0
   },
   {
    "rank": 5,
@@ -103,8 +103,8 @@
    "sex": "女",
    "wuxing": 35,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 5,
+   "delta": 0
   },
   {
    "rank": 6,
@@ -123,28 +123,28 @@
    "sex": "女",
    "wuxing": 170,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 6,
+   "delta": 0
   },
   {
    "rank": 7,
    "userid": 6196567237,
    "name": "明觉",
    "menpai": "虚渺宫",
-   "lv": 2231,
-   "kongfu": 1477,
-   "exp": 1116502502.9957,
-   "money": 167764547,
-   "yueli": 408832,
-   "xiayi": 25471,
-   "looks": 7332,
+   "lv": 2233,
+   "kongfu": 1477.67,
+   "exp": 1120715880.8561,
+   "money": 168939365,
+   "yueli": 409328,
+   "xiayi": 25521,
+   "looks": 7352,
    "fuyuan": 134,
-   "age": 115,
+   "age": 116,
    "sex": "女",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 7,
+   "delta": 0
   },
   {
    "rank": 8,
@@ -163,8 +163,8 @@
    "sex": "女",
    "wuxing": 90,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 8,
+   "delta": 0
   },
   {
    "rank": 9,
@@ -183,8 +183,8 @@
    "sex": "女",
    "wuxing": 104,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 9,
+   "delta": 0
   },
   {
    "rank": 10,
@@ -203,8 +203,8 @@
    "sex": "女",
    "wuxing": 140,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 10,
+   "delta": 0
   }
  ]
 }

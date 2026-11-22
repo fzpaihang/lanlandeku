@@ -1,9 +1,9 @@
 {
  "board": "名人堂",
  "boardType": 4,
- "updatedAt": "2026-11-20 22:35:11",
- "updatedTs": 1795185311,
- "hasPrev": false,
+ "updatedAt": "2026-11-22 07:39:13",
+ "updatedTs": 1795304353,
+ "hasPrev": true,
  "total": 10,
  "rows": [
   {
@@ -11,20 +11,20 @@
    "userid": 3047502400,
    "name": "天命在我",
    "menpai": "全真教",
-   "lv": 4200,
-   "kongfu": 2123,
-   "exp": 7434226708.8615,
-   "money": 618662110.83078,
-   "yueli": 2187813.25,
-   "xiayi": 8556829.5,
-   "looks": 8660,
+   "lv": 4201,
+   "kongfu": 2123.33,
+   "exp": 7439496994.9645,
+   "money": 619936507.47451,
+   "yueli": 2189049.25,
+   "xiayi": 8556949.5,
+   "looks": 8679,
    "fuyuan": 251,
    "age": 424,
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 1,
+   "delta": 0
   },
   {
    "rank": 2,
@@ -33,38 +33,38 @@
    "menpai": "万灵谷",
    "lv": 4294,
    "kongfu": 2164.67,
-   "exp": 7942427730.1895,
-   "money": 432528414,
-   "yueli": 2075698.25,
+   "exp": 7942725254.1895,
+   "money": 432823710,
+   "yueli": 2076187.25,
    "xiayi": -30535797,
-   "looks": 27346,
+   "looks": 27356,
    "fuyuan": 419,
    "age": 424,
    "sex": "女",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 2,
+   "delta": 0
   },
   {
    "rank": 3,
    "userid": 3047770686,
    "name": "画彩璃",
    "menpai": "永夜楼",
-   "lv": 3649,
-   "kongfu": 1892.56,
-   "exp": 4876264149.7097,
-   "money": 416890397.3769,
-   "yueli": 1579817,
+   "lv": 3651,
+   "kongfu": 1896.22,
+   "exp": 4886037155.2485,
+   "money": 419061144.3199,
+   "yueli": 1580367,
    "xiayi": 267861,
    "looks": 6253,
    "fuyuan": 251,
-   "age": 386,
+   "age": 387,
    "sex": "女",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 3,
+   "delta": 0
   },
   {
    "rank": 4,
@@ -83,8 +83,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 4,
+   "delta": 0
   },
   {
    "rank": 5,
@@ -103,28 +103,28 @@
    "sex": "男",
    "wuxing": 15,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 5,
+   "delta": 0
   },
   {
    "rank": 6,
    "userid": 3047686778,
    "name": "轶丶中棠",
    "menpai": "虚渺宫",
-   "lv": 3954,
-   "kongfu": 2051.33,
-   "exp": 6202010297.8116,
-   "money": 147123444.36075,
-   "yueli": 1236369.5,
-   "xiayi": -274057.8,
+   "lv": 3957,
+   "kongfu": 2052.33,
+   "exp": 6218813065.6912,
+   "money": 150773033.2305,
+   "yueli": 1238499.5,
+   "xiayi": -274257.8,
    "looks": 15425,
    "fuyuan": 297,
    "age": 424,
    "sex": "女",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 6,
+   "delta": 0
   },
   {
    "rank": 7,
@@ -143,8 +143,8 @@
    "sex": "男",
    "wuxing": 16,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 7,
+   "delta": 0
   },
   {
    "rank": 8,
@@ -163,8 +163,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 8,
+   "delta": 0
   },
   {
    "rank": 9,
@@ -183,8 +183,8 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 9,
+   "delta": 0
   },
   {
    "rank": 10,
@@ -193,18 +193,18 @@
    "menpai": "伏龙山",
    "lv": 3949,
    "kongfu": 2049.67,
-   "exp": 6177189955.9932,
-   "money": 1844688511.6176,
-   "yueli": 1063540,
-   "xiayi": -505796.5,
-   "looks": 5897,
+   "exp": 6179939015.7083,
+   "money": 1845724434.2427,
+   "yueli": 1063997,
+   "xiayi": -505836.5,
+   "looks": 5899,
    "fuyuan": 277,
    "age": 424,
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 10,
+   "delta": 0
   }
  ]
 }

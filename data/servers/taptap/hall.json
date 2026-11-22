@@ -1,9 +1,9 @@
 {
  "board": "名人堂",
  "boardType": 4,
- "updatedAt": "2026-11-20 22:34:31",
- "updatedTs": 1795185271,
- "hasPrev": false,
+ "updatedAt": "2026-11-22 07:28:00",
+ "updatedTs": 1795303680,
+ "hasPrev": true,
  "total": 10,
  "rows": [
   {
@@ -23,28 +23,28 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 1,
+   "delta": 0
   },
   {
    "rank": 2,
    "userid": 3464549,
    "name": "慕子恒",
    "menpai": "海鲸帮",
-   "lv": 4057,
-   "kongfu": 2085.67,
-   "exp": 6699678763.5958,
-   "money": 404182595,
-   "yueli": 2224005.425,
-   "xiayi": 769555.7,
-   "looks": 5365,
+   "lv": 4058,
+   "kongfu": 2086,
+   "exp": 6706817984.9309,
+   "money": 405672722.13158,
+   "yueli": 2226042.425,
+   "xiayi": 772135.7,
+   "looks": 5366,
    "fuyuan": 245,
    "age": 424,
    "sex": "男",
    "wuxing": 15,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 2,
+   "delta": 0
   },
   {
    "rank": 3,
@@ -63,19 +63,19 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 3,
+   "delta": 0
   },
   {
    "rank": 4,
    "userid": 6700198,
    "name": "意悠悠",
    "menpai": "华山",
-   "lv": 3774,
-   "kongfu": 1991.33,
-   "exp": 5392913642.223,
-   "money": 563171046,
-   "yueli": 1972383,
+   "lv": 3775,
+   "kongfu": 1991.67,
+   "exp": 5399581300.3515,
+   "money": 565145035,
+   "yueli": 1975014,
    "xiayi": 21444.6,
    "looks": 1106,
    "fuyuan": 117,
@@ -83,8 +83,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 4,
+   "delta": 0
   },
   {
    "rank": 5,
@@ -103,8 +103,8 @@
    "sex": "女",
    "wuxing": 10,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 5,
+   "delta": 0
   },
   {
    "rank": 6,
@@ -123,8 +123,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 6,
+   "delta": 0
   },
   {
    "rank": 7,
@@ -133,18 +133,18 @@
    "menpai": "燕氏皇族",
    "lv": 3902,
    "kongfu": 2034,
-   "exp": 5959608343.7908,
-   "money": 251175232,
-   "yueli": 1652917,
-   "xiayi": 209522.8,
+   "exp": 5961415704.4251,
+   "money": 251419516,
+   "yueli": 1652935,
+   "xiayi": 209482.8,
    "looks": 5121,
    "fuyuan": 235,
    "age": 424,
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 7,
+   "delta": 0
   },
   {
    "rank": 8,
@@ -163,8 +163,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 8,
+   "delta": 0
   },
   {
    "rank": 9,
@@ -183,8 +183,8 @@
    "sex": "女",
    "wuxing": 15,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 9,
+   "delta": 0
   },
   {
    "rank": 10,
@@ -203,8 +203,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 10,
+   "delta": 0
   }
  ]
 }

@@ -1,9 +1,9 @@
 {
  "board": "名人堂",
  "boardType": 4,
- "updatedAt": "2026-11-20 22:34:38",
- "updatedTs": 1795185278,
- "hasPrev": false,
+ "updatedAt": "2026-11-22 07:28:57",
+ "updatedTs": 1795303737,
+ "hasPrev": true,
  "total": 10,
  "rows": [
   {
@@ -11,20 +11,20 @@
    "userid": 18026936230,
    "name": "玉虚元始",
    "menpai": "官府",
-   "lv": 3357,
-   "kongfu": 1852.33,
-   "exp": 3798359294.8175,
-   "money": 359916485,
-   "yueli": 1232350,
-   "xiayi": 7349577.7,
+   "lv": 3358,
+   "kongfu": 1852.67,
+   "exp": 3802963999.203,
+   "money": 361298799.3125,
+   "yueli": 1232741,
+   "xiayi": 7359797.7,
    "looks": 6249,
    "fuyuan": 201,
    "age": 298,
    "sex": "女",
    "wuxing": 237,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 1,
+   "delta": 0
   },
   {
    "rank": 2,
@@ -43,8 +43,8 @@
    "sex": "女",
    "wuxing": 11,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 2,
+   "delta": 0
   },
   {
    "rank": 3,
@@ -63,8 +63,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 3,
+   "delta": 0
   },
   {
    "rank": 4,
@@ -83,28 +83,28 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 4,
+   "delta": 0
   },
   {
    "rank": 5,
    "userid": 18026875930,
    "name": "蓝心小薇",
    "menpai": "崆峒派",
-   "lv": 3416,
-   "kongfu": 1872,
-   "exp": 4002257035.6024,
-   "money": 316149157,
-   "yueli": 974389,
-   "xiayi": 254739.2,
-   "looks": 15773,
+   "lv": 3420,
+   "kongfu": 1873.33,
+   "exp": 4014711828.0534,
+   "money": 319137770,
+   "yueli": 978106,
+   "xiayi": 256339.2,
+   "looks": 15813,
    "fuyuan": 193,
-   "age": 307,
+   "age": 308,
    "sex": "女",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 5,
+   "delta": 0
   },
   {
    "rank": 6,
@@ -123,8 +123,8 @@
    "sex": "男",
    "wuxing": 10,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 6,
+   "delta": 0
   },
   {
    "rank": 7,
@@ -143,28 +143,28 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 7,
+   "delta": 0
   },
   {
    "rank": 8,
    "userid": 18027072568,
    "name": "张不器",
    "menpai": "昆仑派",
-   "lv": 2876,
-   "kongfu": 1677.67,
-   "exp": 2389983432.8595,
-   "money": 150754433,
-   "yueli": 890345,
-   "xiayi": 24195.5,
-   "looks": 6032,
+   "lv": 2879,
+   "kongfu": 1678.67,
+   "exp": 2397719298.5582,
+   "money": 151653536.18233,
+   "yueli": 890555,
+   "xiayi": 24075.5,
+   "looks": 6042,
    "fuyuan": 142,
-   "age": 223,
+   "age": 224,
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 8,
+   "delta": 0
   },
   {
    "rank": 9,
@@ -183,28 +183,28 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 9,
+   "delta": 0
   },
   {
    "rank": 10,
    "userid": 18026938307,
    "name": "小亦小亦",
    "menpai": "全真教",
-   "lv": 3325,
-   "kongfu": 1841.67,
-   "exp": 3689861303.7143,
-   "money": 431176173,
-   "yueli": 859917,
-   "xiayi": -4250.6,
-   "looks": 5869,
+   "lv": 3328,
+   "kongfu": 1842.67,
+   "exp": 3701786156.4841,
+   "money": 434434639,
+   "yueli": 862918,
+   "xiayi": -2950.6,
+   "looks": 5871,
    "fuyuan": 199,
-   "age": 296,
+   "age": 297,
    "sex": "男",
-   "wuxing": 255,
+   "wuxing": 15,
    "inheritCount": null,
-   "prevRank": null,
-   "delta": null
+   "prevRank": 10,
+   "delta": 0
   }
  ]
 }
