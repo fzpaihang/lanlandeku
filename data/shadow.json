@@ -2,8 +2,8 @@
  "servers": {
   "taptap": {
    "server": "taptap",
-   "updatedAt": "2026-11-22 06:32:41",
-   "updatedTs": 1795300361,
+   "updatedAt": "2026-11-23 06:38:09",
+   "updatedTs": 1795387089,
    "boardTotal": 100,
    "rows": [
     {
@@ -13,7 +13,7 @@
      "menpai": "问情宫",
      "lv": 3733,
      "kongfu": 1977.67,
-     "exp": 5219089623.0,
+     "exp": 5221232195.0,
      "money": 371814751,
      "yueli": 863951,
      "xiayi": 581730.5,
@@ -30,13 +30,13 @@
      "expSrc": "profile"
     },
     {
-     "rank": 40,
+     "rank": 41,
      "userid": 6622657,
      "name": "微生梦",
      "menpai": "蓬莱岛",
      "lv": 3456,
      "kongfu": 1885,
-     "exp": 4142498353.0,
+     "exp": 4144373453.0,
      "money": 370149806.10294,
      "yueli": 743861,
      "xiayi": 187792,
@@ -47,15 +47,15 @@
      "wuxing": 175,
      "inheritCount": 5,
      "prevRank": 40,
-     "delta": 0,
+     "delta": -1,
      "expBoard": 4140009151.7014,
      "lvBoard": 3455,
      "expSrc": "profile"
     }
    ],
-   "mergedAt": "2026-11-22 06:54:11"
+   "mergedAt": "2026-11-23 07:00:02"
   }
  },
- "updatedAt": "2026-11-22 06:32:41",
- "updatedTs": 1795300361
+ "updatedAt": "2026-11-23 06:38:09",
+ "updatedTs": 1795387089
 }
