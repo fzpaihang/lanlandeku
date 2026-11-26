@@ -1,7 +1,12 @@
 # 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-26 15:35（**CI 优化：多区补跑从「派 N 个 run 靠 concurrency 串行」改成「一个 run 里逗号串一次跑完」**）
+> 最后更新：2026-11-26 17:05（**名人堂拆三批次：11 区一次抓全必然超时，改成 4+4+3 三批 + `fetch_profiles --hall-only`**）
+<br>**① 问题**：名人堂任务（`board=4`）的「抓玩家档案」沿用普通任务的逻辑，把十一区前百 + 索引 extra 共约 **950 份档案全量重抓一遍**，而名人堂每区只要 9–10 人。11-22 / 11-23 / 11-24 三次定时任务**全部在 3617 秒（60 分钟）被 timeout 强杀**（run `45023568576` / `45179389947` / `45398760125`，抓榜 860–942s + 抓档案 1721–1843s 还没完）→ **名人堂从来没成功跑完过**。11-26 手动派发的 `45775748607` 同样卡在抓档案 64+ 分钟。
+<br>**② 改法（三件事）**：⑴ `scripts/fetch_profiles.py` 新增 **`--hall-only`**：目标集合只取本区 `hall.json` 的人（前百 / extra 仍读进来给 `slim()` 补 menpai/fuyuan/rank，但不进目标、也不做 maxRank 截断），`prune_profiles` 也随之跳过（不能把没抓的档案当过期删掉）；hall.json 缺失直接 `return 1` 并提示先跑 `fetch.py --board 4`。⑵ `scripts/plan_refresh.py` 新增 `HALL_BATCHES`（`hall_b1`=taptap 四区 / `hall_b2`=4399+yyh+guanfang+huawei / `hall_b3`=ios 三区）+ `is_hall_marker()` + `hall_keys_for()`，`SCHEDULE_MAP` 把 `0 12` 换成 **20:00 hall_b1 / 20:20 hall_b2 / 20:40 hall_b3**；多个 hall 标记可以合并（`--pick hall_b1,hall_b2` → board=4、8 区），但**任何一个 hall 标记掺进普通分区就直接 `SystemExit`**（`--board` 是全局参数）。`hall11`（11 区全集）保留向后兼容。⑶ `refresh.yml` 补两条 cron、「抓玩家档案」步骤在 `board != 1` 时追加 `--hall-only`（env 加 `B`）；`watchdog.yml` 的 `HALL=1` 改成派发 `check_stale.py` 输出的**批次串**，`scripts/check_stale.py` 重写 hall 判定为**按批判**（import `plan_refresh.HALL_BATCHES`，加批次不用改两处）并输出 `hall=hall_b1,hall_b3` 这种逗号串（`hall=1` 仍退化成 `hall11`）。
+<br>**③ 验证**：`hall_batch_test.py` **93 项 PASS**、`hall_only_test.py` **35 项 PASS**、`ci_opt_test.py` **75 项 PASS**（含新增 check_stale 按批判过期 5 条 + workflow 内容校验 8 条）、`ci_bash_test.py` 8 场景 PASS、`ci_wd_test.py` 9 场景 PASS（含 `hall=1 → hall11` 兼容）；`preflight` 13 通过 / 2 警告 / 0 失败。发布 **`876b7388cce4`**（5 文件）。
+<br>**④ 铁律**：名人堂**永远不要**再派 `hall11` 全量（除非手动排查）；批次定义只在 `plan_refresh.HALL_BATCHES` 一处；`--hall-only` 下绝不能触发 `prune_profiles`。
+<br>——上一条：2026-11-26 15:35（**CI 优化：多区补跑从「派 N 个 run 靠 concurrency 串行」改成「一个 run 里逗号串一次跑完」**）
 <br>**① 问题**：watchdog 每 3 小时补跑过期分区，原来「过期几个区就 dispatch 几次」，而 `refresh.yml` 的 `concurrency: group=fzjh-data, cancel-in-progress:false` 只放 **1 running + 1 pending**，11-26 实测一次派 9 个 run **9 个全 cancelled**；而且抓榜单失败是整轮重跑，一个区撞限流十个区白跑。
 <br>**② 改法**：`--server` 全链路（`fetch.py` / `fetch_profiles.py` / `merge_exp.py` / `summary.py`）本来就支持逗号串，所以把 `workflow_dispatch.inputs.server` 从 `type: choice`（13 个 options）改成 **`type: string`**，watchdog 一次 `dispatch "$SERVERS"` 派发全部过期分区（**名人堂仍单独派一次**，`--board` 是全局参数不能混）；`fetch.py` main() 每区失败收集后打印固定格式单行 `FAILED_SERVERS=a,b`（不写文件，CI 步骤间不共享 /tmp），`refresh.yml`「抓榜单」三轮重试从「整轮重跑」改成 **第二轮起只重跑失败分区**；`timeout-minutes: 60` 提到 **120**（11 区全量 33 分钟 + 两轮限流冷却 240s/480s 会超 60；超时是硬杀，连 `if: always()` 的「提交数据」都不跑，整批白抓；不放更大是因为这个 run 占着 fzjh-data 队列，拖太久会堵后面的定时任务）。
 <br>**③ `scripts/plan_refresh.py` 重写**：新增 `split_pick()`（容忍中文逗号/顿号/分号/空格，去重保序）与 `label_for()`（先查组合名保住「白鹤+丹凤」「应用汇+老马识途」，未知分区直接 `SystemExit` 挡掉，免得静默抓 0 个区）；`plan()` 在 mode 非空时若 `hall11` 与别的分区混在一起直接报错拒绝；`LABELS` 补 `"all": "全部"`。
@@ -96,12 +101,15 @@ iOS 与安卓不是同一个域名，靠 **三件套一起配**才能握手，�
 | `0 18 * * *` | 次日 **02:00** | **华为** |
 | `0 0 * * *` | 当日 **08:00** | **野马分鬃**（iOS 二区） |
 | `0 2 * * *` | 当日 **10:00** | **仙人指路**（iOS 三区） |
-| `0 12 * * *` | 当日 **20:00** | **名人堂（11 区一次抓全，board=4 → hall.json）** |
+| `0 12 * * *` | 当日 **20:00** | **名人堂·第1批**（taptap 四区，board=4 → hall.json） |
+| `20 12 * * *` | 当日 **20:20** | **名人堂·第2批**（4399 / 应用汇 / 其他服 / 华为） |
+| `40 12 * * *` | 当日 **20:40** | **名人堂·第3批**（iOS 三区） |
 
 - `timeout-minutes: 120`（2026-11-26 从 60 提高：看门狗现在可能一次塞 11 区，全量约 33 分钟 + 两轮限流冷却 240s/480s 会超 60；超时是硬杀，连 `if: always()` 的「提交数据」都不跑）
 - `concurrency: fzjh-data`，`cancel-in-progress: false`
-- 手动触发：`mode=probe|board|full`，`server=all|<key>|hall11`，**也可以是逗号串 `taptap,taptap_4`（2026-11-26 起 `type: string`，以前是 `choice` 只能选一个）**；名人堂 `hall11` 不能和其它分区混在一次运行（`--board` 是全局参数）
-- **`target` 与 `servers` 不是一回事**：`plan_refresh.py` 输出 `target`（任务标记，`hall11` 这类不能当分区名）+ `servers`（真正喂给 `--server` 的逗号串）+ `board`（1=高手榜 / 4=名人堂）。workflow 各步一律用 `servers`，别改回 `target`。
+- 手动触发：`mode=probe|board|full`，`server=all|<key>|hall_b1|hall_b2|hall_b3`，**也可以是逗号串 `taptap,taptap_4`（2026-11-26 起 `type: string`，以前是 `choice` 只能选一个）**；名人堂批次可以互相合并（`hall_b1,hall_b2`），但**不能和普通分区混在一次运行**（`--board` 是全局参数）。`hall11` = 十一区一次抓全，只在手动排查时用
+- **`target` 与 `servers` 不是一回事**：`plan_refresh.py` 输出 `target`（任务标记，`hall_b1` 这类不能当分区名）+ `servers`（真正喂给 `--server` 的逗号串）+ `board`（1=高手榜 / 4=名人堂）。workflow 各步一律用 `servers`，别改回 `target`。
+- **名人堂拆三批（2026-11-26）**：十一区一次抓全时「抓玩家档案」要重抓约 950 份，11-22/23/24 三次定时任务全在 **3617s 被 timeout 强杀**（名人堂从未成功跑完）。拆成 4+4+3 后每批用 `fetch_profiles.py --hall-only`，只抓本区 hall.json 那 9–10 人，2–4 分钟完事。**批次定义只有一处**：`scripts/plan_refresh.py` 的 `HALL_BATCHES`（`check_stale.py` 直接 import 它判过期，加批次不用改两处）。
 
 ### 刷新失败的三层防线（2026-11-21 起）
 
@@ -128,7 +136,8 @@ iOS 与安卓不是同一个域名，靠 **三件套一起配**才能握手，�
 - 「提交数据」步必须保持 `if: always()`：榜单在抓榜单步就已写盘，后面抓档案因限流失败不该把它一起丢掉；整轮彻底失败时 `data/` 无变化，`git diff --staged --quiet` 自动跳过。
 - 看门狗判「过期」用 `updatedAt` 时**必须用 `calendar.timegm`**（`updatedAt` 是北京时间字符串，`time.mktime` 会按运行机器时区解析，UTC+8 机器上算早 8 小时）。
 - 看门狗发现有 `refresh.yml` 在跑/排队时**整轮跳过**：那个任务很可能就在刷这个区，再派发只会白跑并多耗限流额度。
-- `refresh.yml` 的 `server` **2026-11-26 起是 `type: string`，支持逗号串**：看门狗把「所有过期分区」一次派发成 1 个 run（名人堂另外单独派 1 个），run 内各区间隔 2s 顺序抓，效果等同排队串行但不会被 `concurrency: group=fzjh-data` 的「1 running + 1 pending」掐掉（11-26 实测一次派 9 个 run **9 个全 cancelled**）。**改 dispatch 参数前必须先发布 workflow** —— GitHub 按远端 main 的定义校验 inputs，远端还是 `choice` 时传逗号串直接 HTTP 422。
+- `refresh.yml` 的 `server` **2026-11-26 起是 `type: string`，支持逗号串**：看门狗把「所有过期分区」一次派发成 1 个 run（名人堂批次另外单独派 1 个，多批也会合并成一次），run 内各区间隔 2s 顺序抓，效果等同排队串行但不会被 `concurrency: group=fzjh-data` 的「1 running + 1 pending」掐掉（11-26 实测一次派 9 个 run **9 个全 cancelled**）。**改 dispatch 参数前必须先发布 workflow** —— GitHub 按远端 main 的定义校验 inputs，远端还是 `choice` 时传逗号串直接 HTTP 422。
+- **名人堂补跑按批**：`check_stale.py` 输出 `hall=hall_b1,hall_b3` 这种批次串，看门狗把它当一个 run 派发；不再因为一批过期就把十一区全跑一遍。`hall=1`（老格式）仍退化成 `hall11` 全集。
 
 **昵称索引有三条重建入口**（`data/lookup-index.json` 是「昵称 → uid」静态表，只有 APK 读，不参与榜单展示与经验计算）：
 
@@ -343,7 +352,9 @@ etaDn = (me.expN - dn.expN) / (dn.perDay - me.perDay)   // 仅当 dn.perDay > me
 **前端铁律**：`hall.js` 默认按 `rank` 升序，**绝不自建阅历序重排**。11 区里有 4 个区（huawei / ios2 / taptap_2 / taptap_4）游戏原始名次与阅历不是严格倒序，自己排序会造出假名次。
 `fmtYueli()` 必须 `Math.round` 后加千分位（阅历是 7 位整数，原始值是浮点如 2639341.0875）。
 
-**定时任务**：`refresh.yml` 的 `0 12 * * *`（北京 20:00），`plan_refresh.py` 输出 `target=hall11 / board=4 / servers=<11 区逗号串>`。
+**定时任务**：`refresh.yml` 拆成三条 cron —— `0 12 * * *`（北京 20:00 · 第1批 taptap 四区）/ `20 12 * * *`（20:20 · 第2批 4399+应用汇+其他服+华为）/ `40 12 * * *`（20:40 · 第3批 iOS 三区）。
+`plan_refresh.py` 输出 `target=hall_b1` / `board=4` / `servers=<该批分区逗号串>`；`hall11`（11 区一次抓全）只留作向后兼容与手动排查。
+**为什么拆批**：十一区一次抓全时「抓玩家档案」要重抓约 950 份，11-22/23/24 三次定时任务全部在 3617s 被 timeout 强杀；拆分后每批 `--hall-only` 只抓本区 hall.json 的 9–10 人。
 
 ### 5. 武学等级
 `lv = min(1100, ceil(((exp - 1) / 0.015) ** (1/3)))`
@@ -494,6 +505,10 @@ URL 形态：`?me=<sha256>`（网页手填）或 `?k=<sha256>`（APK 用的，�
 
 | 版本 | 内容 |
 |---|---|
+| CI | **2026-11-26 17:05 名人堂拆三批次（4+4+3）**（用户 m09183「名人堂拆分成三批次吧，现在不要跑全区run，太浪费时间了」）。
+<br>**根因**：名人堂（board=4）的「抓玩家档案」沿用普通任务逻辑，把十一区前百+extra 约 **950 份**全量重抓，而每区只要 9–10 人 → 11-22/23/24 三次定时任务**全部在 3617s 被 timeout 强杀**，名人堂从未成功跑完。
+<br>**改法**：①`fetch_profiles.py` 新增 `--hall-only`（只抓本区 hall.json 的人、不做 maxRank 截断、不触发 prune_profiles）；②`plan_refresh.py` 新增 `HALL_BATCHES`（b1=taptap 四区 / b2=4399+yyh+guanfang+huawei / b3=ios 三区）+ `is_hall_marker()` + `hall_keys_for()`，cron 拆成 `0 12`/`20 12`/`40 12` 三条，多批可合并、掺普通分区直接报错；③`refresh.yml` 补两条 cron、抓档案步按 `board!=1` 追加 `--hall-only`；④`check_stale.py` 改为**按批判过期**并 import `plan_refresh.HALL_BATCHES`，输出 `hall=hall_b1,hall_b3`；⑤`watchdog.yml` 派发批次串（`hall=1` 仍退化为 `hall11`）。
+<br>**验证**：`hall_batch_test.py` 93、`hall_only_test.py` 35、`ci_opt_test.py` 75、`ci_bash_test.py` 8 场景、`ci_wd_test.py` 9 场景全 PASS；`preflight` 13 通过 / 2 警告 / 0 失败。发布 **`876b7388cce4`**。 |
 | CI | **2026-11-26 15:35 CI 优化：多区补跑改成一个 run 逗号串跑完**（用户 m08824「okk，你来优化就行」，承接 hotver 修复时「11 区要一个个顺序派发」的痛点）。
 <br>**根因**：`refresh.yml` 的 `concurrency: group=fzjh-data, cancel-in-progress:false` 只放 **1 running + 1 pending**，watchdog 原来「过期几个区 dispatch 几次」，11-26 实测一次派 9 个 run **9 个全 cancelled**；抓榜单失败又是整轮重跑，一个区撞限流十个区白跑。
 <br>**改法**：①`workflow_dispatch.inputs.server` 从 `type: choice`（13 options）改 **`type: string`**，watchdog 一次 `dispatch "$SERVERS"` 派全部过期分区，名人堂仍单独派一次（`--board` 全局参数）；②`scripts/fetch.py` main() 收集失败分区打印固定单行 `FAILED_SERVERS=a,b`（不写文件，CI 步骤间不共享 /tmp），`refresh.yml` 三轮重试**第二轮起只跑失败分区**；③`timeout-minutes: 60→120`；④`scripts/plan_refresh.py` 重写：`split_pick()` 容忍中文逗号/顿号/分号/空格并去重保序、`label_for()` 保组合名并对未知分区 `SystemExit`、`hall11` 混跑直接拒绝、`LABELS` 补 `all`。
