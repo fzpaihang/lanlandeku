@@ -346,52 +346,120 @@ def post_with_retry(cfg, path, body, keys, t, tries=None):
 
 VERSION_ERR_HINTS = ("版本过低", "请退出重进")
 
+# 2026-11-26：游戏从 18464 直接跳到 20571（差 2107），老实现「从配置值起 +1 试 span=80 个」
+# 永远探不到，全渠道抓取全线失败。改成「先试配置值 → 几何上跳找上界 → 二分收敛」。
+HV_MAX_JUMP = 1 << 20          # 最多往上摸 100 万版；再试不到就不是版本号的问题了
 
-def detect_hotver(cfg, keys, t, span=80):
+
+def _hv_try(cfg, keys, t, hv, retry=None):
+    """拿一个候选 hotver 打一次 get_board/1，把「限流」和「版本过低」分开。
+
+    返回 (状态, 响应, keys)，状态取值：
+      "ok"    该版本可用，响应就是第 1 页数据
+      "low"   服务端报「版本过低」，版本号要再往上
+      "rate"  一直是限流（20616 / 连接异常），判断不了
+      "other" 其它错误（维护中、参数错…），不能据此往上加版本号
+
+    限流时会换会话密钥重试同一个版本号，所以 keys 可能变，调用方要接回去。
+    """
+    c = dict(cfg)
+    c["hotver"] = int(hv)
+    last = None
+    for attempt in range(retry or RATE_RETRY):
+        try:
+            _pace_wait()
+            d = api_post(c, "get_board/1", {"page": 1}, keys, t)
+            _LAST_REQ[0] = time.time()
+        except Exception as e:
+            _LAST_REQ[0] = time.time()
+            d = {"errcode": -1, "errmsg": "%s" % type(e).__name__}
+        last = d
+        if d.get("errcode") == 0:
+            return "ok", d, keys
+        if is_rate_limited(d) or d.get("errcode") == -1:
+            # 限流跟版本号无关：换密钥重试同一个版本号，千万不能往上加
+            pace_hit()
+            time.sleep(RATE_PAUSE)
+            try:
+                keys = handshake(cfg, time.time())
+            except Exception:
+                pass
+            continue
+        break                  # 其它错误：不往上加版本号
+    msg = (last or {}).get("errmsg") or ""
+    if any(hint in msg for hint in VERSION_ERR_HINTS):
+        return "low", last, keys
+    if is_rate_limited(last) or (last or {}).get("errcode") == -1:
+        return "rate", last, keys
+    return "other", last, keys
+
+
+def detect_hotver(cfg, keys, t, span=80, max_probe=0):
     """自动探测服务端接受的 hotver。
 
-    游戏每次更新 hotver 都会变（实测 18432→18443→18450→18464），写死在配置里迟早过期，
-    过期后所有接口都返回「游戏版本过低」。这里从配置值起逐个往上试，命中即返回。
+    游戏每次更新 hotver 都会变（实测 18432→18443→18450→18464→20571），写死在配置里
+    迟早过期，过期后所有接口都返回「游戏版本过低」。
 
-    注意限流（20616「请求错误」）要单独处理：它既不是成功也不是版本问题，
-    冷却后重试同一个版本号，仍失败就继续试下一个，不能据此判定放弃。
+    三步走：
+      1. 先按配置值试一次 —— 没更新时一次请求就结束（绝大多数轮次走这条）；
+      2. 报「版本过低」就按几何步长上跳（span、2span、4span…）先找到可用上界。
+         服务端只要求 hotver ≥ 门槛（实测 20570 拒、20571 收、21000/30000/99999 也收），
+         所以可以跳着试，不必一格一格爬；
+      3. 再在上一个失败值和首个可用值之间二分，收敛到真实门槛，
+         避免把虚高的版本号写进配置（否则下次游戏更新时又要重新跳一遍）。
+
+    max_probe > 0 时限制总探测次数（APK 端有 20 秒查询预算，用这个兜底）。
+    限流（20616）一律按「判断不了」处理：重试同一版本，绝不当成版本问题往上加。
 
     返回 (可用的 hotver, 该版本下第 1 页的响应)；探测失败返回 (None, 最后一次响应)。
     """
     base = int(cfg.get("hotver") or 0)
-    last = None
-    for hv in range(base, base + span):
-        c = dict(cfg)
-        c["hotver"] = hv
-        for attempt in range(RATE_RETRY):
-            try:
-                _pace_wait()
-                d = api_post(c, "get_board/1", {"page": 1}, keys, t)
-                _LAST_REQ[0] = time.time()
-            except Exception as e:
-                _LAST_REQ[0] = time.time()
-                d = {"errcode": -1, "errmsg": "%s" % type(e).__name__}
-            code = d.get("errcode")
-            last = d
-            if code == 0:
-                return hv, d
-            if is_rate_limited(d) or code == -1:
-                # 限流跟版本号无关：在同一把钥匙上换密钥重试，试满就整轮放弃。
-                # 千万不能往上加 hotver —— 那不是版本问题，既会把版本号带跑偏，
-                # 又会白试满 span 次（一次能拖半小时）。
-                pace_hit()
-                time.sleep(RATE_PAUSE)
-                try:
-                    keys = handshake(cfg, time.time())
-                except Exception:
-                    pass
-                continue
-            break                  # 其它错误：不往上加版本号
-        # 只有「版本过低」才能说明是版本号不对，其它错误都不该盲目往上加
-        msg = (last or {}).get("errmsg") or ""
-        if not any(hint in msg for hint in VERSION_ERR_HINTS):
-            return None, last
-    return None, last
+    if base <= 0:
+        return None, {"errcode": -1, "errmsg": "hotver 未配置"}
+
+    st = {"keys": keys, "n": 0, "last": None}
+
+    def probe_one(hv):
+        st["n"] += 1
+        status, d, st["keys"] = _hv_try(cfg, st["keys"], t, hv)
+        st["last"] = d
+        return status, d
+
+    limit = max_probe if max_probe and max_probe > 0 else 64
+
+    status, d = probe_one(base)
+    if status == "ok":
+        return base, d
+    if status != "low":
+        return None, d
+
+    lo, hi, ok_d = base, None, None      # lo 已知不可用，hi 已知可用
+    step = max(int(span), 16)
+    while st["n"] < limit:
+        jump = lo + step
+        if jump > base + HV_MAX_JUMP:
+            break
+        status, d = probe_one(jump)
+        if status == "ok":
+            hi, ok_d = jump, d
+            break
+        if status != "low":
+            return None, d
+        lo, step = jump, step * 2
+
+    if hi is None:
+        return None, st["last"]
+
+    while hi - lo > 1 and st["n"] < limit:
+        mid = (lo + hi) // 2
+        status, d = probe_one(mid)
+        if status == "ok":
+            hi, ok_d = mid, d
+        elif status == "low":
+            lo = mid
+        else:
+            break                        # 限流或异常：用当前已知可用的 hi 收工
+    return hi, ok_d
 
 
 def update_history(rows, now_ts, out_dir, drop=None):

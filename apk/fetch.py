@@ -268,48 +268,96 @@ def post_with_retry(cfg, path, body, keys, t):
 
 VERSION_ERR_HINTS = ("版本过低", "请退出重进")
 
+# 2026-11-26：游戏从 18464 直接跳到 20571（差 2107），老实现「从配置值起 +1 试 span=80 个」
+# 永远探不到，手机上查人会一直卡在「版本号无法确定」。改成几何上跳找上界。
+# APK 端受 LOOKUP_BUDGET（20 秒）限制，不做二分收敛 —— 拿到第一个可用值就收，
+# 下次查询就会以这个值为基准，最多只多花几次请求。
+HV_MAX_JUMP = 1 << 20          # 最多往上摸 100 万版；再试不到就不是版本号的问题了
 
-def detect_hotver(cfg, keys, t, span=80):
+
+def _hv_try(cfg, keys, t, hv):
+    """拿一个候选 hotver 打一次 get_board/1，把「限流」和「版本过低」分开。
+
+    返回 (状态, 响应)，状态取值：
+      "ok"    该版本可用
+      "low"   服务端报「版本过低」，版本号要再往上
+      "rate"  一直是限流（20616 / 连接异常），判断不了
+      "other" 其它错误（维护中、参数错…），不能据此往上加版本号
+    """
+    c = dict(cfg)
+    c["hotver"] = int(hv)
+    last = None
+    for attempt in range(2):
+        try:
+            d = api_post(c, "get_board/1", {"page": 1}, keys, t)
+        except Exception as e:
+            d = {"errcode": -1, "errmsg": "%s: %s" % (type(e).__name__, e)}
+        last = d
+        if d.get("errcode") == 0:
+            return "ok", d
+        if d.get("errcode") == 20616:      # 限流：冷却后重试同一版本
+            if attempt == 0:
+                time.sleep(1.8)
+                continue
+            break
+        break
+    msg = (last or {}).get("errmsg") or ""
+    if any(hint in msg for hint in VERSION_ERR_HINTS):
+        return "low", last
+    if (last or {}).get("errcode") == 20616 or (last or {}).get("errcode") == -1:
+        time.sleep(0.8)                    # 限流冷却一下再往上试
+        return "rate", last
+    return "other", last
+
+
+def detect_hotver(cfg, keys, t, span=80, max_probe=8):
     """自动探测服务端接受的 hotver。
 
-    游戏每次更新 hotver 都会变（实测 18432→18443→18450→18464），写死在配置里迟早过期，
-    过期后所有接口都返回「游戏版本过低」。这里从配置值起逐个往上试，命中即返回。
+    游戏每次更新 hotver 都会变（实测 18432→18443→18450→18464→20571），写死在配置里
+    迟早过期，过期后所有接口都返回「游戏版本过低」。
 
-    注意限流（20616「请求错误」）要单独处理：它既不是成功也不是版本问题，
-    冷却后重试同一个版本号，仍失败就继续试下一个，不能据此判定放弃。
+    先按配置值试一次（没更新时一次请求就结束）；报「版本过低」就按几何步长上跳
+    （span、2span、4span…）。服务端只要求 hotver ≥ 门槛（实测 20570 拒、20571 收、
+    21000/30000/99999 也收），所以可以跳着试，不必一格一格爬。
+    max_probe 限制最多打几次（APK 有 20 秒查询预算）。
+
+    限流（20616）一律按「判断不了」处理：重试同一版本，绝不当成版本问题往上加。
 
     返回 (可用的 hotver, 该版本下第 1 页的响应)；探测失败返回 (None, 最后一次响应)。
     """
     base = int(cfg.get("hotver") or 0)
-    last = None
-    for hv in range(base, base + span):
-        c = dict(cfg)
-        c["hotver"] = hv
-        for attempt in range(2):
-            try:
-                d = api_post(c, "get_board/1", {"page": 1}, keys, t)
-            except Exception as e:
-                d = {"errcode": -1, "errmsg": "%s" % type(e).__name__}
-            code = d.get("errcode")
-            msg = d.get("errmsg") or ""
-            last = d
-            if code == 0:
-                return hv, d
-            if code == 20616:      # 限流：冷却后重试同一版本
-                if attempt == 0:
-                    time.sleep(1.8)
-                    continue
-                break              # 仍限流，换下一个试试
-            break                  # 其他错误，跳出内层判断
-        # 只有「版本过低」才能说明是版本号不对，其它错误都不该盲目往上加
-        msg = (last or {}).get("errmsg") or ""
-        if not any(hint in msg for hint in VERSION_ERR_HINTS):
-            if (last or {}).get("errcode") == 20616:
-                time.sleep(0.8)
-                continue           # 一直是限流，继续试下一个版本
-            return None, last
-        time.sleep(0.4)
-    return None, last
+    if base <= 0:
+        return None, {"errcode": -1, "errmsg": "hotver 未配置"}
+
+    used = [0]
+    last = [None]
+
+    def probe_one(hv):
+        used[0] += 1
+        status, d = _hv_try(cfg, keys, t, hv)
+        last[0] = d
+        return status, d
+
+    limit = max_probe if max_probe and max_probe > 0 else 8
+
+    status, d = probe_one(base)
+    if status == "ok":
+        return base, d
+    if status != "low":
+        return None, d
+
+    lo, step = base, max(int(span), 16)
+    while used[0] < limit:
+        jump = lo + step
+        if jump > base + HV_MAX_JUMP:
+            break
+        status, d = probe_one(jump)
+        if status == "ok":
+            return jump, d
+        if status != "low":
+            return None, d
+        lo, step = jump, step * 2
+    return None, last[0]
 
 
 def update_history(rows, now_ts, out_dir, drop=None):
