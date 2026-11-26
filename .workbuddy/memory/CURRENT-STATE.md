@@ -1,7 +1,13 @@
 # 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-26 13:35（**游戏热更版本号跳版导致全线抓取停摆：hotver 18464→20571 一跳 2107 版，`detect_hotver` 逐版爬 span=80 永远探不到，CI 每轮在第 7 步「连通性探测」就 FAIL，11 区数据全停在 2026-11-25**）
+> 最后更新：2026-11-26 15:35（**CI 优化：多区补跑从「派 N 个 run 靠 concurrency 串行」改成「一个 run 里逗号串一次跑完」**）
+<br>**① 问题**：watchdog 每 3 小时补跑过期分区，原来「过期几个区就 dispatch 几次」，而 `refresh.yml` 的 `concurrency: group=fzjh-data, cancel-in-progress:false` 只放 **1 running + 1 pending**，11-26 实测一次派 9 个 run **9 个全 cancelled**；而且抓榜单失败是整轮重跑，一个区撞限流十个区白跑。
+<br>**② 改法**：`--server` 全链路（`fetch.py` / `fetch_profiles.py` / `merge_exp.py` / `summary.py`）本来就支持逗号串，所以把 `workflow_dispatch.inputs.server` 从 `type: choice`（13 个 options）改成 **`type: string`**，watchdog 一次 `dispatch "$SERVERS"` 派发全部过期分区（**名人堂仍单独派一次**，`--board` 是全局参数不能混）；`fetch.py` main() 每区失败收集后打印固定格式单行 `FAILED_SERVERS=a,b`（不写文件，CI 步骤间不共享 /tmp），`refresh.yml`「抓榜单」三轮重试从「整轮重跑」改成 **第二轮起只重跑失败分区**；`timeout-minutes: 60` 提到 **120**（11 区全量 33 分钟 + 两轮限流冷却 240s/480s 会超 60；超时是硬杀，连 `if: always()` 的「提交数据」都不跑，整批白抓；不放更大是因为这个 run 占着 fzjh-data 队列，拖太久会堵后面的定时任务）。
+<br>**③ `scripts/plan_refresh.py` 重写**：新增 `split_pick()`（容忍中文逗号/顿号/分号/空格，去重保序）与 `label_for()`（先查组合名保住「白鹤+丹凤」「应用汇+老马识途」，未知分区直接 `SystemExit` 挡掉，免得静默抓 0 个区）；`plan()` 在 mode 非空时若 `hall11` 与别的分区混在一起直接报错拒绝；`LABELS` 补 `"all": "全部"`。
+<br>**④ 验证**：`ci_opt_test.py` **42 项 PASS**、`ci_bash_test.py` **7 场景 PASS**（用假 python 跑真 bash，验「第一轮 all 只剩 taptap_4 → 第二轮只跑 taptap_4」等）、`ci_wd_test.py` **7 场景 PASS**（多区合成 1 个 run / 只名人堂 / 多区+名人堂 2 次 / 全新鲜 0 次 / 有任务在跑跳过）；`preflight` 13 通过 / 2 警告 / 0 失败。发布 **`d6881af53b33`**（4 文件）。**发布后真派发 run `45775135297`（mode=probe、server=`taptap,ios1`）success**，日志 `T: taptap,ios1` / `N: 苍松迎客+老马识途` / `--- [1/2] 苍松迎客（taptap）---` / `--- [2/2] 老马识途（ios）---`，两区都探通。
+<br>**⑤ 教训**：**dispatch 前必须先发布 workflow** —— GitHub 按远端 main 上的定义校验 inputs，远端还是 `type: choice` 时传逗号串直接 **HTTP 422**（发布后再派就 OK）。
+<br>——上一条：2026-11-26 13:35（**游戏热更版本号跳版导致全线抓取停摆：hotver 18464→20571 一跳 2107 版，`detect_hotver` 逐版爬 span=80 永远探不到，CI 每轮在第 7 步「连通性探测」就 FAIL，11 区数据全停在 2026-11-25**）
 <br>**① 现象与根因**：11-25 晚起 `refresh.yml` 全部失败，失败点固定在「连通性探测」：`[probe] ✓ 握手成功` → `[probe] ✗ 游戏版本过低，请退出重进进行升级` → exit 1，后面抓榜单/抓档案/合并/重建索引全 skipped（「提交数据」因 `if: always()` 仍跑，日志「数据无变化」）。根因：游戏客户端 hotver 从 **18464 跳到 20571**，而 `scripts/fetch.py` 与 `apk/fetch.py` 的 `detect_hotver(cfg, keys, t, span=80)` 是 `for hv in range(base, base+80)` **逐版 +1 爬**，跳 2107 版永远爬不到。设备侧取证：MuMu tap 端 `com.xhtt.app.fzjh` 的 `Cocos2dxPrefsFile.xml` 里 hotver=**20571**（m4399=18443 / huawei=18464 / yyh=18464，只有 tap 端更新了）。阈值实测：20000/20400/20500/20560/20570 全 errcode=1，**20571 起 errcode=0**，21000/30000/99999 也都 0 ⇒ 服务端只要求 hotver ≥ 门槛，**谓词单调可二分**。
 <br>**② 修法（跳版探测）**：`detect_hotver` 重写成三段——先试 base（游戏没更新时 1 次请求就命中，绝大多数轮次零成本）→ 只有 errmsg 命中 `VERSION_ERR_HINTS=("版本过低","请退出重进")` 才**几何上跳**（step 从 max(span,16) 起每次 ×2，上限 `HV_MAX_JUMP = 1 << 20`）找可用上界 → scripts 版再**二分收敛**到真实最小可用值（`while hi - lo > 1`），apk 版**不二分**只取第一个可用值（受 `apk/lookup_core.py:700 LOOKUP_BUDGET = 20.0` 限制，`max_probe=8`）。抽了公共的 `_hv_try(cfg, keys, t, hv)` 返回 `"ok"/"low"/"rate"/"other"`；**限流（20616 / errcode -1）仍走 pace_hit + `time.sleep(RATE_PAUSE)` + 重新 handshake，绝不上调 hotver**（老铁律不变）；其它错误立即放弃不瞎跳。
 <br>**③ 配套**：`config.json` 顶层 hotver 18464→**20571**（被 `.gitignore:2` 忽略，**改它不进仓库**）；GitHub Secret `FZJH_HOTVER`→20571（`E:\workbuddy2\_agent_tmp\hotver_push.py`，PyNaCl SealedBox + PAT）；私有 gist `91b6a13fa2cc94584a6647ce57b260f9` 的 `servers.json` 顶层 hotver→20571（同一脚本 PATCH）。**三处都要改**：本地跑脚本读 config.json，CI 读 Secret，APK 读 gist 缓存 `servers-remote.json`（TTL 6 小时）。
@@ -92,9 +98,9 @@ iOS 与安卓不是同一个域名，靠 **三件套一起配**才能握手，�
 | `0 2 * * *` | 当日 **10:00** | **仙人指路**（iOS 三区） |
 | `0 12 * * *` | 当日 **20:00** | **名人堂（11 区一次抓全，board=4 → hall.json）** |
 
-- `timeout-minutes: 60`（十一区全量约 60 分钟）
+- `timeout-minutes: 120`（2026-11-26 从 60 提高：看门狗现在可能一次塞 11 区，全量约 33 分钟 + 两轮限流冷却 240s/480s 会超 60；超时是硬杀，连 `if: always()` 的「提交数据」都不跑）
 - `concurrency: fzjh-data`，`cancel-in-progress: false`
-- 手动触发：`mode=probe|board|full`，`server=all|<key>|hall11`
+- 手动触发：`mode=probe|board|full`，`server=all|<key>|hall11`，**也可以是逗号串 `taptap,taptap_4`（2026-11-26 起 `type: string`，以前是 `choice` 只能选一个）**；名人堂 `hall11` 不能和其它分区混在一次运行（`--board` 是全局参数）
 - **`target` 与 `servers` 不是一回事**：`plan_refresh.py` 输出 `target`（任务标记，`hall11` 这类不能当分区名）+ `servers`（真正喂给 `--server` 的逗号串）+ `board`（1=高手榜 / 4=名人堂）。workflow 各步一律用 `servers`，别改回 `target`。
 
 ### 刷新失败的三层防线（2026-11-21 起）
@@ -111,7 +117,7 @@ iOS 与安卓不是同一个域名，靠 **三件套一起配**才能握手，�
 | # | 位置 | 做法 |
 |---|---|---|
 | ① | `scripts/fetch.py` `post_with_retry()` | **撞限流就换会话密钥立刻重试**（停 `RATE_PAUSE = 1.2` 秒 → `handshake` 换钥匙 → 同页重发），额度 `RATE_RETRY = 10` 次独立不吃常规 3 次；换钥匙也压不住才进长冷却 `RATE_BACKOFF = (30, 60)` 秒并**重置换钥匙额度**，仍不行才放弃 |
-| ② | `refresh.yml`「抓榜单」步 | **整轮最多 3 次**，失败冷却 `cool=$((i * 240))` → 240s / 480s 再重来；三次都失败才 `exit 1`，**保留上一版数据不动** |
+| ② | `refresh.yml`「抓榜单」步 | **最多 3 轮**，失败冷却 `cool=$((i * 240))` → 240s / 480s 再重来；**第二轮起只重跑失败的分区**（`fetch.py` 失败时打印 `FAILED_SERVERS=a,b`，workflow 用 `sed -n 's/^FAILED_SERVERS=//p'` 取出来当下轮目标，原来是整轮重跑、一个区撞限流十个区白跑）；三轮都失败才 `exit 1`，**保留上一版数据不动** |
 | ③ | `watchdog.yml` + `scripts/check_stale.py` | 每 3 小时（cron `30 1,4,7,10,13,16,19,22 * * *`）查过期分区，REST 派发 `refresh.yml` 补跑 |
 
 **铁律**：
@@ -122,7 +128,7 @@ iOS 与安卓不是同一个域名，靠 **三件套一起配**才能握手，�
 - 「提交数据」步必须保持 `if: always()`：榜单在抓榜单步就已写盘，后面抓档案因限流失败不该把它一起丢掉；整轮彻底失败时 `data/` 无变化，`git diff --staged --quiet` 自动跳过。
 - 看门狗判「过期」用 `updatedAt` 时**必须用 `calendar.timegm`**（`updatedAt` 是北京时间字符串，`time.mktime` 会按运行机器时区解析，UTC+8 机器上算早 8 小时）。
 - 看门狗发现有 `refresh.yml` 在跑/排队时**整轮跳过**：那个任务很可能就在刷这个区，再派发只会白跑并多耗限流额度。
-- `refresh.yml` 的 `server` 是 choice 型（只能单区），过期几个区就派发几次，靠 `concurrency: fzjh-data` 排队串行（并发抢限流额度正是事故成因）。
+- `refresh.yml` 的 `server` **2026-11-26 起是 `type: string`，支持逗号串**：看门狗把「所有过期分区」一次派发成 1 个 run（名人堂另外单独派 1 个），run 内各区间隔 2s 顺序抓，效果等同排队串行但不会被 `concurrency: group=fzjh-data` 的「1 running + 1 pending」掐掉（11-26 实测一次派 9 个 run **9 个全 cancelled**）。**改 dispatch 参数前必须先发布 workflow** —— GitHub 按远端 main 的定义校验 inputs，远端还是 `choice` 时传逗号串直接 HTTP 422。
 
 **昵称索引有三条重建入口**（`data/lookup-index.json` 是「昵称 → uid」静态表，只有 APK 读，不参与榜单展示与经验计算）：
 
@@ -488,6 +494,11 @@ URL 形态：`?me=<sha256>`（网页手填）或 `?k=<sha256>`（APK 用的，�
 
 | 版本 | 内容 |
 |---|---|
+| CI | **2026-11-26 15:35 CI 优化：多区补跑改成一个 run 逗号串跑完**（用户 m08824「okk，你来优化就行」，承接 hotver 修复时「11 区要一个个顺序派发」的痛点）。
+<br>**根因**：`refresh.yml` 的 `concurrency: group=fzjh-data, cancel-in-progress:false` 只放 **1 running + 1 pending**，watchdog 原来「过期几个区 dispatch 几次」，11-26 实测一次派 9 个 run **9 个全 cancelled**；抓榜单失败又是整轮重跑，一个区撞限流十个区白跑。
+<br>**改法**：①`workflow_dispatch.inputs.server` 从 `type: choice`（13 options）改 **`type: string`**，watchdog 一次 `dispatch "$SERVERS"` 派全部过期分区，名人堂仍单独派一次（`--board` 全局参数）；②`scripts/fetch.py` main() 收集失败分区打印固定单行 `FAILED_SERVERS=a,b`（不写文件，CI 步骤间不共享 /tmp），`refresh.yml` 三轮重试**第二轮起只跑失败分区**；③`timeout-minutes: 60→120`；④`scripts/plan_refresh.py` 重写：`split_pick()` 容忍中文逗号/顿号/分号/空格并去重保序、`label_for()` 保组合名并对未知分区 `SystemExit`、`hall11` 混跑直接拒绝、`LABELS` 补 `all`。
+<br>**验证**：`ci_opt_test.py` 42 项、`ci_bash_test.py` 7 场景（假 python 跑真 bash）、`ci_wd_test.py` 7 场景全 PASS；`preflight` 13 通过 / 2 警告 / 0 失败。发布 **`d6881af53b33`**。**真派发 `45775135297`（mode=probe、server=`taptap,ios1`）success**，日志 `T: taptap,ios1` / `N: 苍松迎客+老马识途` / `[1/2] 苍松迎客（taptap）` `[2/2] 老马识途（ios）` 两区都探通。
+<br>**教训**：**dispatch 前必须先发布 workflow**，GitHub 按远端 main 定义校验 inputs，远端还是 `choice` 时传逗号串直接 HTTP 422。 |
 | 网页 | **2026-11-20 23:10 名人堂上线：新静态页 hall.html + 抓取层支持 board=4**（m06650 起，用户要求「名人堂」接入网页端）。<br>**新页面**：`hall.html`（3985 B）+ `assets/hall.js`（13901 B，独立 IIFE，**不引 app.js**）；5 列「名次 / 昵称 / 门派 / 等级 / 江湖阅历」，`#sortbar` 三 chip，点行弹 `profile.js` 档案（`PF_CACHE`+`PF_SEQ` 丢弃迟到回调、`replaceState` 同步 `?uid=`）。**默认按 rank 升序、绝不按 yueli 自排**（4 个区原始名次与阅历不是严格倒序）。全程零 innerHTML。index/exp/hall 三页互加入口。<br>**抓取层**：`fetch.py` 加 `BOARD_FILE`，board≠1 时**不碰** maxRank 截断 / index-extra.json / exp-history.json / data/shadow.json；`fetch_profiles.py` 把 hall.json 行并在截断之后追加（setdefault ⇒ 高手榜行优先）；`plan_refresh.py` 加 `HALL_TARGET="hall11"` + `plan_full()`；`refresh.yml` 加 `0 12 * * *`（北京 20:00）+ 手动 `hall11`，各步 `T` 改 `servers`（不是 `target`），抓榜步加 `--board 4 --max-pages 1`。<br>**隐藏口径**：与高手榜同一套，5 人全剔（含 2 个 shadow），剔后 rank 重排 1..N，**名人堂不做影子豁免**。<br>**数据**：11 区 `hall.json` 共 108 行（4399 9 / taptap_3 9 / 其余 10），rank 全连续、无隐藏残留。<br>**测试**：`hall_web_test.js` 35 项 PASS/0 FAIL、`hall_all_servers_smoke.js` 11 区 33/0、`hall_web_smoke.js` 7/0、`hall_profile_smoke.js` 3/0；`preflight` 13 通过 / 2 警告 / 0 失败；Edge headless 桌面 1200×1100 + 移动 420×1400 真实渲染已验。<br>**发布**：`publish.py` 提交 `e1488429a0a8`（22 文件）。**APK 热更包未动（仍 v87）**。 |
 | 网页 | **2026-11-20 08:45 经验变化页新增「排名趋势」列**（m06259，用户问「根据日均数据判断多久之后排名提升/下降」）。<br>**口径**：`assets/exp.js` 新增 `etaText(d)` / `computeEta(rows)` / `etaSpans(r)`。**不能拿游戏 rank±1 当邻居**——taptap 98 行里 rank 与经验值 33/97 对逆序（游戏名次是分批刷新缓存），必须按 `expN` 降序自建经验序。<br>**公式**：`etaUp = max(0, up.expN - me.expN) / (me.perDay - up.perDay)`（仅分母 >0）、`etaDn = max(0, me.expN - dn.expN) / (dn.perDay - me.perDay)`（仅分母 >0）。`etaText`：<1小时 / N小时 / N.N天（<30）/ N天（<365）/ >1年。<br>**UI**：桌面插第 8 列 `c-eta`「排名趋势」（`span.eta-i.up`↑红 / `.dn`↓绿，无值 '—'）；移动端卡片第 3 行同款；`#sortbar` 加「排名趋势」chip（null 沉底、默认 asc），表头点击同步。<br>**实测**：98 行 × 8 列，eta 非 '—' 75 行。<br>**测试**：`exp_grow_test.js` 扩到 17 项 ALL PASS（新增⑫–⑰），`shadow_exp_smoke.js` 10 项、`shadow_web_test.js` 48 项、`test_expN_sort.js` 全 PASS。<br>**发布**：`publish.py` 提交 `de99ce987eff`（`exp.js` / `style.css` / `exp.html` / `index.html` / `lookup.html`），线上 `exp.js?v=9072d485`。 |
 | 网页 | **2026-11-20 01:55 经验变化页基准缺人回退**（m05997，用户问「经验增长页面的苍松区翱翔天际怎么没有经验变化」）。<br>**根因**：`data/servers/taptap/exp-history.json` 的 **2026-11-16 06:30 快照缺 6479440（翱翔天际）**——`git show 31dddaf:data/servers/taptap/profiles/6479440.json` = MISSING（档案不存在）且当轮不在榜，`merge_exp.py` 的 fresh/沿用 prev_map/掉榜继承三条规则全落空；而 `assets/exp.js` 原先只取**一条全局基准快照**（`cutoff = latest.ts - 3*86400`），最新快照 11-19 22:02 反查正好落到这一条 → `baseExp = undefined` → 该行显示「—」。真人只影响他 1 个（另 2 个是影子玩家，属预期）。<br>**修法（只改前端）**：`assets/exp.js` 新增 `baseCache` + `baseSnapFor(uid)`——全局基准缺该 uid 时按 uid 再往回找一条「`ts <= cutoff` 且含该 uid」的快照兜底，禁止 `bSnap === latest`（自比出假 0）；行级 `rowDays = (latest.ts - bSnap.ts)/86400`，日均分母 `max(WINDOW_DAYS, rowDays)`。**别改历史快照补数据**（会被下一轮抓取覆盖）。<br>**验证**：新建 `E:\workbuddy2\_agent_tmp\exp_grow_test.js` 11 项 ALL PASS；`shadow_exp_smoke.js` 修好两处旧「影子」断言后 10 项 PASS；`shadow_web_test.js` 48 项、`test_expN_sort.js`、`test_snap.js` 全 PASS。真实数据实测翱翔天际 `+794.9万` / `+181.9万/天` / `+0.14%`（基准退回 11-15 13:10，区间 4.0 天），**全榜 98 行不再有「—」**。<br>**发布**：`exp.html` 戳 `exp.js=e99b3931`；`preflight` 13 通过 / 2 警告 / 0 失败；`publish.py` 提交 **`61d2d72f36f2`**。Pages 有缓存，立即核查会看到旧 13419 B（raw 源已 14426 B 含 `baseSnapFor`），等 30–90 秒。<br> |
