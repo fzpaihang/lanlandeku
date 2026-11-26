@@ -1,8 +1,8 @@
 {
  "board": "高手榜",
  "boardType": 1,
- "updatedAt": "2026-11-26 14:27:27",
- "updatedTs": 1795674447,
+ "updatedAt": "2026-11-26 16:58:19",
+ "updatedTs": 1795683499,
  "hasPrev": true,
  "total": 50,
  "rows": [
@@ -243,7 +243,7 @@
    "menpai": "唐门",
    "lv": 3202,
    "kongfu": 1800,
-   "exp": 3295328041.0,
+   "exp": 3298071717.0,
    "money": 12540349,
    "yueli": 687429,
    "xiayi": -2417,
@@ -299,8 +299,8 @@
    "sex": "男",
    "wuxing": 13,
    "inheritCount": 5,
-   "prevRank": 14,
-   "delta": 1,
+   "prevRank": 13,
+   "delta": 0,
    "expBoard": 3686445644.852,
    "lvBoard": 3324,
    "expSrc": "profile"
@@ -322,8 +322,8 @@
    "sex": "女",
    "wuxing": 12,
    "inheritCount": 5,
-   "prevRank": 13,
-   "delta": -1,
+   "prevRank": 14,
+   "delta": 0,
    "expBoard": 3253286846.0761,
    "lvBoard": 3188,
    "expSrc": "profile"
@@ -335,7 +335,7 @@
    "menpai": "天竞门",
    "lv": 3125,
    "kongfu": 1775,
-   "exp": 3065824800.0,
+   "exp": 3065825300.0,
    "money": 72654250,
    "yueli": 695598,
    "xiayi": -508572,
@@ -358,7 +358,7 @@
    "menpai": "明教",
    "lv": 3057,
    "kongfu": 1752.33,
-   "exp": 2868297926.0,
+   "exp": 2869708269.0,
    "money": 590832113,
    "yueli": 940584,
    "xiayi": -523283,
@@ -910,7 +910,7 @@
    "menpai": "永夜楼",
    "lv": 2802,
    "kongfu": 1635.33,
-   "exp": 2210783862.0,
+   "exp": 2210842908.0,
    "money": 172211633,
    "yueli": 547825,
    "xiayi": -102670,
@@ -943,8 +943,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 42,
-   "delta": 1,
+   "prevRank": 41,
+   "delta": 0,
    "expBoard": 2002229956.6472,
    "lvBoard": 2711,
    "expSrc": "profile"
@@ -966,8 +966,8 @@
    "sex": "女",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 41,
-   "delta": -1,
+   "prevRank": 42,
+   "delta": 0,
    "expBoard": 1930811003.4129,
    "lvBoard": 2678,
    "expSrc": "profile"
@@ -1012,8 +1012,8 @@
    "sex": "男",
    "wuxing": 25,
    "inheritCount": 5,
-   "prevRank": 45,
-   "delta": 1,
+   "prevRank": 44,
+   "delta": 0,
    "expBoard": 1818385578.8671,
    "lvBoard": 2625,
    "expSrc": "profile"
@@ -1035,8 +1035,8 @@
    "sex": "男",
    "wuxing": 255,
    "inheritCount": 5,
-   "prevRank": 46,
-   "delta": 1,
+   "prevRank": 45,
+   "delta": 0,
    "expBoard": 2066060241.3749,
    "lvBoard": 2739,
    "expSrc": "profile"
@@ -1058,8 +1058,8 @@
    "sex": "男",
    "wuxing": 11,
    "inheritCount": 5,
-   "prevRank": 47,
-   "delta": 1,
+   "prevRank": 46,
+   "delta": 0,
    "expBoard": 1768515666.4342,
    "lvBoard": 2601,
    "expSrc": "profile"
@@ -1081,8 +1081,8 @@
    "sex": "女",
    "wuxing": 30,
    "inheritCount": 5,
-   "prevRank": 48,
-   "delta": 1,
+   "prevRank": 47,
+   "delta": 0,
    "expBoard": 2055911294.3569,
    "lvBoard": 2735,
    "expSrc": "profile"
@@ -1104,8 +1104,8 @@
    "sex": "男",
    "wuxing": 20,
    "inheritCount": 5,
-   "prevRank": 49,
-   "delta": 1,
+   "prevRank": 48,
+   "delta": 0,
    "expBoard": 1698666773.4509,
    "lvBoard": 2566,
    "expSrc": "profile"
@@ -1127,8 +1127,8 @@
    "sex": "男",
    "wuxing": 102,
    "inheritCount": 5,
-   "prevRank": 44,
-   "delta": -5,
+   "prevRank": 49,
+   "delta": 0,
    "expBoard": 1822597461.309,
    "lvBoard": 2627,
    "expSrc": "profile"
@@ -1158,5 +1158,5 @@
   }
  ],
  "expSrc": "mixed",
- "mergedAt": "2026-11-26 14:46:48"
+ "mergedAt": "2026-11-26 17:13:56"
 }
