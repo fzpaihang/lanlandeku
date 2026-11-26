@@ -56,7 +56,7 @@ jobs:
           AUTH="Authorization: Bearer $GH_TOKEN"
           ACCEPT="Accept: application/vnd.github+json"
 
-          if [ -z "${SERVERS:-}" ] && [ "${HALL:-0}" != "1" ]; then
+          if [ -z "${SERVERS:-}" ] && [ -z "${HALL:-}" ]; then
             echo "所有分区都新鲜，无需补跑"
             echo "- 结论：所有分区都在时效内，未派发补跑" >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -95,9 +95,13 @@ jobs:
           if [ -n "${SERVERS:-}" ]; then
             dispatch "$SERVERS"
           fi
-          if [ "${HALL:-0}" = "1" ]; then
-            dispatch hall11
-            echo "- 名人堂：已派发补跑" >> "$GITHUB_STEP_SUMMARY"
+          # 名人堂按批补跑（check_stale.py 输出的是 hall_b1,hall_b3 这种批次串）。
+          # 多批合并成一次 run：board 恒为 4，一个 run 里顺序抓几批仍然比一个区一个 run 快。
+          # 老版本输出 hall=1 时仍按 hall11 全集派发（向后兼容，仅在手动改了 check_stale 时出现）。
+          if [ -n "${HALL:-}" ] && [ "${HALL:-0}" != "0" ]; then
+            if [ "${HALL}" = "1" ]; then HALL="hall11"; fi
+            dispatch "$HALL"
+            echo "- 名人堂：已派发补跑（$HALL）" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: 结果摘要
@@ -111,5 +115,5 @@ jobs:
             echo ""
             echo "- UTC 时间：$(date -u '+%Y-%m-%d %H:%M:%S')"
             echo "- 过期高手榜：${SERVERS:-无}"
-            echo "- 名人堂过期：${HALL:-?}（1=过期）"
+            echo "- 过期名人堂批次：${HALL:-无}"
           } >> "$GITHUB_STEP_SUMMARY"

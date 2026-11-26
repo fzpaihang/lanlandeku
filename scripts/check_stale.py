@@ -13,7 +13,10 @@
 
 输出两行 key=value：
   servers=taptap,taptap_4      # 高手榜过期的分区（逗号分隔，空表示都新鲜）
-  hall=1                       # 名人堂过期则为 1，否则 0
+  hall=hall_b1,hall_b3         # 名人堂过期批次（hall_b1/b2/b3，空表示都新鲜）
+
+名人堂按批次判（2026-11-26 起十一区拆成三批定时抓，见 plan_refresh.HALL_BATCHES）：
+哪一批的 hall.json 超过 --hall-hours 没更新就派那一批，不用为一批过期把十一区全跑一遍。
 退出码恒为 0：本脚本只负责报告，是否补跑由工作流决定。
 """
 import argparse
@@ -31,6 +34,11 @@ except Exception:
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SERVER_DIR = os.path.join(BASE_DIR, "data", "servers")
+
+# 名人堂分批定义只留一份在 plan_refresh.py（cron → 批次 → 分区都归它管），
+# 这里 import 进来判过期，加批次时不用改两处。
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from plan_refresh import HALL_BATCHES  # noqa: E402
 
 
 def read_json(path):
@@ -86,29 +94,35 @@ def main():
         (stale if age > a.hours else fresh).append(k)
         print("# %-12s %5.1f 小时前" % (k, age), file=sys.stderr)
 
-    hall_path = os.path.join(SERVER_DIR, "..", "hall.json")
-    hall_stale = 0
-    hall_age = None
-    if os.path.exists(hall_path):
-        hall_age = (now - updated_ts(read_json(hall_path))) / 3600.0
-        if hall_age > a.hall_hours:
-            hall_stale = 1
-    else:
-        # 没有汇总文件时按分区各自 hall.json 判（现阶段是每区一份）
-        hall_ages = []
-        for k in keys:
-            hp = os.path.join(SERVER_DIR, k, "hall.json")
-            if os.path.exists(hp):
-                hall_ages.append((now - updated_ts(read_json(hp))) / 3600.0)
-        if hall_ages and max(hall_ages) > a.hall_hours:
-            hall_stale = 1
-        hall_age = max(hall_ages) if hall_ages else None
+    # 名人堂按批次判：十一区拆成三批定时抓（plan_refresh.HALL_BATCHES），
+    # 每批只看自己那几个区的 hall.json，任一批过期就只补那一批，
+    # 不用为一批过期把十一区 950 份档案全重抓一遍（那正是会超时的原因）。
+    hall_stale_batches = []
+    for batch, bkeys in HALL_BATCHES.items():
+        b_path = os.path.join(SERVER_DIR, "..", "hall.json")
+        b_age = None
+        if os.path.exists(b_path):
+            # 汇总文件存在就全批共用它（现阶段不产出，留作以后合并成单文件）
+            b_age = (now - updated_ts(read_json(b_path))) / 3600.0
+        else:
+            b_ages = []
+            for k in bkeys:
+                hp = os.path.join(SERVER_DIR, k, "hall.json")
+                if os.path.exists(hp):
+                    b_ages.append((now - updated_ts(read_json(hp))) / 3600.0)
+            b_age = max(b_ages) if b_ages else None
+        if b_age is None:
+            print("# %-8s 无数据（该批 hall.json 还没产出）" % batch, file=sys.stderr)
+            hall_stale_batches.append(batch)
+        else:
+            print("# %-8s %5.1f 小时前" % (batch, b_age), file=sys.stderr)
+            if b_age > a.hall_hours:
+                hall_stale_batches.append(batch)
 
     print("# 过期高手榜：%s" % ("、".join(stale) or "无"), file=sys.stderr)
-    print("# 名人堂最大年龄：%s" % ("%.1f 小时" % hall_age if hall_age is not None else "无数据"),
-          file=sys.stderr)
+    print("# 过期名人堂批次：%s" % ("、".join(hall_stale_batches) or "无"), file=sys.stderr)
     print("servers=%s" % ",".join(stale))
-    print("hall=%d" % hall_stale)
+    print("hall=%s" % ",".join(hall_stale_batches))
     return 0
 
 

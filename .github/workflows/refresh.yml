@@ -10,7 +10,12 @@ name: 刷新高手榜
 #   0 18 * * *  → 次日 02:00  华为（huawei）
 #   0 0 * * *   → 当日 08:00  野马分鬃（ios2）
 #   0 2 * * *   → 当日 10:00  仙人指路（ios3）
-#   0 12 * * *  → 当日 20:00  名人堂（11 区一次抓全，游戏 boardType=4，指标=江湖阅历）
+#   0 12 * * *  → 当日 20:00  名人堂第 1 批（苍松迎客+白鹤亮翅+丹凤朝阳+墨羽惊鸿）
+#   20 12 * * * → 当日 20:20  名人堂第 2 批（4399+应用汇+其他服+华为）
+#   40 12 * * * → 当日 20:40  名人堂第 3 批（老马识途+野马分鬃+仙人指路）
+# 名人堂必须拆批：游戏 boardType=4 是全局参数，一次只能抓一种榜；11 区一次抓全要
+# 重抓十一区前百档案（约 950 份），11-22/23/24 三次定时任务全部在 3617s 被 timeout 强杀。
+# 拆成 4+4+3 后每批只抓本区名人堂的约 10 人（fetch_profiles.py --hall-only），单批 2–4 分钟。
 # 单区全量约 5–8 分钟，各任务互不重叠，也避免连续请求触发限流。
 # 每轮抓完就重建昵称索引（data/lookup-index.json），保证刚上榜的人立刻能按昵称搜到。
 on:
@@ -24,7 +29,9 @@ on:
     - cron: '0 18 * * *'   # 次日 02:00 华为
     - cron: '0 0 * * *'    # 08:00 野马分鬃
     - cron: '0 2 * * *'    # 10:00 仙人指路
-    - cron: '0 12 * * *'   # 20:00 名人堂（11 区）
+    - cron: '0 12 * * *'   # 20:00 名人堂第 1 批
+    - cron: '20 12 * * *'  # 20:20 名人堂第 2 批
+    - cron: '40 12 * * *'  # 20:40 名人堂第 3 批
   workflow_dispatch:
     inputs:
       mode:
@@ -42,8 +49,10 @@ on:
         # 而同组 concurrency 只放 1 running + 1 pending，其余全被 cancel。
         # --server 全链路（fetch.py / fetch_profiles.py / merge_exp.py / summary.py）
         # 都支持逗号分隔，这里只要能把串传进去。
-        # all = 十一区全量；单个区名照旧；hall11 必须单独跑（board 是全局参数）。
-        description: '目标分区：all / 单区名 / 逗号串（taptap,taptap_4）/ hall11（名人堂只能单独跑）'
+        # all = 十一区全量；单个区名照旧；名人堂标记必须单独跑（board 是全局参数）。
+        # 名人堂分三批：hall_b1（taptap 四区）/ hall_b2（4399+yyh+guanfang+huawei）/ hall_b3（ios 三区），
+        # 也可以把几个批合成一次：hall_b1,hall_b2。hall11 = 十一区一次抓全（只在手动排查时用）。
+        description: '目标分区：all / 单区名 / 逗号串（taptap,taptap_4）/ hall_b1|hall_b2|hall_b3（名人堂批次）'
         required: true
         default: 'all'
         type: string
@@ -174,24 +183,28 @@ jobs:
           fi
 
       - name: 抓玩家档案
-        # 每个区的定时任务都是一次全量，所以只要不是 probe/board 就抓档案。
-        # 名人堂任务也抓：网页上点名人堂的人要能页内看详情，而这些玩家可能不在前百高手榜里，
-        # fetch_profiles.py 会额外把同目录 hall.json 的行并进目标（顺带也会刷新本区前百的档案）。
+        # 普通定时任务（board=1）一次抓本区前百 + 索引 extra 的档案。
+        # 名人堂任务（board=4）只抓本区 hall.json 里那 10 个人（--hall-only）：
+        # 十一区一次抓全时这一步要重抓约 950 份，曾经三次定时任务全在 3617s 被强杀；
+        # 拆成三批 4+4+3 之后每批只抓 30 来个人，2-4 分钟就完。
         if: (github.event_name == 'schedule') || (inputs.mode == 'full')
         env:
           FZJH_SERVERS: ${{ secrets.FZJH_SERVERS }}
           FZJH_HOTVER: ${{ secrets.FZJH_HOTVER }}
           T: ${{ steps.t.outputs.servers }}
+          B: ${{ steps.t.outputs.board }}
         run: |
-          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch_profiles.py
-          else python scripts/fetch_profiles.py --server "$T"; fi
+          HALL_ARG=""
+          if [ -n "$B" ] && [ "$B" != "1" ]; then HALL_ARG="--hall-only"; fi
+          if [ -z "$T" ] || [ "$T" = "all" ]; then python scripts/fetch_profiles.py $HALL_ARG
+          else python scripts/fetch_profiles.py --server "$T" $HALL_ARG; fi
 
       - name: 合并档案经验
         # 档案抓完再合并：get_board 对不活跃玩家会返回旧经验，用 get_user_info 的值覆盖，
         # 让表格、详情、增长曲线统一口径。名次仍是游戏原始名次，不重排。
         # 名人堂任务照跑：它只认 gaoshoubang.json，绝不碰 hall.json；
-        # 而名人堂任务确实重抓了十一区前百档案，跳过反而会让「档案 exp 比榜单新」的不一致
-        # 一直挂到各区自己的定时任务，正是这一步要消除的。
+        # 而 --hall-only 只抓本区名人堂那十来个、不重抓前百，
+        # 所以这里只更新名人堂玩家自己的档案 exp，不会顺带「刷新前百」。
         if: (github.event_name == 'schedule') || (inputs.mode == 'full')
         env:
           T: ${{ steps.t.outputs.servers }}

@@ -12,6 +12,9 @@ merge_exp.py 再把经验写回榜单。旧版曾写入 data/players.json，已�
   python scripts/fetch_profiles.py              # 抓全部（约 100 次请求，1 分钟左右）
   python scripts/fetch_profiles.py --limit 5    # 只抓前 5 名（调试）
   python scripts/fetch_profiles.py --only 3413862 3464549
+  python scripts/fetch_profiles.py --server "taptap,taptap_2" --hall-only
+                                                # 名人堂批次：只抓本区 hall.json 的人（每区 ≤10 人），
+                                                # 需先跑 fetch.py --board 4 生成 hall.json
 """
 import io
 import json
@@ -291,9 +294,21 @@ def fetch_server(srv, names, args):
     for r in hall:
         rows.setdefault(r["userid"], r)
 
+    # --hall-only（refresh.yml 的名人堂分批任务）：目标集合只取本区 hall.json 的人。
+    # 前百高手榜 / index-extra 仍然读进来补 rows（slim() 要从 rows 取
+    # menpai/fuyuan/rank，同一玩家按高手榜那行算，口径和以前一致），
+    # 但它们不进目标集合；也不做 maxRank / --limit 截断 —— 名人堂每区最多 10 人。
+    hall_only = "--hall-only" in args
+    if hall_only and not hall:
+        print("!! %s 还没有名人堂数据，先跑 fetch.py --board 4 --server %s" % (srv["name"], srv["key"]))
+        return 1
+
     if "--only" in args:
         i = args.index("--only")
         targets = [int(x) for x in args[i + 1:] if x.isdigit()]
+    elif hall_only:
+        targets = [r["userid"] for r in hall]
+        print("      名人堂批次：只抓本区 hall.json 的 %d 位（不抓前百 / 索引 extra）" % len(targets))
     else:
         targets = [r["userid"] for r in board.get("rows", [])]
         targets += [r["userid"] for r in extra if r["userid"] not in set(targets)]
@@ -471,7 +486,8 @@ def fetch_server(srv, names, args):
         written += 1
 
     removed = kept_dropped = 0
-    if "--only" not in args and "--limit" not in args and not fail:
+    if ("--only" not in args and "--limit" not in args
+            and "--hall-only" not in args and not fail):
         # 只有本轮 100% 抓成功才敢清理。否则一旦上游漏抓（或接口限流少给几页），
         # 这里会把没抓到的人当成「已下榜」整批删档 —— 2026-11-15 就这么删过 49 份。
         removed, kept_dropped = prune_profiles(out_dir, targets)
