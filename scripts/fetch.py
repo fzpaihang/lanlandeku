@@ -1113,16 +1113,23 @@ def main():
         max_pages = int(args[args.index("--max-pages") + 1])
 
     rc = 0
+    failed = []
     for i, s in enumerate(targets, 1):
         print("\n===== [%d/%d] %s · %s =====" % (i, len(targets), s["name"], s["channel"]))
         try:
             if fetch_server(s, board, max_pages) != 0:
                 rc = 1
+                failed.append(s["key"])
         except Exception as e:
             print("!! 抓取失败：%s: %s" % (type(e).__name__, e))
             rc = 1
+            failed.append(s["key"])
         if i < len(targets):
             time.sleep(2)
+    if failed:
+        # 给 refresh.yml 的重试循环用：只重跑失败的分区，别让一个区拖着重跑全部。
+        # 用单独一行固定格式输出，日志里照样能看见（不要改成写文件，CI 步骤之间不共享 /tmp）。
+        print("FAILED_SERVERS=%s" % ",".join(failed))
     return rc
 
 

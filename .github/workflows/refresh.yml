@@ -37,24 +37,16 @@ on:
           - full         # 榜单 + 档案
           - board        # 只抓榜单
       server:
-        description: '目标分区（手动触发时生效，定时任务由 cron 决定）'
+        # 从 choice 改成 string：看门狗要把「所有过期分区」一次派发成一个 run
+        # （逗号串 taptap,taptap_4），choice 型只能选一个，历史上只能派 N 个 run，
+        # 而同组 concurrency 只放 1 running + 1 pending，其余全被 cancel。
+        # --server 全链路（fetch.py / fetch_profiles.py / merge_exp.py / summary.py）
+        # 都支持逗号分隔，这里只要能把串传进去。
+        # all = 十一区全量；单个区名照旧；hall11 必须单独跑（board 是全局参数）。
+        description: '目标分区：all / 单区名 / 逗号串（taptap,taptap_4）/ hall11（名人堂只能单独跑）'
         required: true
         default: 'all'
-        type: choice
-        options:
-          - all
-          - taptap
-          - taptap_2
-          - taptap_3
-          - taptap_4
-          - 4399
-          - yyh
-          - guanfang
-          - huawei
-          - ios1
-          - ios2
-          - ios3
-          - hall11       # 名人堂（11 区一次抓全，抓 board 4，产出 hall.json）
+        type: string
 
 permissions:
   contents: write
@@ -68,10 +60,14 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    # 单区全量实测 7–8 分钟；六区一次跑（server=all）历史最长 29 分钟（五区时），
-    # 加了应用汇后预计 32–35 分钟。提到 60 分钟留足余量，避免「手动全量」
-    # 被中断导致整批数据不提交（提交失败会留 artifact，但数据仍是白跑一次）。
-    timeout-minutes: 60
+    # 单区全量实测 2–3 分钟（档案约 105s 是大头）；六区一次跑历史最长 29 分钟，
+    # 十一区全量（server=all）约 30–35 分钟。
+    # 现在看门狗会把「所有过期分区」合成一个逗号串派发，长时间停更后一次可能塞进
+    # 十一区；最坏情况（十一区全量 33 分钟 + 两轮限流冷却 240s/480s + 两轮各补抓
+    # 十几个区）约 75 分钟，60 分钟不够。超时是硬杀，连「提交数据」（always()）
+    # 都不会跑，整批白抓，所以放宽到 120 分钟。
+    # 不放到更大：这个 run 占着 fzjh-data 队列，拖太久会把它后面的定时任务全堵住。
+    timeout-minutes: 120
 
     steps:
       - name: 检出仓库
@@ -145,18 +141,30 @@ jobs:
           # 上面已经失败过，后面所有步骤都会被跳过，数据照样不提交。
           # 用法注意：GitHub Actions 的 run 默认是 bash -e，所以「失败不算错」的命令
           # 必须放进 if 条件里（if cmd; then），不能写成 cmd && x —— 后者在 -e 下会直接退出。
-          ok=0
-          for i in 1 2 3; do
-            echo "===== 第 $i 轮抓取 ====="
-            if [ -z "$T" ] || [ "$T" = "all" ]; then
-              if python scripts/fetch.py $BOARD_ARG; then ok=1; fi
+          # 重跑时只重跑上一轮失败的分区：fetch.py 失败时会在末尾打印
+          # FAILED_SERVERS=a,b。以前是整轮重跑（一个区撞限流，十个区跟着白跑）。
+          run_fetch() {
+            if [ -z "$1" ] || [ "$1" = "all" ]; then
+              python scripts/fetch.py $BOARD_ARG
             else
-              if python scripts/fetch.py --server "$T" $BOARD_ARG; then ok=1; fi
+              python scripts/fetch.py --server "$1" $BOARD_ARG
             fi
-            if [ "$ok" = "1" ]; then break; fi
+          }
+          ok=0
+          todo="$T"
+          for i in 1 2 3; do
+            echo "===== 第 $i 轮抓取（目标：${todo:-all}）====="
+            if out=$(run_fetch "$todo" 2>&1); then rc=0; else rc=$?; fi
+            printf '%s\n' "$out"
+            if [ "$rc" = "0" ]; then ok=1; break; fi
+            failed=$(printf '%s\n' "$out" | sed -n 's/^FAILED_SERVERS=//p' | tail -1)
+            if [ -n "$failed" ]; then
+              echo "本轮失败分区：$failed"
+              todo="$failed"
+            fi
             if [ "$i" -lt 3 ]; then
               cool=$((i * 240))
-              echo "第 $i 轮失败（多为接口限流），冷却 ${cool}s 后整轮重试"
+              echo "第 $i 轮失败（多为接口限流），冷却 ${cool}s 后重试失败的分区"
               sleep "$cool"
             fi
           done
