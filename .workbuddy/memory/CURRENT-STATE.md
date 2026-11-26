@@ -1,7 +1,12 @@
 # 项目当前状态（交接用）
 
 > 这份文件代替「翻聊天记录」。**新会话先读它，再按需读具体文档**。
-> 最后更新：2026-11-26 17:05（**名人堂拆三批次：11 区一次抓全必然超时，改成 4+4+3 三批 + `fetch_profiles --hall-only`**）
+> 最后更新：2026-11-26 22:10（**名人堂三批次首次真跑全部成功：480s / 343s / 112s，11 区 hall.json 全部刷新**）
+<br>**① 实测**：三条 hall cron（北京 20:00 / 20:20 / 20:40）当天首次真跑：`hall_b1` run **`45825230718` success 480s**（抓档案 415s）、`hall_b2` run **`45831009090` success 343s**（抓档案 273s）、`hall_b3` run **`45833814348` success 112s**（抓档案 ~70s）。对照改造前三次定时任务 **3620 / 3621 / 3621 秒被 60 分钟 timeout 强杀**（`45023568576` / `45179389947` / `45398760125`）。
+<br>**② `--hall-only` 生效率**：抓档案每区只写 9–12 份 —— b1 12/10/9/10（四区）、b2 9/10/10/10、b3 10/10/10，全部「失败 0 份」；对比修复前每轮约 950 份。
+<br>**③ 数据落地**：线上 11 区 `hall.json` 全部刷新 —— taptap 21:02:43 / taptap_2 21:02:51 / taptap_3 21:02:58 / taptap_4 21:03:05 / 4399 21:38:22 / yyh 21:38:32 / guanfang 21:38:42 / huawei 21:38:49 / ios1 21:55:33 / ios2 21:55:40 / ios3 21:55:46；行数 10/10/9/10/9/10/10/10/10/10/10（taptap_3、4399 各 9 行＝剔掉对应隐藏玩家）。
+<br>**④ 注意**：当天三条 cron 实际触发比预排晚约 60 分钟（13:02Z / 13:37Z / 13:55Z ≈ 北京 21:02 / 21:37 / 21:55），是 GitHub 定时任务排队延迟 + `concurrency: fzjh-data` 串行所致，**不是 cron 配错**。
+<br>——上一条：2026-11-26 17:05（**名人堂拆三批次：11 区一次抓全必然超时，改成 4+4+3 三批 + `fetch_profiles --hall-only`**）
 <br>**① 问题**：名人堂任务（`board=4`）的「抓玩家档案」沿用普通任务的逻辑，把十一区前百 + 索引 extra 共约 **950 份档案全量重抓一遍**，而名人堂每区只要 9–10 人。11-22 / 11-23 / 11-24 三次定时任务**全部在 3617 秒（60 分钟）被 timeout 强杀**（run `45023568576` / `45179389947` / `45398760125`，抓榜 860–942s + 抓档案 1721–1843s 还没完）→ **名人堂从来没成功跑完过**。11-26 手动派发的 `45775748607` 同样卡在抓档案 64+ 分钟。
 <br>**② 改法（三件事）**：⑴ `scripts/fetch_profiles.py` 新增 **`--hall-only`**：目标集合只取本区 `hall.json` 的人（前百 / extra 仍读进来给 `slim()` 补 menpai/fuyuan/rank，但不进目标、也不做 maxRank 截断），`prune_profiles` 也随之跳过（不能把没抓的档案当过期删掉）；hall.json 缺失直接 `return 1` 并提示先跑 `fetch.py --board 4`。⑵ `scripts/plan_refresh.py` 新增 `HALL_BATCHES`（`hall_b1`=taptap 四区 / `hall_b2`=4399+yyh+guanfang+huawei / `hall_b3`=ios 三区）+ `is_hall_marker()` + `hall_keys_for()`，`SCHEDULE_MAP` 把 `0 12` 换成 **20:00 hall_b1 / 20:20 hall_b2 / 20:40 hall_b3**；多个 hall 标记可以合并（`--pick hall_b1,hall_b2` → board=4、8 区），但**任何一个 hall 标记掺进普通分区就直接 `SystemExit`**（`--board` 是全局参数）。`hall11`（11 区全集）保留向后兼容。⑶ `refresh.yml` 补两条 cron、「抓玩家档案」步骤在 `board != 1` 时追加 `--hall-only`（env 加 `B`）；`watchdog.yml` 的 `HALL=1` 改成派发 `check_stale.py` 输出的**批次串**，`scripts/check_stale.py` 重写 hall 判定为**按批判**（import `plan_refresh.HALL_BATCHES`，加批次不用改两处）并输出 `hall=hall_b1,hall_b3` 这种逗号串（`hall=1` 仍退化成 `hall11`）。
 <br>**③ 验证**：`hall_batch_test.py` **93 项 PASS**、`hall_only_test.py` **35 项 PASS**、`ci_opt_test.py` **75 项 PASS**（含新增 check_stale 按批判过期 5 条 + workflow 内容校验 8 条）、`ci_bash_test.py` 8 场景 PASS、`ci_wd_test.py` 9 场景 PASS（含 `hall=1 → hall11` 兼容）；`preflight` 13 通过 / 2 警告 / 0 失败。发布 **`876b7388cce4`**（5 文件）。
@@ -505,6 +510,10 @@ URL 形态：`?me=<sha256>`（网页手填）或 `?k=<sha256>`（APK 用的，�
 
 | 版本 | 内容 |
 |---|---|
+| CI | **2026-11-26 22:10 名人堂三批次首次真跑全部成功**（480s / 343s / 112s，对照旧 3620–3621s 强杀）。
+<br>**实测**：`hall_b1` run `45825230718` success **480s**（探测 25s / 抓榜 26s / 抓档案 415s，12/10/9/10 份）、`hall_b2` run `45831009090` success **343s**（21s / 32s / 273s，9/10/10/10 份）、`hall_b3` run `45833814348` success **112s**（10/10/10 份），全部「失败 0 份」。
+<br>**数据**：线上 11 区 `hall.json` 全部刷新到 21:02–21:55（b1 四区 21:02–21:03、b2 四区 21:38、b3 三区 21:55），行数 10/10/9/10/9/10/10/10/10/10/10。
+<br>**注意**：GitHub 定时任务实际触发比预排晚约 60 分钟（13:02Z/13:37Z/13:55Z），是排队延迟不是配置问题。
 | CI | **2026-11-26 17:05 名人堂拆三批次（4+4+3）**（用户 m09183「名人堂拆分成三批次吧，现在不要跑全区run，太浪费时间了」）。
 <br>**根因**：名人堂（board=4）的「抓玩家档案」沿用普通任务逻辑，把十一区前百+extra 约 **950 份**全量重抓，而每区只要 9–10 人 → 11-22/23/24 三次定时任务**全部在 3617s 被 timeout 强杀**，名人堂从未成功跑完。
 <br>**改法**：①`fetch_profiles.py` 新增 `--hall-only`（只抓本区 hall.json 的人、不做 maxRank 截断、不触发 prune_profiles）；②`plan_refresh.py` 新增 `HALL_BATCHES`（b1=taptap 四区 / b2=4399+yyh+guanfang+huawei / b3=ios 三区）+ `is_hall_marker()` + `hall_keys_for()`，cron 拆成 `0 12`/`20 12`/`40 12` 三条，多批可合并、掺普通分区直接报错；③`refresh.yml` 补两条 cron、抓档案步按 `board!=1` 追加 `--hall-only`；④`check_stale.py` 改为**按批判过期**并 import `plan_refresh.HALL_BATCHES`，输出 `hall=hall_b1,hall_b3`；⑤`watchdog.yml` 派发批次串（`hall=1` 仍退化为 `hall11`）。
