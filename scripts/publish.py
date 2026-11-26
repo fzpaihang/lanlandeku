@@ -23,6 +23,7 @@ import io
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -233,9 +234,17 @@ def main():
     call("PATCH", "/repos/%s/git/refs/heads/main" % REPO,
          {"sha": commit["sha"], "force": False})
 
-    now = call("GET", "/repos/%s/git/ref/heads/main" % REPO)["object"]["sha"]
+    # 推送后回读校验。GitHub 的 ref 读取有秒级延迟，PATCH 成功后立刻 GET
+    # 可能拿到上一版 sha（2026-11-26 实测：提交其实已成功，却报「与预期不一致」
+    # 让一次正常发布看起来像失败），所以重试几次再判失败。
+    now = ""
+    for i in range(6):
+        now = call("GET", "/repos/%s/git/ref/heads/main" % REPO)["object"]["sha"]
+        if now == commit["sha"]:
+            break
+        time.sleep(1 + i)
     if now != commit["sha"]:
-        die("推送后远端 HEAD=%s 与预期 %s 不一致" % (now[:12], commit["sha"][:12]))
+        die("推送后远端 HEAD=%s 与预期 %s 不一致（已重试 6 次）" % (now[:12], commit["sha"][:12]))
     print("\n已提交 %s" % commit["sha"][:12])
     print("https://github.com/%s/commit/%s" % (REPO, commit["sha"]))
     return 0
