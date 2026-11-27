@@ -2,8 +2,8 @@
  "servers": {
   "taptap": {
    "server": "taptap",
-   "updatedAt": "2026-11-27 06:49:20",
-   "updatedTs": 1795733360,
+   "updatedAt": "2026-11-28 06:50:28",
+   "updatedTs": 1795819828,
    "boardTotal": 100,
    "rows": [
     {
@@ -13,7 +13,7 @@
      "menpai": "问情宫",
      "lv": 3736,
      "kongfu": 1977.67,
-     "exp": 5232021186.0,
+     "exp": 5232190437.0,
      "money": 371814751,
      "yueli": 863951,
      "xiayi": 581730.5,
@@ -35,12 +35,12 @@
      "name": "微生梦",
      "menpai": "蓬莱岛",
      "lv": 3459,
-     "kongfu": 1886,
-     "exp": 4154522017.0,
-     "money": 372622512,
-     "yueli": 746202,
+     "kongfu": 1886.33,
+     "exp": 4154663193.0,
+     "money": 373449397,
+     "yueli": 746577,
      "xiayi": 187792,
-     "looks": 4199,
+     "looks": 4198,
      "fuyuan": 205,
      "age": 390,
      "sex": "女",
@@ -48,14 +48,14 @@
      "inheritCount": 5,
      "prevRank": 43,
      "delta": 0,
-     "expBoard": 4150965549.62,
-     "lvBoard": 3458,
+     "expBoard": 4154663192.817,
+     "lvBoard": 3459,
      "expSrc": "profile"
     }
    ],
-   "mergedAt": "2026-11-27 21:05:42"
+   "mergedAt": "2026-11-28 07:08:11"
   }
  },
- "updatedAt": "2026-11-27 06:49:20",
- "updatedTs": 1795733360
+ "updatedAt": "2026-11-28 06:50:28",
+ "updatedTs": 1795819828
 }
