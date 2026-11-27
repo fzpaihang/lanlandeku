@@ -1,8 +1,8 @@
 {
  "board": "名人堂",
  "boardType": 4,
- "updatedAt": "2026-11-26 21:55:40",
- "updatedTs": 1795701340,
+ "updatedAt": "2026-11-27 21:55:30",
+ "updatedTs": 1795787730,
  "hasPrev": true,
  "total": 10,
  "rows": [
@@ -153,9 +153,9 @@
    "menpai": "虚渺宫",
    "lv": 3638,
    "kongfu": 1946,
-   "exp": 4832574252.2715,
-   "money": 130571787,
-   "yueli": 1094354,
+   "exp": 4834649320.2572,
+   "money": 130765285,
+   "yueli": 1094805,
    "xiayi": 232219.6,
    "looks": 3398,
    "fuyuan": 190,
