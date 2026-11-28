@@ -1,8 +1,8 @@
 {
  "board": "名人堂",
  "boardType": 4,
- "updatedAt": "2026-11-27 21:55:30",
- "updatedTs": 1795787730,
+ "updatedAt": "2026-11-28 21:43:53",
+ "updatedTs": 1795873433,
  "hasPrev": true,
  "total": 10,
  "rows": [
@@ -68,14 +68,34 @@
   },
   {
    "rank": 4,
+   "userid": 8046996840,
+   "name": "无敌洛克",
+   "menpai": "雪山寺",
+   "lv": 3876,
+   "kongfu": 1658.67,
+   "exp": 5844586201.2962,
+   "money": 968904287.61401,
+   "yueli": 1162844,
+   "xiayi": -42464,
+   "looks": 6242,
+   "fuyuan": 200,
+   "age": 424,
+   "sex": "男",
+   "wuxing": 255,
+   "inheritCount": null,
+   "prevRank": 7,
+   "delta": 3
+  },
+  {
+   "rank": 5,
    "userid": 8046977268,
    "name": "离九歌易",
    "menpai": "雪山寺",
-   "lv": 3860,
-   "kongfu": 2020,
-   "exp": 5770495646.0323,
-   "money": 1651861891,
-   "yueli": 1161194,
+   "lv": 3861,
+   "kongfu": 2020.33,
+   "exp": 5773966478.3866,
+   "money": 1653350892,
+   "yueli": 1161464,
    "xiayi": -40350,
    "looks": 8705,
    "fuyuan": 240,
@@ -84,10 +104,10 @@
    "wuxing": 255,
    "inheritCount": null,
    "prevRank": 4,
-   "delta": 0
+   "delta": -1
   },
   {
-   "rank": 5,
+   "rank": 6,
    "userid": 8046905777,
    "name": "白掌门",
    "menpai": "拜日教",
@@ -104,10 +124,10 @@
    "wuxing": 255,
    "inheritCount": null,
    "prevRank": 5,
-   "delta": 0
+   "delta": -1
   },
   {
-   "rank": 6,
+   "rank": 7,
    "userid": 8046968866,
    "name": "幸福大路",
    "menpai": "华山",
@@ -124,27 +144,7 @@
    "wuxing": 10,
    "inheritCount": null,
    "prevRank": 6,
-   "delta": 0
-  },
-  {
-   "rank": 7,
-   "userid": 8046996840,
-   "name": "无敌洛克",
-   "menpai": "雪山寺",
-   "lv": 3873,
-   "kongfu": 2024.33,
-   "exp": 5829032671.1832,
-   "money": 964686165,
-   "yueli": 1159866,
-   "xiayi": -42264,
-   "looks": 6242,
-   "fuyuan": 200,
-   "age": 424,
-   "sex": "男",
-   "wuxing": 255,
-   "inheritCount": null,
-   "prevRank": 7,
-   "delta": 0
+   "delta": -1
   },
   {
    "rank": 8,
